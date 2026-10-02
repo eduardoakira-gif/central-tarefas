@@ -49,7 +49,18 @@
     frequencyHours: 2,
     startTime: '08:00',
     endTime: '20:00',
+    dailySummary: true,
+    dailySummaryTime: '08:00',
   };
+
+  const RECURRENCES = [
+    { id: 'daily', name: 'Todo dia' },
+    { id: 'weekdays', name: 'Dias úteis' },
+    { id: 'weekly', name: 'Toda semana' },
+    { id: 'biweekly', name: 'A cada 2 semanas' },
+    { id: 'monthly', name: 'Todo mês' },
+  ];
+  const RECURRENCE_MAP = byId(RECURRENCES);
 
   function mergeSettings(saved) {
     return Object.assign({}, DEFAULT_SETTINGS, saved || {});
@@ -104,6 +115,12 @@
     let area = t.area == null ? '' : String(t.area);
     if (areaIds && areaIds.length && !areaIds.includes(area)) area = areaIds[0];
     const str = (v) => (v == null ? '' : String(v));
+    const checklist = Array.isArray(t.checklist)
+      ? t.checklist.filter((c) => c && str(c.text).trim()).map((c) => ({ id: str(c.id) || uid(), text: str(c.text).trim(), done: !!c.done }))
+      : [];
+    const comments = Array.isArray(t.comments)
+      ? t.comments.filter((c) => c && str(c.text).trim()).map((c) => ({ id: str(c.id) || uid(), text: str(c.text), at: c.at || now }))
+      : [];
     return {
       id: str(t.id) || uid(),
       title: str(t.title).trim(),
@@ -123,7 +140,53 @@
       updatedAt: t.updatedAt || now,
       completedAt: t.completedAt || null,
       prevStatus: t.prevStatus || null,
+      checklist,
+      comments,
+      recurrence: RECURRENCE_MAP[t.recurrence] ? t.recurrence : null,
+      noteId: t.noteId ? str(t.noteId) : null,
+      deletedAt: t.deletedAt || null,
     };
+  }
+
+  function normalizeNote(n) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    return {
+      id: str(n.id) || uid(),
+      title: str(n.title).slice(0, 200),
+      date: validDate(n.date) || toDateKey(new Date()),
+      participants: str(n.participants).slice(0, 500),
+      body: str(n.body),
+      taskIds: Array.isArray(n.taskIds) ? n.taskIds.map(String) : [],
+      createdAt: n.createdAt || now,
+      updatedAt: n.updatedAt || now,
+    };
+  }
+
+  /** Próxima data de uma tarefa recorrente (sempre hoje ou depois). */
+  function nextRecurrenceDate(fromKey, rule, now) {
+    const today = toDateKey(now || new Date());
+    let key = fromKey || today;
+    const step = (k) => {
+      const d = fromDateKey(k);
+      if (rule === 'daily') d.setDate(d.getDate() + 1);
+      else if (rule === 'weekdays') {
+        do d.setDate(d.getDate() + 1); while (d.getDay() === 0 || d.getDay() === 6);
+      } else if (rule === 'weekly') d.setDate(d.getDate() + 7);
+      else if (rule === 'biweekly') d.setDate(d.getDate() + 14);
+      else if (rule === 'monthly') {
+        const day = fromDateKey(fromKey || today).getDate();
+        const m = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        const last = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+        m.setDate(Math.min(day, last));
+        return toDateKey(m);
+      }
+      return toDateKey(d);
+    };
+    key = step(key);
+    let guard = 0;
+    while (key < today && guard++ < 400) key = step(key);
+    return key;
   }
 
   /**
@@ -134,6 +197,7 @@
   function classify(t, now) {
     now = now || new Date();
     const today = toDateKey(now);
+    if (t.deletedAt) return { section: 'deleted', actionable: false };
     if (t.status === 'done') return { section: 'done', actionable: false };
 
     if (t.status === 'waiting') {
@@ -205,7 +269,7 @@
     now = now || new Date();
     const items = [];
     for (const t of tasks) {
-      if (t.status === 'done') continue;
+      if (t.status === 'done' || t.deletedAt) continue;
       const c = classify(t, now);
       if (c.actionable) items.push(t);
     }
@@ -247,6 +311,30 @@
       total,
       counts,
     };
+  }
+
+  /** Resumo da manhã: só o que é para hoje (inclui atrasadas e cobranças). */
+  function buildDailySummary(tasks, now) {
+    now = now || new Date();
+    const items = tasks.filter((t) => {
+      const c = classify(t, now);
+      return c.actionable && (c.today || c.overdue);
+    });
+    if (!items.length) return null;
+    let overdue = 0;
+    let followups = 0;
+    for (const t of items) {
+      const c = classify(t, now);
+      if (c.followUpDue) followups++;
+      else if (c.overdue) overdue++;
+    }
+    const dueToday = items.length - overdue - followups;
+    const parts = [];
+    if (dueToday) parts.push(dueToday + ' para hoje');
+    if (overdue) parts.push(plural(overdue, 'atrasada', 'atrasadas'));
+    if (followups) parts.push(plural(followups, 'retorno para cobrar', 'retornos para cobrar'));
+    const top = sortTasks(items, now).slice(0, 3).map((t) => '• ' + (classify(t, now).followUpDue ? 'Cobrar retorno: ' : '') + t.title);
+    return { title: 'Seu dia', body: ['Bom dia! Hoje você tem ' + joinPt(parts) + '.', '', 'Comece por:', ...top].join('\n') };
   }
 
   // ---------------------------------------------------------------------------
@@ -348,6 +436,7 @@
   root.Core = {
     AREA_COLORS, LEGACY_AREAS, STATUSES, PRIORITIES, STATUS_MAP, PRIORITY_MAP,
     DEFAULT_SETTINGS, mergeSettings, newAreaId, nextAreaColor,
+    RECURRENCES, RECURRENCE_MAP, normalizeNote, nextRecurrenceDate, buildDailySummary,
     pad, toDateKey, fromDateKey, addDays, toMin, uid,
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,

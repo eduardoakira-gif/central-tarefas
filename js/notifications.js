@@ -12,6 +12,7 @@
  */
 import { api, apiConfigured } from './api.js';
 import { Local } from './storage.js';
+import { Sync } from './sync.js';
 
 const C = window.Core;
 const TAG = 'central-tarefas';
@@ -81,6 +82,19 @@ export const Notifier = {
     if (this.permission() !== 'granted') return { skipped: 'permission' };
     const now = new Date();
     const settings = C.mergeSettings(central.settings);
+    if (!settings.notificationsEnabled) return { skipped: 'off' };
+
+    // resumo do dia: uma vez por dia, a partir do horário escolhido (até 3h depois)
+    const today = C.toDateKey(now);
+    const minutes = now.getHours() * 60 + now.getMinutes();
+    const summaryAt = C.toMin(settings.dailySummaryTime) ?? 480;
+    if (settings.dailySummary && device.lastSummaryOn !== today && minutes >= summaryAt && minutes < summaryAt + 180) {
+      const s = C.buildDailySummary(tasks, now);
+      if (s) await this.show({ title: central.name + ': seu dia', body: s.body });
+      await Local.patchDevice(centralId, { lastSummaryOn: today, lastNotifiedAt: now.toISOString() });
+      return { sent: !!s, summary: true };
+    }
+
     if (!C.isReminderDue(settings, device.lastNotifiedAt, now)) return { skipped: 'not-due' };
     const digest = this.localDigest(central, tasks);
     if (digest) await this.show(digest);
@@ -129,8 +143,7 @@ export const Notifier = {
     if (!sub) {
       sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) });
     }
-    await api('subscribe', {
-      centralId,
+    await Sync.call('subscribe', {
       subscription: sub.toJSON(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo',
     });
@@ -143,7 +156,7 @@ export const Notifier = {
         const reg = await navigator.serviceWorker.ready;
         const sub = await reg.pushManager.getSubscription();
         // a assinatura do navegador é mantida, porque outras centrais podem usá-la
-        if (sub) await api('unsubscribe', { centralId, endpoint: sub.endpoint });
+        if (sub) await Sync.call('unsubscribe', { endpoint: sub.endpoint });
       } catch (err) {
         console.warn(err);
       }
@@ -157,7 +170,7 @@ export const Notifier = {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (!sub) throw new Error('A inscrição deste dispositivo expirou. Ative as notificações de novo.');
-      await api('testPush', { centralId, endpoint: sub.endpoint });
+      await Sync.call('testPush', { endpoint: sub.endpoint });
       return 'push';
     }
     if (this.permission() !== 'granted') throw new Error('Ative as notificações neste dispositivo primeiro.');

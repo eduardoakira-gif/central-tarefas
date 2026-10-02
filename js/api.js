@@ -5,15 +5,16 @@
 import { API_URL } from './config.js';
 
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, code = '') {
     super(message);
     this.status = status; // 0 = sem conexão
+    this.code = code; // ex.: pin_required, pin_invalid, not_found, ai_not_configured
   }
 }
 
 export const apiConfigured = () => /^https:\/\//.test(API_URL) && !API_URL.includes('SEU-PROJETO');
 
-export async function api(action, payload = {}, { timeout = 15000 } = {}) {
+export async function api(action, payload = {}, { timeout = 20000 } = {}) {
   if (!apiConfigured()) {
     throw new ApiError('O endereço do servidor ainda não foi configurado no arquivo js/config.js.', -1);
   }
@@ -36,6 +37,6 @@ export async function api(action, payload = {}, { timeout = 15000 } = {}) {
   try {
     data = await res.json();
   } catch {}
-  if (!res.ok) throw new ApiError(data.error || `O servidor respondeu ${res.status}.`, res.status);
+  if (!res.ok) throw new ApiError(data.error || `O servidor respondeu ${res.status}.`, res.status, data.code || '');
   return data;
 }

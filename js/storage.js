@@ -15,17 +15,20 @@ const kv = {
 
 export const Local = {
   loadCache: (id) => kv.get('central:' + id),
-  saveCache: (id, central, tasks) => kv.set('central:' + id, { central, tasks, savedAt: new Date().toISOString() }),
+  saveCache: (id, central, tasks, notes) => kv.set('central:' + id, { central, tasks, notes, savedAt: new Date().toISOString() }),
 
   async loadOutbox(id) {
-    const ob = await kv.get('outbox:' + id);
-    return Object.assign({ upserts: {}, deletes: [], centralPatch: null }, ob || {});
+    const ob = (await kv.get('outbox:' + id)) || {};
+    const coll = (c) => Object.assign({ upserts: {}, deletes: [] }, c || {});
+    // a v2 guardava só tarefas, direto na raiz
+    const legacyTasks = ob.upserts ? { upserts: ob.upserts, deletes: ob.deletes || [] } : null;
+    return { tasks: coll(ob.tasks || legacyTasks), notes: coll(ob.notes), centralPatch: ob.centralPatch || null };
   },
   saveOutbox: (id, ob) => kv.set('outbox:' + id, ob),
 
   async loadDevice(id) {
     const d = await kv.get('device:' + id);
-    return Object.assign({ lastNotifiedAt: null, push: false, muted: false, lastArea: null }, d || {});
+    return Object.assign({ lastNotifiedAt: null, lastSummaryOn: null, push: false, muted: false, lastArea: null, pin: null }, d || {});
   },
   async patchDevice(id, patch) {
     const next = Object.assign(await this.loadDevice(id), patch);
@@ -120,17 +123,18 @@ export function remapTasks(tasks, map, areaIds) {
 // -----------------------------------------------------------------------------
 // Backup
 // -----------------------------------------------------------------------------
-export const BACKUP_VERSION = 2;
+export const BACKUP_VERSION = 3;
 
-export function createBackup(central, tasks) {
+export function createBackup(central, tasks, notes) {
   return {
     app: 'central-de-tarefas',
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    central: { name: central.name, areas: central.areas, settings: central.settings },
+    central: { name: central.name, areas: central.areas, people: central.people || [], settings: central.settings },
     statuses: C.STATUSES,
     priorities: C.PRIORITIES.map(({ id, name }) => ({ id, name })),
     tasks,
+    notes: notes || [],
   };
 }
 
@@ -143,6 +147,8 @@ export function parseBackup(text) {
   }
   if (!data || !Array.isArray(data.tasks)) throw new Error('Arquivo inválido: a lista de tarefas não foi encontrada.');
   const tasks = data.tasks.filter((t) => t && typeof t === 'object' && String(t.title || '').trim());
+  const notes = Array.isArray(data.notes) ? data.notes.filter((n) => n && typeof n === 'object').map(C.normalizeNote) : null;
+  const people = data.central && Array.isArray(data.central.people) ? data.central.people.filter((p) => p && p.id && p.name) : null;
   // v2 guarda as áreas em central.areas; v1 em areas (ou as fixas da versão 1)
   const areas = (data.central && Array.isArray(data.central.areas) && data.central.areas) ||
     (Array.isArray(data.areas) && data.areas) || C.LEGACY_AREAS;
@@ -152,5 +158,7 @@ export function parseBackup(text) {
   if ([1, 2, 3, 4, 6].includes(Number(src.frequencyHours))) settings.frequencyHours = Number(src.frequencyHours);
   if (/^\d{2}:\d{2}$/.test(src.startTime || '')) settings.startTime = src.startTime;
   if (/^\d{2}:\d{2}$/.test(src.endTime || '')) settings.endTime = src.endTime;
-  return { tasks, areas: areas.filter((a) => a && a.id && a.name), settings };
+  if (typeof src.dailySummary === 'boolean') settings.dailySummary = src.dailySummary;
+  if (/^\d{2}:\d{2}$/.test(src.dailySummaryTime || '')) settings.dailySummaryTime = src.dailySummaryTime;
+  return { tasks, notes, people, areas: areas.filter((a) => a && a.id && a.name), settings };
 }

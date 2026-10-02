@@ -9,7 +9,7 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v2.0.0';
+const CACHE_VERSION = 'v3.0.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -20,6 +20,7 @@ const APP_SHELL = [
   './js/api.js',
   './js/storage.js',
   './js/sync.js',
+  './js/notes.js',
   './js/tasks.js',
   './js/notifications.js',
   './js/ui.js',
@@ -88,9 +89,22 @@ async function checkAndNotify() {
   const device = Object.assign({ lastNotifiedAt: null, push: false, muted: false }, await C.idb.get('kv', 'device:' + id));
   if (device.push || device.muted) return; // o servidor cuida, ou o usuário desativou
   const settings = C.mergeSettings(cache.central.settings);
+  if (!settings.notificationsEnabled) return;
   const now = new Date();
-  if (!C.isReminderDue(settings, device.lastNotifiedAt, now)) return;
   const tasks = (cache.tasks || []).map((t) => C.normalizeTask(t));
+  // resumo do dia
+  const today = C.toDateKey(now);
+  const minutes = now.getHours() * 60 + now.getMinutes();
+  const summaryAt = C.toMin(settings.dailySummaryTime) ?? 480;
+  if (settings.dailySummary && device.lastSummaryOn !== today && minutes >= summaryAt && minutes < summaryAt + 180) {
+    const s = C.buildDailySummary(tasks, now);
+    if (s) await self.registration.showNotification(cache.central.name + ': seu dia', Object.assign({ body: s.body, data: { url: './?c=' + id } }, NOTIF_OPTIONS));
+    device.lastSummaryOn = today;
+    device.lastNotifiedAt = now.toISOString();
+    await C.idb.put('kv', device, 'device:' + id);
+    return;
+  }
+  if (!C.isReminderDue(settings, device.lastNotifiedAt, now)) return;
   const digest = C.buildDigest(tasks, now);
   if (digest) {
     const title = cache.central.name + ': ' + digest.title.charAt(0).toLowerCase() + digest.title.slice(1);

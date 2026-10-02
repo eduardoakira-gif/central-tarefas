@@ -20,8 +20,12 @@ function applyStatus(task, next) {
   task.status = next;
 }
 
+const TRASH_DAYS = 30;
+
 export const Tasks = {
-  all: () => Sync.tasks,
+  /** Tarefas visíveis (fora da lixeira). */
+  all: () => Sync.tasks.filter((t) => !t.deletedAt),
+  trash: () => Sync.tasks.filter((t) => t.deletedAt),
   get: (id) => Sync.tasks.find((t) => t.id === id) || null,
   subscribe: (fn) => Sync.onChange(fn),
 
@@ -48,8 +52,27 @@ export const Tasks = {
     return t;
   },
 
-  complete(id) {
-    return this.update(id, { status: 'done' });
+  /** Conclui. Se for recorrente, cria a próxima ocorrência e a devolve. */
+  async complete(id) {
+    const t = await this.update(id, { status: 'done' });
+    if (!t || !t.recurrence) return { task: t, next: null };
+    const next = await this.create({
+      title: t.title,
+      description: t.description,
+      area: t.area,
+      priority: t.priority,
+      status: 'pending',
+      dueDate: C.nextRecurrenceDate(t.dueDate, t.recurrence),
+      dueTime: t.dueTime,
+      owner: t.owner,
+      link: t.link,
+      notes: t.notes,
+      recurrence: t.recurrence,
+      checklist: t.checklist.map((c) => ({ text: c.text, done: false })),
+    });
+    // a ocorrência concluída não repete mais (a nova assume a recorrência)
+    await this.update(id, { recurrence: null });
+    return { task: t, next };
   },
 
   restore(id) {
@@ -59,20 +82,58 @@ export const Tasks = {
     return this.update(id, { status: back });
   },
 
-  async remove(id) {
+  /** Envia para a lixeira (pode ser restaurada por 30 dias). */
+  remove(id) {
+    return this.update(id, { deletedAt: nowIso() });
+  },
+  restoreFromTrash(id) {
+    return this.update(id, { deletedAt: null });
+  },
+  /** Exclui de vez. */
+  async purge(id) {
+    await Sync.deleteTask(id);
+  },
+  async emptyTrash() {
+    for (const t of this.trash()) await Sync.deleteTask(t.id);
+  },
+  /** Apaga de vez o que está na lixeira há mais de 30 dias. */
+  async autoPurge() {
+    const limit = Date.now() - TRASH_DAYS * 86400000;
+    for (const t of this.trash()) if (Date.parse(t.deletedAt) < limit) await Sync.deleteTask(t.id);
+  },
+
+  async toggleChecklist(id, itemId) {
     const t = this.get(id);
     if (!t) return null;
-    await Sync.deleteTask(id);
-    return t;
+    const checklist = t.checklist.map((c) => (c.id === itemId ? Object.assign({}, c, { done: !c.done }) : c));
+    return this.update(id, { checklist });
   },
 
-  /** Reinsere uma tarefa excluída (usado no "Desfazer"). */
-  async put(task) {
-    await Sync.upsertTask(C.normalizeTask(Object.assign({}, task, { updatedAt: nowIso() }), Sync.areaIds()));
+  async addComment(id, text) {
+    const t = this.get(id);
+    if (!t || !text.trim()) return null;
+    return this.update(id, { comments: t.comments.concat({ id: C.uid(), text: text.trim(), at: nowIso() }) });
   },
 
-  async replaceAll(list) {
-    await Sync.replaceTasks(list.map((t) => C.normalizeTask(t, Sync.areaIds())));
+  async removeComment(id, commentId) {
+    const t = this.get(id);
+    if (!t) return null;
+    return this.update(id, { comments: t.comments.filter((c) => c.id !== commentId) });
+  },
+
+  async replaceAll(list, notes) {
+    await Sync.replaceData({
+      tasks: list.map((t) => C.normalizeTask(t, Sync.areaIds())),
+      notes: notes ? notes.map(C.normalizeNote) : null,
+    });
+  },
+
+  /** Nomes de responsáveis conhecidos (equipe cadastrada + usados em tarefas). */
+  owners() {
+    const names = new Map();
+    ((Sync.central && Sync.central.people) || []).forEach((p) => names.set(p.name.toLowerCase(), p.name));
+    Sync.tasks.forEach((t) => t.owner && !names.has(t.owner.toLowerCase()) && names.set(t.owner.toLowerCase(), t.owner));
+    return [...names.values()].sort((a, b) => a.localeCompare(b, 'pt-BR'));
   },
 };
 
@@ -111,13 +172,21 @@ export function matchesSearch(t, query, areaMap) {
   const q = fold(query).trim();
   if (!q) return true;
   const area = areaMap && areaMap[t.area];
-  const hay = fold([t.title, t.description, area && area.name, t.owner, t.waitingFor, t.notes, t.link].join(' '));
+  const hay = fold([
+    t.title, t.description, area && area.name, t.owner, t.waitingFor, t.notes, t.link,
+    ...(t.checklist || []).map((c) => c.text), ...(t.comments || []).map((c) => c.text),
+  ].join(' '));
   return q.split(/\s+/).every((w) => hay.includes(w));
 }
 
-export function applyFilters(list, { status = 'all', area = null, query = '' }, now, areaMap) {
+export function applyFilters(list, { status = 'all', area = null, query = '', owner = '' }, now, areaMap) {
+  const o = owner ? owner.toLowerCase() : '';
   return list.filter(
-    (t) => (!area || t.area === area) && matchesStatusFilter(t, status, now) && matchesSearch(t, query, areaMap)
+    (t) =>
+      (!area || t.area === area) &&
+      (!o || (t.owner || '').toLowerCase() === o) &&
+      matchesStatusFilter(t, status, now) &&
+      matchesSearch(t, query, areaMap)
   );
 }
 

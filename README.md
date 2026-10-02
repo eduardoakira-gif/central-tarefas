@@ -28,6 +28,21 @@ Sim. O app guarda uma cópia no dispositivo. Sem internet, você continua usando
 
 ## Funcionalidades
 
+**Novidades da versão 3**
+- **Notas de reunião com IA:** aba Notas para anotar reuniões (título, data, participantes e texto, salvo automaticamente). Ao terminar, o botão **Finalizei: gerar tarefas** envia a anotação para a IA, que sugere as tarefas com área, prioridade, prazo, responsável, "aguardando retorno" e checklist. Você revisa, edita, desmarca o que não quiser e só então cria. Se uma tarefa não se encaixar em nenhuma área, a IA sugere uma área nova, criada só se você aprovar. Cada tarefa guarda o vínculo com a reunião de origem.
+- **Captura rápida:** escreva algo como "Enviar proposta XPTO amanhã 16h urgente" e a IA preenche o cadastro para você confirmar.
+- **Resumo do dia:** notificação de manhã (horário configurável) com o que é para hoje, as atrasadas e as cobranças.
+- **Tarefas recorrentes:** todo dia, dias úteis, toda semana, a cada 2 semanas ou todo mês. Ao concluir, a próxima ocorrência é criada sozinha.
+- **Checklist** dentro da tarefa e **comentários** para registrar o andamento.
+- **Equipe:** cadastro de pessoas, sugestão de responsável e filtro por responsável.
+- **Agenda:** visão dos próximos 7 dias e botão para adicionar cada prazo ao Google Agenda.
+- **Relatório:** concluídas, criadas, % no prazo, tempo médio, por área, por semana e por responsável.
+- **Lixeira:** tarefas excluídas ficam 30 dias recuperáveis.
+- **Segurança:** PIN opcional para abrir a central em aparelhos novos e botão para gerar um link novo (o antigo para de funcionar).
+- **Celular:** barra de navegação inferior.
+
+**Já existentes**
+
 - Dashboard com resumo do dia, indicadores (pendentes, em andamento, aguardando retorno, atrasadas, concluídas), produtividade do dia e contador por área.
 - Organização automática em Atrasadas, Hoje, Próximas, Aguardando retorno, Sem prazo e Concluídas recentemente, com ordenação por atraso, urgência, prazo e prioridade.
 - "Aguardando retorno" com pessoa/empresa, data de início e data de cobrança; no dia da cobrança a tarefa volta ao topo e entra nos lembretes.
@@ -56,7 +71,8 @@ Sim. O app guarda uma cópia no dispositivo. Sem internet, você continua usando
 │   ├── api.js                 Comunicação com o servidor
 │   ├── sync.js                Sincronização: cache local, fila offline e atualização periódica
 │   ├── storage.js             Armazenamento local, preferências do dispositivo e backup
-│   ├── tasks.js               Operações com tarefas, filtros e indicadores
+│   ├── tasks.js               Operações com tarefas, lixeira, recorrência, filtros e indicadores
+│   ├── notes.js               Notas de reunião e chamadas de IA
 │   ├── notifications.js       Ativação de notificações por dispositivo (push e reserva local)
 │   ├── ui.js                  Geração do HTML
 │   └── app.js                 Inicialização, página inicial, rotas, eventos e configurações
@@ -121,7 +137,24 @@ Em **Edge Functions → Secrets**, adicione:
 
 ---
 
-## Atualizando de uma versão anterior
+## Atualizando da versão 2 para a 3
+
+1. **Banco:** no Supabase, SQL Editor → New query → cole o novo `backend/supabase/schema.sql` → Run. Ele só adiciona o que falta e não apaga dados.
+2. **Chave da IA:**
+   - Crie uma conta em [console.anthropic.com](https://console.anthropic.com), cadastre um cartão e compre créditos.
+   - Em **Limits**, defina um limite de gasto mensal (por exemplo, US$ 5).
+   - Em **API Keys**, crie uma chave e copie (ela só aparece uma vez).
+   - No Supabase, **Edge Functions → Secrets**, adicione `ANTHROPIC_API_KEY` com essa chave.
+   - Opcional: `AI_DAILY_LIMIT` (padrão 60 usos por central por dia) e `AI_MODEL` (padrão `claude-haiku-4-5-20251001`).
+3. **Função:** em Edge Functions → `api` → aba **Code**, apague o código, cole o novo `backend/supabase/functions/api/index.ts` e clique em **Deploy**. Confira se **Verify JWT** continua desligado.
+4. **Site:** envie para o GitHub as pastas `css`, `js` e `backend` e os arquivos `index.html`, `service-worker.js` e `README.md` (arrastando do Windows Explorer). O `js/config.js` já vem com o endereço do seu projeto.
+5. Abra o app no computador e no celular. Se ainda aparecer a versão antiga, feche o app por completo e abra de novo.
+
+Sem a chave da IA, tudo funciona normalmente, exceto "gerar tarefas" nas notas; a captura rápida passa a abrir o cadastro comum.
+
+**Custo da IA:** cobrança por uso. Com o modelo Haiku, cada reunião processada custa cerca de US$ 0,01; 150 reuniões por mês ficam em torno de US$ 1 a 2. O limite de gasto no painel da Anthropic garante que nunca passe do valor que você definir.
+
+## Atualizando da versão 1
 
 1. Substitua no repositório todos os arquivos pelos desta versão (inclusive a pasta `js` inteira, que ganhou `config.js`, `api.js` e `sync.js`).
 2. Se você já tinha criado a função `lembretes` ou a tabela `push_devices` no Supabase, pode excluir a função; o `schema.sql` novo remove a tabela antiga. O segredo `APP_TOKEN` não é mais usado.
@@ -167,6 +200,9 @@ O uso de uma pessoa ou de uma equipe pequena fica muito abaixo dos limites gratu
 ## Solução de problemas
 
 - **"Servidor não configurado"**: o `js/config.js` ainda tem `SEU-PROJETO`.
+- **"A IA ainda não foi configurada"**: falta o segredo `ANTHROPIC_API_KEY` no Supabase, ou a função não foi publicada de novo depois de cadastrá-lo.
+- **"Chave da IA inválida"**: a chave foi copiada errada ou revogada; crie outra no painel da Anthropic.
+- **Esqueci o PIN**: em um aparelho que já está conectado, vá em Configurações → Segurança e troque ou remova o PIN.
 - **"Não foi possível abrir a central" com erro 401**: a opção Verify JWT da função continua ligada.
 - **"Central não encontrada"**: o link está incompleto ou é de outro projeto Supabase.
 - **Indicador "Erro ao sincronizar"**: passe o mouse sobre ele para ver a mensagem do servidor. Em Supabase → Edge Functions → api → Logs aparecem os detalhes.
