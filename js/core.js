@@ -8,9 +8,16 @@
   'use strict';
 
   // ---------------------------------------------------------------------------
-  // Catálogos fixos
+  // Catálogos
   // ---------------------------------------------------------------------------
-  const AREAS = [
+  // Cores discretas para as áreas (cada central escolhe as suas áreas)
+  const AREA_COLORS = [
+    '#8B5CF6', '#14A38B', '#DB4C9A', '#3B82F6', '#C08A1E',
+    '#E5484D', '#0EA5C6', '#6E56CF', '#5E8C31', '#8A92A3',
+  ];
+
+  // Áreas fixas da versão 1 (usadas só para importar tarefas antigas)
+  const LEGACY_AREAS = [
     { id: 'socio-torcedor', name: 'Sócio Torcedor', color: '#8B5CF6' },
     { id: 'comunidade', name: 'Comunidade', color: '#14A38B' },
     { id: 'merchan', name: 'Merchan', color: '#DB4C9A' },
@@ -33,31 +40,28 @@
   ];
 
   const byId = (list) => Object.fromEntries(list.map((x) => [x.id, x]));
-  const AREA_MAP = byId(AREAS);
   const STATUS_MAP = byId(STATUSES);
   const PRIORITY_MAP = byId(PRIORITIES);
 
+  // Configurações de notificação: ficam salvas na central e valem para todos os dispositivos
   const DEFAULT_SETTINGS = {
     notificationsEnabled: true,
     frequencyHours: 2,
     startTime: '08:00',
     endTime: '20:00',
-    theme: 'auto', // auto | light | dark
-    lastNotifiedAt: null,
-    lastArea: AREAS[0].id,
-    push: {
-      enabled: false,
-      endpoint: '', // URL da função (ex.: Supabase Edge Function)
-      token: '', // token pessoal; fica só neste dispositivo
-      vapidPublicKey: '', // chave PÚBLICA VAPID (pode ser pública)
-    },
   };
 
   function mergeSettings(saved) {
-    const s = saved || {};
-    return Object.assign({}, DEFAULT_SETTINGS, s, {
-      push: Object.assign({}, DEFAULT_SETTINGS.push, s.push || {}),
-    });
+    return Object.assign({}, DEFAULT_SETTINGS, saved || {});
+  }
+
+  function newAreaId() {
+    return 'a' + Math.random().toString(36).slice(2, 9);
+  }
+
+  function nextAreaColor(areas) {
+    const used = new Set(areas.map((a) => a.color));
+    return AREA_COLORS.find((c) => !used.has(c)) || AREA_COLORS[areas.length % AREA_COLORS.length];
   }
 
   // ---------------------------------------------------------------------------
@@ -95,14 +99,16 @@
   // ---------------------------------------------------------------------------
   // Modelo de tarefa
   // ---------------------------------------------------------------------------
-  function normalizeTask(t) {
+  function normalizeTask(t, areaIds) {
     const now = new Date().toISOString();
+    let area = t.area == null ? '' : String(t.area);
+    if (areaIds && areaIds.length && !areaIds.includes(area)) area = areaIds[0];
     const str = (v) => (v == null ? '' : String(v));
     return {
       id: str(t.id) || uid(),
       title: str(t.title).trim(),
       description: str(t.description),
-      area: AREA_MAP[t.area] ? t.area : AREAS[0].id,
+      area,
       status: STATUS_MAP[t.status] ? t.status : 'pending',
       priority: PRIORITY_MAP[t.priority] ? t.priority : 'normal',
       dueDate: validDate(t.dueDate),
@@ -254,18 +260,18 @@
     return s < e ? m >= s && m < e : m >= s || m < e;
   }
 
-  function isReminderDue(settings, now) {
+  function isReminderDue(settings, lastNotifiedAt, now) {
     if (!settings.notificationsEnabled) return false;
     if (!inWindow(settings, now)) return false;
-    const last = settings.lastNotifiedAt ? Date.parse(settings.lastNotifiedAt) : 0;
+    const last = lastNotifiedAt ? Date.parse(lastNotifiedAt) : 0;
     // 1 minuto de folga para não perder o horário por causa do intervalo de verificação
     return now.getTime() - last >= settings.frequencyHours * 3600000 - 60000;
   }
 
-  function nextReminderAt(settings, now) {
+  function nextReminderAt(settings, lastNotifiedAt, now) {
     if (!settings.notificationsEnabled) return null;
     const freq = settings.frequencyHours * 3600000;
-    let base = settings.lastNotifiedAt ? Date.parse(settings.lastNotifiedAt) + freq : now.getTime();
+    let base = lastNotifiedAt ? Date.parse(lastNotifiedAt) + freq : now.getTime();
     if (base < now.getTime()) base = now.getTime();
     const d = new Date(base);
     if (inWindow(settings, d)) return d;
@@ -340,8 +346,8 @@
   };
 
   root.Core = {
-    AREAS, STATUSES, PRIORITIES, AREA_MAP, STATUS_MAP, PRIORITY_MAP,
-    DEFAULT_SETTINGS, mergeSettings,
+    AREA_COLORS, LEGACY_AREAS, STATUSES, PRIORITIES, STATUS_MAP, PRIORITY_MAP,
+    DEFAULT_SETTINGS, mergeSettings, newAreaId, nextAreaColor,
     pad, toDateKey, fromDateKey, addDays, toMin, uid,
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,

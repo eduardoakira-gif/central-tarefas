@@ -1,14 +1,11 @@
 /*
  * tasks.js
- * Estado das tarefas em memória + operações. Toda alteração é gravada
- * imediatamente pelo Storage e avisa quem estiver inscrito (a interface).
+ * Operações com as tarefas da central aberta. Os dados ficam no Sync,
+ * que cuida de salvar localmente e enviar ao servidor.
  */
-import { Storage } from './storage.js';
+import { Sync } from './sync.js';
 
 const C = window.Core;
-let tasks = [];
-const listeners = new Set();
-const emit = () => listeners.forEach((fn) => fn(tasks));
 const nowIso = () => new Date().toISOString();
 
 function applyStatus(task, next) {
@@ -24,35 +21,30 @@ function applyStatus(task, next) {
 }
 
 export const Tasks = {
-  async init() {
-    tasks = (await Storage.loadTasks()).map(C.normalizeTask);
-  },
-  all: () => tasks,
-  get: (id) => tasks.find((t) => t.id === id) || null,
-  subscribe(fn) {
-    listeners.add(fn);
-    return () => listeners.delete(fn);
-  },
+  all: () => Sync.tasks,
+  get: (id) => Sync.tasks.find((t) => t.id === id) || null,
+  subscribe: (fn) => Sync.onChange(fn),
 
   async create(data) {
     const { status, ...rest } = data;
-    const t = C.normalizeTask(Object.assign({}, rest, { id: C.uid(), createdAt: nowIso(), updatedAt: nowIso(), status: 'pending' }));
+    const t = C.normalizeTask(
+      Object.assign({}, rest, { id: C.uid(), createdAt: nowIso(), updatedAt: nowIso(), status: 'pending' }),
+      Sync.areaIds()
+    );
     applyStatus(t, status || 'pending');
-    tasks.push(t);
-    await Storage.saveTask(t);
-    emit();
+    await Sync.upsertTask(t);
     return t;
   },
 
   async update(id, patch) {
-    const t = this.get(id);
-    if (!t) return null;
+    const cur = this.get(id);
+    if (!cur) return null;
+    const t = Object.assign({}, cur);
     const { status, ...rest } = patch;
     Object.assign(t, rest);
     if (status) applyStatus(t, status);
-    Object.assign(t, C.normalizeTask(t), { updatedAt: nowIso() });
-    await Storage.saveTask(t);
-    emit();
+    Object.assign(t, C.normalizeTask(t, Sync.areaIds()), { updatedAt: nowIso() });
+    await Sync.upsertTask(t);
     return t;
   },
 
@@ -70,24 +62,17 @@ export const Tasks = {
   async remove(id) {
     const t = this.get(id);
     if (!t) return null;
-    tasks = tasks.filter((x) => x.id !== id);
-    await Storage.deleteTask(id);
-    emit();
+    await Sync.deleteTask(id);
     return t;
   },
 
-  /** Reinsere uma tarefa exatamente como estava (usado no "Desfazer"). */
+  /** Reinsere uma tarefa excluída (usado no "Desfazer"). */
   async put(task) {
-    const copy = C.normalizeTask(task);
-    tasks = tasks.filter((x) => x.id !== copy.id).concat(copy);
-    await Storage.saveTask(copy);
-    emit();
+    await Sync.upsertTask(C.normalizeTask(Object.assign({}, task, { updatedAt: nowIso() }), Sync.areaIds()));
   },
 
   async replaceAll(list) {
-    tasks = list.map(C.normalizeTask);
-    await Storage.replaceTasks(tasks);
-    emit();
+    await Sync.replaceTasks(list.map((t) => C.normalizeTask(t, Sync.areaIds())));
   },
 };
 
@@ -122,32 +107,30 @@ export function matchesStatusFilter(t, filter, now) {
 
 const fold = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
-export function matchesSearch(t, query) {
+export function matchesSearch(t, query, areaMap) {
   const q = fold(query).trim();
   if (!q) return true;
-  const hay = fold([
-    t.title, t.description, C.AREA_MAP[t.area] && C.AREA_MAP[t.area].name,
-    t.owner, t.waitingFor, t.notes, t.link,
-  ].join(' '));
+  const area = areaMap && areaMap[t.area];
+  const hay = fold([t.title, t.description, area && area.name, t.owner, t.waitingFor, t.notes, t.link].join(' '));
   return q.split(/\s+/).every((w) => hay.includes(w));
 }
 
-export function applyFilters(list, { status = 'all', area = null, query = '' }, now) {
+export function applyFilters(list, { status = 'all', area = null, query = '' }, now, areaMap) {
   return list.filter(
-    (t) => (!area || t.area === area) && matchesStatusFilter(t, status, now) && matchesSearch(t, query)
+    (t) => (!area || t.area === area) && matchesStatusFilter(t, status, now) && matchesSearch(t, query, areaMap)
   );
 }
 
 // -----------------------------------------------------------------------------
 // Indicadores
 // -----------------------------------------------------------------------------
-export function computeStats(list, now) {
+export function computeStats(list, now, areas) {
   const today = C.toDateKey(now);
   const s = {
     open: 0, pending: 0, doing: 0, waiting: 0, overdue: 0, today: 0, urgent: 0,
     done: 0, doneToday: 0, dayTotal: 0, byArea: {}, byFilter: {},
   };
-  C.AREAS.forEach((a) => (s.byArea[a.id] = 0));
+  areas.forEach((a) => (s.byArea[a.id] = 0));
   for (const t of list) {
     if (t.status === 'done') {
       s.done++;

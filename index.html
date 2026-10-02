@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Minhas tarefas</title>
-  <meta name="description" content="Central de tarefas profissionais: Sócio Torcedor, Comunidade, Merchan, CRM e Propostas.">
+  <title>Central de tarefas</title>
+  <meta name="description" content="Central de tarefas profissionais com áreas, prazos, lembretes e sincronização entre dispositivos.">
   <meta name="theme-color" content="#F6F7F9" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0F1115" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.json">
@@ -25,17 +25,76 @@
 <body>
   <a class="skip" href="#main">Pular para o conteúdo</a>
 
+  <!-- PÁGINA INICIAL --------------------------------------------------------- -->
+  <section id="landing" class="landing" hidden>
+    <div class="landing-inner">
+      <div class="landing-brand"><img src="assets/icon.svg" alt="" width="34" height="34"><span>Central de tarefas</span></div>
+      <h1 class="landing-title">Crie sua central de tarefas</h1>
+      <p class="landing-sub">Dê um nome, escolha suas áreas de trabalho e receba um link só seu. Abra o mesmo link no computador e no celular: tarefas, configurações e lembretes ficam iguais em todos.</p>
+
+      <p class="notice" id="landingConfigWarning" hidden>O servidor ainda não foi configurado. Edite o arquivo <code>js/config.js</code> com o endereço da função do Supabase (veja o README).</p>
+
+      <form id="createForm" class="card landing-card" novalidate>
+        <label class="field">
+          <span class="label">Nome da central</span>
+          <input class="input input-lg" id="landingName" maxlength="80" placeholder="Ex.: Tarefas do time comercial" autocomplete="off">
+        </label>
+        <div class="field">
+          <span class="label">Áreas</span>
+          <div class="area-chips" id="landingAreaList"></div>
+          <div class="inline-add">
+            <input class="input" id="landingAreaInput" maxlength="40" placeholder="Nome da área, ex.: Comercial" autocomplete="off">
+            <button class="btn" type="button" id="landingAreaAdd">Adicionar</button>
+          </div>
+          <span class="hint">Você pode renomear, adicionar ou excluir áreas depois, nas configurações.</span>
+        </div>
+        <label class="check-row" id="legacyRow" hidden>
+          <input type="checkbox" id="legacyImport" checked>
+          <span>Importar as <strong id="legacyCount">0</strong> tarefas salvas neste navegador pela versão anterior</span>
+        </label>
+        <p class="field-error" id="createError" hidden></p>
+        <button class="btn btn-primary btn-lg" type="submit" id="createBtn">Criar minha central</button>
+      </form>
+
+      <div class="landing-secondary">
+        <div id="recentBox" hidden>
+          <h2 class="landing-h2">Centrais abertas neste dispositivo</h2>
+          <div class="recent-list" id="recentList"></div>
+        </div>
+        <form id="openForm" class="open-form">
+          <h2 class="landing-h2">Já tem uma central?</h2>
+          <div class="inline-add">
+            <input class="input" id="openInput" placeholder="Cole aqui o link da central" autocomplete="off">
+            <button class="btn" type="submit">Abrir</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- MENSAGENS (carregando, não encontrada, erro) ----------------------------- -->
+  <section id="messageScreen" class="message-screen">
+    <div class="message-inner">
+      <img src="assets/icon.svg" alt="" width="40" height="40">
+      <h1 id="messageTitle">Carregando…</h1>
+      <p id="messageText"></p>
+      <div class="btn-row" id="messageActions"></div>
+    </div>
+  </section>
+
+  <div id="appShell" hidden>
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="#/">
         <img src="assets/icon.svg" alt="" width="26" height="26">
-        <span>Central de tarefas</span>
+        <span id="brandName">Central de tarefas</span>
       </a>
       <nav class="nav" aria-label="Seções">
         <a href="#/" data-route="tasks">Tarefas</a>
         <a href="#/historico" data-route="history">Histórico</a>
         <a href="#/config" data-route="settings">Configurações</a>
       </nav>
+      <span class="sync-status" id="syncStatus" data-status="idle"><i></i><span></span></span>
       <button class="btn btn-primary btn-new" type="button" data-action="new">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
         Nova tarefa <kbd>N</kbd>
@@ -48,7 +107,7 @@
     <section class="view" data-view="tasks">
       <div class="page-head">
         <div>
-          <h1>Minhas tarefas</h1>
+          <h1 id="centralTitle">Minhas tarefas</h1>
           <p class="summary" id="summary"></p>
         </div>
         <p class="today-date" id="todayDate"></p>
@@ -93,27 +152,49 @@
     </section>
 
     <!-- CONFIGURAÇÕES ------------------------------------------------------ -->
-    <section class="view" data-view="settings" hidden>
+    <section class="view" data-view="settings" id="view-settings" hidden>
       <div class="page-head">
         <div><h1>Configurações</h1></div>
       </div>
 
       <div class="settings">
         <section class="card settings-group">
-          <h2>Notificações</h2>
+          <h2>Central</h2>
+          <label class="field">
+            <span class="label">Nome</span>
+            <input class="input" id="centralName" maxlength="80" autocomplete="off">
+          </label>
+          <div class="field">
+            <span class="label">Link desta central</span>
+            <div class="inline-add">
+              <input class="input" id="centralLink" readonly aria-label="Link da central">
+              <button class="btn" type="button" data-action="copy-link">Copiar</button>
+              <button class="btn" type="button" data-action="share-link">Compartilhar</button>
+            </div>
+            <span class="hint">Use este link no computador e no celular. Qualquer pessoa com ele pode ver e editar as tarefas, então compartilhe só com quem você quiser.</span>
+          </div>
+          <a class="link-btn" href="./">Abrir ou criar outra central</a>
+        </section>
+
+        <section class="card settings-group">
+          <h2>Áreas</h2>
+          <div class="area-editor" id="areaEditor"></div>
+          <div class="inline-add">
+            <input class="input" id="newAreaInput" maxlength="40" placeholder="Nova área" autocomplete="off">
+            <button class="btn" type="button" data-action="area-add">Adicionar área</button>
+          </div>
+          <span class="hint">Clique na bolinha para trocar a cor. Ao excluir uma área, as tarefas dela vão para a primeira área da lista.</span>
+        </section>
+
+        <section class="card settings-group">
+          <h2>Lembretes</h2>
+          <p class="hint">Estas configurações ficam salvas na central e valem para todos os dispositivos.</p>
           <div class="setting-row">
             <div>
               <strong>Lembretes de tarefas</strong>
-              <p>Resumo das demandas que dependem de você, começando pelas atrasadas, urgentes e de hoje. Tarefas aguardando retorno só entram no dia da cobrança.</p>
+              <p>Resumo do que depende de você, começando pelas atrasadas, urgentes e de hoje. Tarefas aguardando retorno só entram no dia da cobrança.</p>
             </div>
             <label class="switch"><input type="checkbox" id="setEnabled" aria-label="Lembretes ligados"><span></span></label>
-          </div>
-          <div class="setting-row">
-            <div>
-              <strong>Permissão do navegador</strong>
-              <p id="permStatus"></p>
-            </div>
-            <button class="btn" id="btnPermission" type="button">Permitir notificações</button>
           </div>
           <div class="setting-grid">
             <label class="field">
@@ -135,43 +216,22 @@
               <input type="time" id="setEnd" class="input">
             </label>
           </div>
-          <div class="setting-row">
-            <div>
-              <strong>Próximo lembrete</strong>
-              <p id="nextReminder"></p>
-            </div>
-            <button class="btn" id="btnTestNotif" type="button">Enviar notificação de teste</button>
-          </div>
-          <p class="hint" id="notifModeHint"></p>
         </section>
 
         <section class="card settings-group">
-          <h2>Push com o app fechado (opcional)</h2>
-          <p class="hint">Para receber lembretes com o navegador e o app fechados, configure o servidor gratuito descrito no README (Supabase + agendador). Estes dados ficam salvos somente neste dispositivo e nunca vão para o GitHub nem para o backup.</p>
-          <label class="field">
-            <span class="label">URL da função</span>
-            <input class="input" id="pushEndpoint" type="url" placeholder="https://SEU-PROJETO.supabase.co/functions/v1/lembretes" autocomplete="off">
-          </label>
-          <div class="setting-grid setting-grid-2">
-            <label class="field">
-              <span class="label">Token de acesso</span>
-              <input class="input" id="pushToken" type="password" autocomplete="off">
-            </label>
-            <label class="field">
-              <span class="label">Chave pública VAPID</span>
-              <input class="input" id="pushVapid" type="text" autocomplete="off" spellcheck="false">
-            </label>
-          </div>
+          <h2>Notificações neste dispositivo</h2>
+          <p class="device-status" id="deviceNotifStatus"></p>
           <div class="btn-row">
-            <button class="btn btn-primary" id="btnPushEnable" type="button">Ativar push</button>
-            <button class="btn" id="btnPushTest" type="button">Testar push</button>
-            <button class="btn" id="btnPushDisable" type="button">Desativar push</button>
+            <button class="btn btn-primary" id="btnNotifEnable" type="button" data-action="notif-enable">Ativar neste dispositivo</button>
+            <button class="btn" id="btnNotifTest" type="button" data-action="notif-test">Enviar teste</button>
+            <button class="btn" id="btnNotifDisable" type="button" data-action="notif-disable">Desativar neste dispositivo</button>
           </div>
-          <p class="hint" id="pushStatus"></p>
+          <p class="hint" id="nextReminder"></p>
+          <p class="hint">Cada computador ou celular ativa as notificações uma vez. Se você abrir a central de outra pessoa e ativar aqui, também recebe os lembretes dela.</p>
         </section>
 
         <section class="card settings-group">
-          <h2>Aparência</h2>
+          <h2>Aparência neste dispositivo</h2>
           <div class="seg" role="radiogroup" aria-label="Tema">
             <label class="seg-opt"><input type="radio" name="theme" value="auto"><span>Automático</span></label>
             <label class="seg-opt"><input type="radio" name="theme" value="light"><span>Claro</span></label>
@@ -182,16 +242,20 @@
         <section class="card settings-group">
           <h2>Instalar como app</h2>
           <p class="hint" id="installHint"></p>
-          <div class="btn-row"><button class="btn" id="btnInstall" type="button" hidden>Instalar app</button></div>
+          <div class="btn-row"><button class="btn" id="btnInstall" type="button" data-action="install" hidden>Instalar app</button></div>
         </section>
 
         <section class="card settings-group">
           <h2>Backup</h2>
-          <p class="hint">O arquivo inclui tarefas, status, áreas, datas, configurações e preferências. O token de push não é exportado.</p>
+          <p class="hint">O arquivo inclui tarefas, status, datas, áreas e configurações de lembrete desta central.</p>
           <div class="btn-row">
-            <button class="btn" id="btnExport" type="button">Exportar backup</button>
-            <button class="btn" id="btnImport" type="button">Importar backup</button>
+            <button class="btn" type="button" data-action="export">Exportar backup</button>
+            <button class="btn" type="button" data-action="import">Importar backup</button>
             <input type="file" id="importFile" accept="application/json,.json" hidden>
+          </div>
+          <div class="notice" id="legacyBox" hidden>
+            <span>Há <strong id="legacyBoxCount">0</strong> tarefas salvas neste navegador pela versão anterior.</span>
+            <button class="btn" type="button" data-action="import-legacy">Importar para esta central</button>
           </div>
           <p class="hint" id="storageInfo"></p>
         </section>
@@ -202,6 +266,7 @@
   <button class="fab" type="button" data-action="new" aria-label="Nova tarefa">
     <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
   </button>
+  </div>
 
   <!-- DIÁLOGO: NOVA / EDITAR TAREFA --------------------------------------- -->
   <dialog id="taskDialog" class="dialog" aria-labelledby="taskDialogTitle">
@@ -338,6 +403,25 @@
           <button class="btn" value="cancel">Cancelar</button>
           <button class="btn btn-danger" value="ok" id="confirmOk">Confirmar</button>
         </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- DIÁLOGO: CENTRAL CRIADA ------------------------------------------------ -->
+  <dialog id="linkDialog" class="dialog dialog-sm" aria-labelledby="linkDialogTitle">
+    <form method="dialog">
+      <div class="dialog-body">
+        <h2 id="linkDialogTitle" class="confirm-title">Sua central está pronta</h2>
+        <p class="confirm-msg">Este é o link só seu. Guarde-o e abra no celular e no computador; tudo fica sincronizado.</p>
+        <div class="inline-add">
+          <input class="input" id="newLink" readonly aria-label="Link da central">
+          <button class="btn" type="button" data-action="copy-link">Copiar</button>
+        </div>
+        <p class="hint">Quem tiver este link pode ver e editar suas tarefas. Você encontra o link depois em Configurações.</p>
+      </div>
+      <div class="dialog-foot">
+        <span></span>
+        <div class="btn-row"><button class="btn btn-primary" value="ok">Começar</button></div>
       </div>
     </form>
   </dialog>

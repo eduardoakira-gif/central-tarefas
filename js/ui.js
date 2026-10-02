@@ -74,9 +74,11 @@ const safeHref = (link) => {
 const options = (list, current) =>
   list.map((o) => `<option value="${o.id}"${o.id === current ? ' selected' : ''}>${esc(o.name)}</option>`).join('');
 
-export function taskCard(t, now) {
+const NO_AREA = { name: 'Sem área', color: '#8A92A3' };
+
+export function taskCard(t, now, areaMap) {
   const c = C.classify(t, now);
-  const area = C.AREA_MAP[t.area];
+  const area = (areaMap && areaMap[t.area]) || NO_AREA;
   const done = t.status === 'done';
   const cls = ['task', 'prio-' + t.priority];
   if (done) cls.push('is-done');
@@ -196,8 +198,8 @@ export function renderStats(stats, activeStatus) {
     .join('');
 }
 
-export function renderAreas(stats, activeArea) {
-  return C.AREAS.map(
+export function renderAreas(stats, activeArea, areas) {
+  return areas.map(
     (a) => `<button type="button" class="area-btn" data-filter-area="${a.id}" style="--area:${a.color}" aria-pressed="${activeArea === a.id}">
       <span class="area-name"><i></i>${esc(a.name)}</span>
       <span class="area-count">${plural(stats.byArea[a.id] || 0, 'aberta', 'abertas')}</span>
@@ -212,9 +214,9 @@ export function renderStatusChips(stats, active) {
   ).join('');
 }
 
-export function renderFilterBar(filter) {
+export function renderFilterBar(filter, areaMap) {
   const parts = [];
-  if (filter.area) parts.push(C.AREA_MAP[filter.area].name);
+  if (filter.area && areaMap[filter.area]) parts.push(areaMap[filter.area].name);
   if (filter.status !== 'all') parts.push(STATUS_FILTERS.find((f) => f.id === filter.status).name);
   if (filter.query.trim()) parts.push(`“${esc(filter.query.trim())}”`);
   if (!parts.length) return '';
@@ -230,11 +232,11 @@ const SECTIONS = [
   { id: 'nodate', name: 'Sem prazo' },
 ];
 
-function section(id, name, list, now, extra = '') {
+function section(id, name, list, now, areaMap, extra = '') {
   if (!list.length) return '';
   return `<section class="group group-${id}">
     <h2 class="group-title">${name}<span class="group-count">${list.length}</span>${extra}</h2>
-    <div class="group-list">${list.map((t) => taskCard(t, now)).join('')}</div>
+    <div class="group-list">${list.map((t) => taskCard(t, now, areaMap)).join('')}</div>
   </section>`;
 }
 
@@ -254,21 +256,21 @@ function emptyFiltered() {
   </div>`;
 }
 
-export function renderTaskList(all, filter, now) {
+export function renderTaskList(all, filter, now, areaMap) {
   const hasFilter = filter.area || filter.status !== 'all' || filter.query.trim();
 
   if (filter.status !== 'all') {
-    const list = applyFilters(all, filter, now);
+    const list = applyFilters(all, filter, now, areaMap);
     if (!list.length) return emptyFiltered();
     const sorted =
       filter.status === 'done'
         ? list.slice().sort((a, b) => Date.parse(b.completedAt || 0) - Date.parse(a.completedAt || 0))
         : C.sortTasks(list, now);
     const name = STATUS_FILTERS.find((f) => f.id === filter.status).name;
-    return section('flat', name, sorted, now);
+    return section('flat', name, sorted, now, areaMap);
   }
 
-  const base = applyFilters(all, { area: filter.area, query: filter.query, status: 'all' }, now);
+  const base = applyFilters(all, { area: filter.area, query: filter.query, status: 'all' }, now, areaMap);
   const open = base.filter((t) => t.status !== 'done');
   const groups = Object.fromEntries(SECTIONS.map((s) => [s.id, []]));
   open.forEach((t) => groups[C.classify(t, now).section].push(t));
@@ -284,7 +286,7 @@ export function renderTaskList(all, filter, now) {
       } else {
         list = C.sortTasks(list, now);
       }
-      html += section(s.id, s.name, list, now);
+      html += section(s.id, s.name, list, now, areaMap);
     }
   }
 
@@ -294,31 +296,37 @@ export function renderTaskList(all, filter, now) {
     .sort((a, b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))
     .slice(0, 5);
   html += section(
-    'recent', 'Concluídas recentemente', recent, now,
+    'recent', 'Concluídas recentemente', recent, now, areaMap,
     '<a class="group-link" href="#/historico">Ver histórico</a>'
   );
   return html;
 }
 
-export function renderDashboard(all, filter, now) {
-  const stats = computeStats(all, now);
+export function areaMapOf(areas) {
+  return Object.fromEntries(areas.map((a) => [a.id, a]));
+}
+
+export function renderDashboard(all, filter, now, areas) {
+  const areaMap = areaMapOf(areas);
+  const stats = computeStats(all, now, areas);
   return {
     stats,
     summary: renderSummary(stats),
     progress: renderProgress(stats),
     statCards: renderStats(stats, filter.status),
-    areas: renderAreas(stats, filter.area),
+    areas: renderAreas(stats, filter.area, areas),
     chips: renderStatusChips(stats, filter.status),
-    filterBar: renderFilterBar(filter),
-    list: renderTaskList(all, filter, now),
+    filterBar: renderFilterBar(filter, areaMap),
+    list: renderTaskList(all, filter, now, areaMap),
   };
 }
 
 // -----------------------------------------------------------------------------
 // Histórico
 // -----------------------------------------------------------------------------
-export function renderHistory(all, { query, area }, now) {
-  const done = applyFilters(all, { status: 'done', area: area || null, query }, now).sort(
+export function renderHistory(all, { query, area }, now, areas) {
+  const areaMap = areaMapOf(areas);
+  const done = applyFilters(all, { status: 'done', area: area || null, query }, now, areaMap).sort(
     (a, b) => Date.parse(b.completedAt || 0) - Date.parse(a.completedAt || 0)
   );
   if (!done.length) {
@@ -335,7 +343,7 @@ export function renderHistory(all, { query, area }, now) {
   let html = '';
   for (const [key, list] of byDay) {
     const label = key === 'sem-data' ? 'Sem data de conclusão' : 'Concluídas ' + (relativeDay(key, now) === 'Hoje' ? 'hoje' : relativeDay(key, now) === 'Ontem' ? 'ontem' : 'em ' + shortDate(key));
-    html += section('history', label, list, now);
+    html += section('history', label, list, now, areaMap);
   }
   return html;
 }

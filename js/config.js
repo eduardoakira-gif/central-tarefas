@@ -1,0 +1,1 @@
+export const API_URL = 'https://etqmnyecemktupmtvzfn.supabase.co/functions/v1/api';

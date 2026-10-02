@@ -9,14 +9,17 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v2.0.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
   './index.html',
   './css/styles.css',
   './js/core.js',
+  './js/config.js',
+  './js/api.js',
   './js/storage.js',
+  './js/sync.js',
   './js/tasks.js',
   './js/notifications.js',
   './js/ui.js',
@@ -75,19 +78,26 @@ const NOTIF_OPTIONS = {
   badge: './assets/badge-96.png',
 };
 
+// Lembrete local em segundo plano (Chrome/Edge com app instalado, sem push)
 async function checkAndNotify() {
   const C = self.Core;
-  const settings = C.mergeSettings(await C.idb.get('kv', 'settings'));
-  if (settings.push.enabled) return; // o servidor cuida dos lembretes
+  const id = await C.idb.get('kv', 'lastCentralId');
+  if (!id) return;
+  const cache = await C.idb.get('kv', 'central:' + id);
+  if (!cache || !cache.central) return;
+  const device = Object.assign({ lastNotifiedAt: null, push: false, muted: false }, await C.idb.get('kv', 'device:' + id));
+  if (device.push || device.muted) return; // o servidor cuida, ou o usuário desativou
+  const settings = C.mergeSettings(cache.central.settings);
   const now = new Date();
-  if (!C.isReminderDue(settings, now)) return;
-  const tasks = ((await C.idb.getAll('tasks')) || []).map(C.normalizeTask);
+  if (!C.isReminderDue(settings, device.lastNotifiedAt, now)) return;
+  const tasks = (cache.tasks || []).map((t) => C.normalizeTask(t));
   const digest = C.buildDigest(tasks, now);
   if (digest) {
-    await self.registration.showNotification(digest.title, Object.assign({ body: digest.body, data: { url: './' } }, NOTIF_OPTIONS));
+    const title = cache.central.name + ': ' + digest.title.charAt(0).toLowerCase() + digest.title.slice(1);
+    await self.registration.showNotification(title, Object.assign({ body: digest.body, data: { url: './?c=' + id } }, NOTIF_OPTIONS));
   }
-  settings.lastNotifiedAt = now.toISOString();
-  await C.idb.put('kv', settings, 'settings');
+  device.lastNotifiedAt = now.toISOString();
+  await C.idb.put('kv', device, 'device:' + id);
 }
 
 self.addEventListener('periodicsync', (event) => {
@@ -103,7 +113,12 @@ self.addEventListener('push', (event) => {
   }
   const title = data.title || 'Tarefas pendentes';
   event.waitUntil(
-    self.registration.showNotification(title, Object.assign({ body: data.body || '', data: { url: data.url || './' } }, NOTIF_OPTIONS))
+    self.Core.idb.get('kv', 'lastCentralId').catch(() => null).then((id) =>
+      self.registration.showNotification(
+        title,
+        Object.assign({ body: data.body || '', data: { url: data.centralId ? './?c=' + data.centralId : id ? './?c=' + id : './' } }, NOTIF_OPTIONS)
+      )
+    )
   );
 });
 
@@ -113,7 +128,7 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const client of list) {
-        if (client.url.startsWith(self.registration.scope) && 'focus' in client) return client.focus();
+        if (client.url.split('#')[0] === target.split('#')[0] && 'focus' in client) return client.focus();
       }
       return self.clients.openWindow(target);
     })
