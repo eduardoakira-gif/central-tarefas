@@ -1,0 +1,37 @@
+# Agendador alternativo usando GitHub Actions (gratuito em repositórios públicos).
+# Use este OU o pg_cron do Supabase (backend/supabase/cron.sql), não os dois.
+#
+# Para ativar:
+# 1) Em Settings > Secrets and variables > Actions, crie os secrets
+#    PUSH_FUNCTION_URL  (ex.: https://SEU-PROJETO.supabase.co/functions/v1/lembretes)
+#    PUSH_APP_TOKEN     (o mesmo APP_TOKEN configurado no Supabase)
+# 2) Remova o "#" das duas linhas de schedule abaixo e faça commit.
+#
+# Observações: o GitHub pode atrasar execuções agendadas em alguns minutos e
+# pausa agendamentos após 60 dias sem commits no repositório.
+
+name: Lembretes push
+
+on:
+  workflow_dispatch:
+  # schedule:
+  #   - cron: "*/15 * * * *"
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Disparar lembretes
+        env:
+          FUNCTION_URL: ${{ secrets.PUSH_FUNCTION_URL }}
+          APP_TOKEN: ${{ secrets.PUSH_APP_TOKEN }}
+        run: |
+          if [ -z "$FUNCTION_URL" ] || [ -z "$APP_TOKEN" ]; then
+            echo "Push não configurado (secrets ausentes). Nada a fazer."
+            exit 0
+          fi
+          curl -fsS -X POST "$FUNCTION_URL" \
+            -H "content-type: application/json" \
+            -H "x-app-token: $APP_TOKEN" \
+            -d '{"action":"send"}'
