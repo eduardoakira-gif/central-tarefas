@@ -1330,3 +1330,14 @@ a.btn { text-decoration: none; }
 .post-main { all: unset; cursor: pointer; display: flex; flex-direction: column; min-width: 0; }
 .post-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 720px) { body[data-route="brand"] .fab { display: none; } }
+/* v5.0: plano de estudo */
+.study-mod { padding: 14px 16px; margin-bottom: 10px; display: flex; flex-direction: column; gap: 10px; }
+.study-mod summary { display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; list-style: none; }
+.study-mod summary::-webkit-details-marker { display: none; }
+.study-bar { width: 90px; flex: none; }
+.study-bar i { background: var(--focus) !important; }
+.study-items { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.study-item { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; cursor: pointer; }
+.study-item input { width: 18px; height: 18px; accent-color: var(--green); }
+.study-item.is-done strong { text-decoration: line-through; color: var(--muted); }
+@media (max-width: 720px) { body[data-route="study"] .fab { display: none; } }

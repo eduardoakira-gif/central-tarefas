@@ -21,8 +21,9 @@ import { askAssistant } from './assistant.js';
 import { initBoard, renderBoard, openBoard, renderTeamCard } from './board.js';
 import { initAreas, renderArea, renderAreasHub, view as areaView } from './areas.js';
 import { initBrand, renderBrand, renderBrandAlert } from './brand.js';
+import { initStudy, renderStudy, studyAlert } from './study.js';
 
-export const APP_VERSION = '4.9.1';
+export const APP_VERSION = '5.0.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -269,7 +270,9 @@ function renderOwnerFilter() {
 function renderTasks() {
   const now = new Date();
   renderOwnerFilter();
-  $('#ownerCard').innerHTML = renderOwnerCard() + renderTeamCard() + renderBrandAlert() + renderTermCard();
+  const sa = studyAlert();
+  $('#ownerCard').innerHTML = renderOwnerCard() + renderTeamCard() + renderBrandAlert() +
+    (sa ? `<a class="card term-card" href="#/estudos"><span class="label">Plano de estudo</span><strong>${esc(sa)}</strong></a>` : '') + renderTermCard();
   const d = UI.renderDashboard(Tasks.all(), state.filter, now, areas());
   $('#summary').textContent = d.summary;
   const dateText = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -362,6 +365,9 @@ function renderCrmView() {
 function renderReferencesView() {
   keepFocus($('#refBody'), renderReferences());
 }
+function renderStudyView() {
+  keepFocus($('#studyBody'), renderStudy());
+}
 function renderBrandView() {
   keepFocus($('#brandBody'), renderBrand());
 }
@@ -407,6 +413,7 @@ function renderAll() {
   if (r === 'board') renderBoardView();
   if (r === 'area' || r === 'areas') renderAreaView();
   if (r === 'brand') renderBrandView();
+  if (r === 'study') renderStudyView();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -430,7 +437,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study',
 };
 
 function route() {
@@ -463,7 +470,7 @@ function showView() {
   const viewName = state.route === 'areas' ? 'area' : state.route;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== viewName));
   const r = state.route === 'note' ? 'notes' : state.route === 'area' ? 'areas' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand'] };
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
@@ -1700,6 +1707,7 @@ async function openCentral(id) {
   initBoard(Object.assign({ ask: askAssistant }, helpers));
   initAreas(Object.assign({ ask: askAssistant }, helpers));
   initBrand(Object.assign({ ask: askAssistant }, helpers));
+  initStudy(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

@@ -104,7 +104,7 @@ function stats(pid) {
 
 export function renderAreasHub() {
   const ym = b2cView.month || defaultMonth();
-  return `<div class="area-hub"><a class="card area-tile" href="#/marca" style="--area:#0A66C2"><strong>Marca pessoal</strong><span class="area-mission">Seu plano de conteúdo no LinkedIn, Instagram e X para ser mais relevante no cenário.</span><span class="area-nums">Calendário de posts, ideias e metas de seguidores</span></a>${AREAS.map((a) => {
+  return `<div class="area-hub"><a class="card area-tile" href="#/marca" style="--area:#0A66C2"><strong>Marca pessoal</strong><span class="area-mission">Seu plano de conteúdo no LinkedIn, Instagram e X para ser mais relevante no cenário.</span><span class="area-nums">Calendário de posts, ideias e metas de seguidores</span></a><a class="card area-tile" href="#/estudos" style="--area:#7C3AED"><strong>Plano de estudo</strong><span class="area-mission">Trilha de 12 semanas focada na sua área, com cursos gratuitos, podcasts e leituras.</span><span class="area-nums">Meta: 3 itens por semana</span></a>${AREAS.map((a) => {
     const s = stats(a.id);
     const ms = Metrics.all().filter((m) => m.pillar === a.id);
     const filled = ms.filter((m) => m.values[ym] != null).length;

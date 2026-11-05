@@ -53,6 +53,19 @@ const STORIES = [
   [0, 'Domingo leve', 'Algo pessoal que conversa com o trabalho: jogando, assistindo um campeonato, lendo sobre o mercado. "Domingo também é dia de estudar a concorrência".', 'Enquete leve', 'Humanizar a marca'],
 ];
 
+// Rotina do X: [dia (0=dom), nome, como fazer, exemplo]
+const X_ROUTINE = [
+  [1, 'Opinião da segunda', 'Uma frase forte sobre o mercado, sem rodeio. Termine convidando para a conversa.', '"Audiência é aluguel. Comunidade é patrimônio. No esport a gente ainda confunde as duas."'],
+  [1, 'Responder 5 perfis', 'Responda com conteúdo (não só "top") a 5 posts de executivos, orgs e jornalistas do cenário.', 'Comente um anúncio de patrocínio dizendo como você ativaria.'],
+  [2, 'Bastidor em 1 post', 'O que você está construindo, em 2 ou 3 linhas, com 1 foto.', '"Montando a caravana do Inferno Roxo para a Kings. Ônibus, ingresso e muita bateria."'],
+  [3, 'Thread de estudo de caso', 'Thread de 5 a 8 posts: o que a org fez, por que funcionou e o que dá para copiar. Vem do Radar.', '"Como a Team Liquid transforma fã em pontos e pontos em receita 🧵"'],
+  [4, 'Enquete do cenário', 'Pergunta simples com 2 a 4 opções. Gera alcance e mostra o que a torcida pensa.', '"Qual benefício faria você virar sócio de uma org?"'],
+  [4, 'Responder 5 perfis', 'Mesma regra da segunda: valor em cada resposta.', 'Acrescente um dado ou uma referência de outra org.'],
+  [5, 'Aprendizado da semana', 'Uma lição prática da semana, curta.', '"Aprendi esta semana: o que mais faz um torcedor voltar não é desconto, é ser reconhecido."'],
+  [6, 'Ao vivo no jogo', 'Comente o jogo, a Kings League ou o evento em tempo real, com humor e paixão.', '"Que ambiente! O Inferno Roxo hoje está outro nível."'],
+  [0, 'Leitura de domingo', 'Indique um artigo, podcast ou vídeo do mercado com uma frase sua.', '"Episódio obrigatório para quem trabalha com B2C no esport:"'],
+];
+
 const DEFAULT_POSITIONING = 'Head de B2C e Novas Receitas do Fluxo W7M. Transformo torcida em comunidade e comunidade em receita: sócio-torcedor, merchan, Inferno Roxo, Kings League e CRM. Compartilho os bastidores e o que aprendo com as maiores organizações de esports do mundo.';
 
 let H = null;
@@ -143,6 +156,7 @@ export function renderBrand() {
     </section>
 
     ${renderStories()}
+    ${renderX()}
 
     <div class="kpis kpis-4">
       <div class="card kpi"><span class="stat-label">Nesta semana</span><span class="stat-num">${wc.published}/${Math.max(wc.planned, 4)}</span><span class="stat-sub">posts publicados (meta: 4+)</span></div>
@@ -217,6 +231,25 @@ function renderStories() {
   </section>`;
 }
 
+function renderX() {
+  const wd = new Date().getDay();
+  const today = X_ROUTINE.map((s, i) => ({ i, d: s[0], name: s[1], how: s[2], ex: s[3] })).filter((s) => s.d === wd);
+  const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  return `<section class="card report-card stories">
+    <div class="closing-head"><h2>X de hoje</h2><button type="button" class="btn btn-sm" data-brand="x-ai">Escrever os posts de hoje com IA</button></div>
+    <p class="hint">No X, relevância vem de conversa: postar todo dia e responder bem quem é grande no cenário. 1 a 3 posts por dia + 5 respostas.</p>
+    <div class="ref-grid">${today.map((s) => `<article class="card ref-card" style="--area:#15171C">
+        <div class="ref-top"><span class="radar-org">X</span></div>
+        <h3>${esc(s.name)}</h3><p>${esc(s.how)}</p>
+        <div class="radar-lesson"><strong>Exemplo</strong><p>${esc(s.ex)}</p></div>
+        <div class="btn-row"><button type="button" class="btn btn-sm" data-x-plan="${s.i}">Marcar no calendário</button></div>
+      </article>`).join('')}</div>
+    <details class="more"><summary>Rotina do X na semana</summary>
+      <ul class="owner-list">${X_ROUTINE.slice().sort((a, b) => ((a[0] + 6) % 7) - ((b[0] + 6) % 7)).map((s) => `<li><span><strong>${names[s[0]]} · ${esc(s[1])}</strong><br><span class="hint">${esc(s[2])}</span></span></li>`).join('')}</ul>
+    </details>
+  </section>`;
+}
+
 function openDialog(id, prefill) {
   const p = id ? Posts.get(id) : null;
   state.editing = p ? p.id : null;
@@ -276,6 +309,12 @@ export function initBrand(helpers) {
       await Posts.save({ title: i.title, network: i.network, pillar: i.pillar, status: 'ideia', date: nextSlot(i.network), text: i.hint });
       return H.toast('Ideia colocada no calendário');
     }
+    const xp = e.target.closest('[data-x-plan]');
+    if (xp) {
+      const s = X_ROUTINE[Number(xp.dataset.xPlan)];
+      await Posts.save({ title: 'X: ' + s[1], network: 'x', pillar: 'opiniao', status: 'agendado', date: C.toDateKey(new Date()), text: s[2] + '\nExemplo: ' + s[3] });
+      return H.toast('Post do X no calendário de hoje');
+    }
     const sp = e.target.closest('[data-story-plan]');
     if (sp) {
       const s = STORIES[Number(sp.dataset.storyPlan)];
@@ -293,6 +332,8 @@ export function initBrand(helpers) {
       case 'published':
         await Posts.save({ id, status: 'publicado' });
         return H.toast('Publicado! Responda os comentários nas primeiras 2 horas.');
+      case 'x-ai':
+        return H.ask(`Escreva meus posts de hoje no X para eu ser mais relevante como profissional do mercado de esports: 3 posts curtos (opinião, bastidor e aprendizado), 1 ideia de thread de estudo de caso com os 5 primeiros posts e 5 respostas modelo para perfis grandes do cenário sobre assuntos do radar. Meu posicionamento: "${state.positioning}". Tom direto, com personalidade e sem números internos.`);
       case 'stories-ai':
         return H.ask(`Monte meus stories de hoje no Instagram, descontraídos e promovendo meu trabalho como head de B2C do Fluxo W7M. Use o que está acontecendo nas minhas demandas, áreas e no radar. Entregue de 3 a 5 stories em ordem, cada um com: o que filmar ou fotografar, o texto na tela (curto e com humor leve), o recurso do Instagram (enquete, caixinha, música, menção) e o objetivo. Nada de números internos ou contratos.`);
       case 'ask-bio':
