@@ -5,11 +5,12 @@
  * - Atende o Periodic Background Sync (Chrome/Edge com app instalado),
  *   lendo as tarefas do IndexedDB e mostrando o lembrete com o app fechado.
  *
- * Ao publicar uma nova versão, aumente CACHE_VERSION.
+ * Ao publicar uma nova versão, aumente CACHE_VERSION. O app instalado baixa
+ * a versão nova e recarrega sozinho, sem precisar reinstalar nada.
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v3.0.0';
+const CACHE_VERSION = 'v4.0.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -21,6 +22,9 @@ const APP_SHELL = [
   './js/storage.js',
   './js/sync.js',
   './js/notes.js',
+  './js/b2c.js',
+  './js/radar.js',
+  './js/assistant.js',
   './js/tasks.js',
   './js/notifications.js',
   './js/ui.js',
@@ -55,7 +59,8 @@ self.addEventListener('fetch', (event) => {
   if (!sameOrigin && !isFont) return;
 
   event.respondWith(
-    fetch(req)
+    // no-cache: sempre confere com o GitHub Pages se há versão nova (resposta 304 é rápida)
+    fetch(sameOrigin && req.mode !== 'navigate' ? new Request(req, { cache: 'no-cache' }) : req)
       .then((res) => {
         if (res && (res.ok || res.type === 'opaque')) {
           const copy = res.clone();
@@ -126,11 +131,16 @@ self.addEventListener('push', (event) => {
     data = { title: 'Tarefas pendentes', body: event.data ? event.data.text() : '' };
   }
   const title = data.title || 'Tarefas pendentes';
+  const route = typeof data.route === 'string' && data.route.startsWith('#/') ? data.route : '';
   event.waitUntil(
     self.Core.idb.get('kv', 'lastCentralId').catch(() => null).then((id) =>
       self.registration.showNotification(
         title,
-        Object.assign({ body: data.body || '', data: { url: data.centralId ? './?c=' + data.centralId : id ? './?c=' + id : './' } }, NOTIF_OPTIONS)
+        Object.assign({}, NOTIF_OPTIONS, {
+          body: data.body || '',
+          tag: data.tag ? 'central-' + String(data.tag).slice(0, 20) : NOTIF_OPTIONS.tag,
+          data: { url: (data.centralId ? './?c=' + data.centralId : id ? './?c=' + id : './') + route },
+        })
       )
     )
   );
@@ -142,7 +152,10 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const client of list) {
-        if (client.url.split('#')[0] === target.split('#')[0] && 'focus' in client) return client.focus();
+        if (client.url.split('#')[0] === target.split('#')[0] && 'focus' in client) {
+          if (target.includes('#') && 'navigate' in client) return client.navigate(target).then((c) => (c || client).focus());
+          return client.focus();
+        }
       }
       return self.clients.openWindow(target);
     })

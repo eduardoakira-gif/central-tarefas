@@ -1,6 +1,7 @@
 /*
  * sync.js
- * Mantém a central aberta sincronizada com o servidor (tarefas e notas).
+ * Mantém a central aberta sincronizada com o servidor (tarefas, notas,
+ * indicadores, OKRs e NFs do merchan).
  *
  * - Toda alteração é aplicada na hora na tela e no cache local e entra numa
  *   fila, enviada ao servidor logo em seguida (ou quando a conexão voltar).
@@ -12,7 +13,15 @@ import { api } from './api.js';
 import { Local } from './storage.js';
 
 const C = window.Core;
-const COLLECTIONS = ['tasks', 'notes'];
+const BASE = ['tasks', 'notes'];
+const V4 = ['metrics', 'okrs', 'bills']; // só são enviadas quando o servidor já foi atualizado
+const COLLECTIONS = BASE.concat(V4);
+const NORMALIZE = {
+  notes: (x) => C.normalizeNote(x),
+  metrics: (x) => C.normalizeMetric(x),
+  okrs: (x) => C.normalizeOkr(x),
+  bills: (x) => C.normalizeBill(x),
+};
 const changeListeners = new Set();
 const statusListeners = new Set();
 const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
@@ -23,6 +32,10 @@ export const Sync = {
   central: null,
   tasks: [],
   notes: [],
+  metrics: [],
+  okrs: [],
+  bills: [],
+  serverVersion: 0, // 4 = servidor com Painel B2C, Financeiro, Radar e Assistente
   status: 'idle', // saved | saving | offline | error
   lastError: null,
   outbox: null,
@@ -59,9 +72,21 @@ export const Sync = {
     const ob = this.outbox;
     return !!ob.centralPatch || COLLECTIONS.some((c) => Object.keys(ob[c].upserts).length > 0 || ob[c].deletes.length > 0);
   },
+  /** Há algo que o servidor atual consegue receber agora. */
+  hasSendable() {
+    const ob = this.outbox;
+    const active = this.v4() ? COLLECTIONS : BASE;
+    return !!ob.centralPatch || active.some((c) => Object.keys(ob[c].upserts).length > 0 || ob[c].deletes.length > 0);
+  },
 
   normalize(coll, item) {
-    return coll === 'tasks' ? C.normalizeTask(item, this.areaIds()) : C.normalizeNote(item);
+    return coll === 'tasks' ? C.normalizeTask(item, this.areaIds()) : NORMALIZE[coll](item);
+  },
+  v4() {
+    return this.serverVersion >= 4;
+  },
+  extra() {
+    return { metrics: this.metrics, okrs: this.okrs, bills: this.bills, serverVersion: this.serverVersion };
   },
 
   /** Abre a central: mostra o cache na hora e depois atualiza pelo servidor. */
@@ -74,6 +99,8 @@ export const Sync = {
       this.central = cache.central;
       this.tasks = (cache.tasks || []).map((t) => this.normalize('tasks', t));
       this.notes = (cache.notes || []).map((n) => this.normalize('notes', n));
+      for (const c of V4) this[c] = (cache[c] || []).map((x) => this.normalize(c, x));
+      this.serverVersion = cache.serverVersion || 0;
     }
     try {
       await this.pull();
@@ -90,7 +117,7 @@ export const Sync = {
   },
 
   async persist() {
-    await Local.saveCache(this.id, this.central, this.tasks, this.notes);
+    await Local.saveCache(this.id, this.central, this.tasks, this.notes, this.extra());
     await Local.saveOutbox(this.id, this.outbox);
   },
 
@@ -165,7 +192,8 @@ export const Sync = {
       const patch = ob.centralPatch;
       const sent = {};
       let any = false;
-      for (const c of COLLECTIONS) {
+      const active = this.v4() ? COLLECTIONS : BASE;
+      for (const c of active) {
         sent[c] = { upserts: Object.values(ob[c].upserts), deletes: ob[c].deletes.slice() };
         if (sent[c].upserts.length || sent[c].deletes.length) any = true;
       }
@@ -181,7 +209,7 @@ export const Sync = {
         }
         if (any) {
           await this.call('sync', { changes: sent });
-          for (const c of COLLECTIONS) {
+          for (const c of active) {
             for (const item of sent[c].upserts) {
               const cur = ob[c].upserts[item.id];
               if (cur && cur.updatedAt === item.updatedAt) delete ob[c].upserts[item.id];
@@ -190,7 +218,7 @@ export const Sync = {
           }
         }
         await Local.saveOutbox(this.id, ob);
-        if (this.hasPending()) this.scheduleFlush(50);
+        if (this.hasSendable()) this.scheduleFlush(50);
         else this.setStatus('saved');
       } catch (err) {
         this.setStatus(err.status === 0 ? 'offline' : 'error', err);
@@ -206,25 +234,37 @@ export const Sync = {
 
   /** Busca a versão do servidor (sem perder alterações ainda não enviadas). */
   async pull() {
-    if (this.hasPending()) {
+    if (this.hasSendable()) {
       try {
         await this.flush();
       } catch {}
-      if (this.hasPending()) return;
+      if (this.hasSendable()) return;
     }
     const r = await this.call('get');
-    if (this.hasPending()) return; // algo mudou aqui durante a busca; fica para a próxima
+    if (this.hasSendable()) return; // algo mudou aqui durante a busca; fica para a próxima
     const central = r.central;
     const ids = central.areas.map((a) => a.id);
-    const tasks = (r.tasks || []).map((t) => C.normalizeTask(t, ids)).sort(byId);
-    const notes = (r.notes || []).map((n) => C.normalizeNote(n)).sort(byId);
-    const before = JSON.stringify([this.central, this.tasks.slice().sort(byId), this.notes.slice().sort(byId)]);
+    const snapshot = () => JSON.stringify([this.central, ...COLLECTIONS.map((c) => this[c].slice().sort(byId))]);
+    const before = snapshot();
     this.central = central;
-    this.tasks = tasks;
-    this.notes = notes;
-    await Local.saveCache(this.id, central, tasks, notes);
+    this.tasks = (r.tasks || []).map((t) => C.normalizeTask(t, ids)).sort(byId);
+    this.notes = (r.notes || []).map((n) => C.normalizeNote(n)).sort(byId);
+    const wasV4 = this.v4();
+    this.serverVersion = Number(r.version) || 0;
+    if (this.v4()) {
+      for (const c of V4) {
+        // mantém o que ainda está na fila deste aparelho (ex.: criado antes de o servidor ser atualizado)
+        const pending = this.outbox[c];
+        const fromServer = (r[c] || []).map((x) => this.normalize(c, x)).filter((x) => !pending.deletes.includes(x.id));
+        const map = new Map(fromServer.map((x) => [x.id, x]));
+        for (const x of Object.values(pending.upserts)) map.set(x.id, x);
+        this[c] = Array.from(map.values()).sort(byId);
+      }
+      if (!wasV4 && this.hasPending()) this.scheduleFlush(0);
+    }
+    await Local.saveCache(this.id, central, this.tasks, this.notes, this.extra());
     this.setStatus('saved');
-    if (before !== JSON.stringify([central, tasks, notes])) this.emit();
+    if (before !== snapshot()) this.emit();
   },
 
   startPolling(onAuthError) {

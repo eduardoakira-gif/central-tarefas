@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Central de tarefas</title>
-  <meta name="description" content="Central de tarefas profissionais com áreas, prazos, lembretes e sincronização entre dispositivos.">
+  <meta name="description" content="Central de tarefas e assistente B2C: demandas, Painel de indicadores, financeiro do merchan, radar das organizações e lembretes.">
   <meta name="theme-color" content="#F6F7F9" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0F1115" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.json">
@@ -103,11 +103,13 @@
       </a>
       <nav class="nav" aria-label="Seções">
         <a href="#/" data-route="tasks">Tarefas</a>
+        <a href="#/painel" data-route="panel">Painel</a>
+        <a href="#/financeiro" data-route="finance">Financeiro</a>
+        <a href="#/radar" data-route="radar">Radar</a>
+        <a href="#/assistente" data-route="assistant">Assistente</a>
         <a href="#/notas" data-route="notes">Notas</a>
         <a href="#/agenda" data-route="agenda">Agenda</a>
-        <a href="#/historico" data-route="history">Histórico</a>
-        <a href="#/relatorio" data-route="report">Relatório</a>
-        <a href="#/config" data-route="settings">Configurações</a>
+        <a href="#/mais" data-route="more">Mais</a>
       </nav>
       <span class="sync-status" id="syncStatus" data-status="idle"><i></i><span></span></span>
       <button class="btn btn-primary btn-new" type="button" data-action="new">
@@ -127,6 +129,8 @@
         </div>
         <p class="today-date" id="todayDate"></p>
       </div>
+
+      <div id="ownerCard"></div>
 
       <div class="overview">
         <div class="card progress-card" id="progressCard"></div>
@@ -246,6 +250,66 @@
       <div class="task-list" id="historyList"></div>
     </section>
 
+    <!-- PAINEL B2C ---------------------------------------------------------- -->
+    <section class="view" data-view="panel" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Painel B2C</h1>
+          <p class="summary">Indicadores por pilar, na ordem de prioridade: Comunidade, Sócio-Torcedor, Merchan e CRM. Metas, evolução mês a mês e OKRs do trimestre.</p>
+        </div>
+      </div>
+      <div id="panelBody"></div>
+    </section>
+
+    <!-- FINANCEIRO DO MERCHAN ----------------------------------------------- -->
+    <section class="view" data-view="finance" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Financeiro do Merchan</h1>
+          <p class="summary">NFs e XMLs dos fornecedores, envio ao financeiro, agendamento e pagamento. Com o fechamento do mês e cobrança automática.</p>
+        </div>
+        <button class="btn btn-primary" type="button" data-b2c="new-bill">Nova NF</button>
+      </div>
+      <div id="financeBody"></div>
+    </section>
+
+    <!-- RADAR --------------------------------------------------------------- -->
+    <section class="view" data-view="radar" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Radar das organizações</h1>
+          <p class="summary">O que as maiores organizações de esports do mundo e do Brasil estão fazendo, com a lição prática para a sua área.</p>
+        </div>
+      </div>
+      <div id="radarBody"></div>
+    </section>
+
+    <!-- ASSISTENTE ---------------------------------------------------------- -->
+    <section class="view" data-view="assistant" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Assistente</h1>
+          <p class="summary">Cobrança, direcionamento e aprendizado com visão de dono.</p>
+        </div>
+      </div>
+      <div id="assistantBody"></div>
+    </section>
+
+    <!-- MAIS ---------------------------------------------------------------- -->
+    <section class="view" data-view="more" hidden>
+      <div class="page-head"><div><h1>Mais</h1></div></div>
+      <div class="hub">
+        <a class="card hub-item" href="#/financeiro"><strong>Financeiro do Merchan</strong><span>NFs, XMLs, fechamento do mês e pagamentos</span></a>
+        <a class="card hub-item" href="#/painel"><strong>Painel B2C</strong><span>Indicadores, metas e OKRs</span></a>
+        <a class="card hub-item" href="#/notas"><strong>Notas de reunião</strong><span>Anote e gere tarefas com IA</span></a>
+        <a class="card hub-item" href="#/agenda"><strong>Agenda</strong><span>Prazos e cobranças dos próximos dias</span></a>
+        <a class="card hub-item" href="#/relatorio"><strong>Relatório</strong><span>Entregas, prazos e produtividade</span></a>
+        <a class="card hub-item" href="#/historico"><strong>Histórico</strong><span>Concluídas e lixeira</span></a>
+        <a class="card hub-item" href="#/config"><strong>Configurações</strong><span>Lembretes, radar, contexto, áreas e notificações</span></a>
+      </div>
+      <p class="hint app-version" id="appVersion"></p>
+    </section>
+
     <!-- CONFIGURAÇÕES ------------------------------------------------------ -->
     <section class="view" data-view="settings" id="view-settings" hidden>
       <div class="page-head">
@@ -253,7 +317,7 @@
       </div>
 
       <div class="settings">
-        <a class="card settings-link mobile-only" href="#/relatorio">Ver relatório da central <span aria-hidden="true">›</span></a>
+
         <section class="card settings-group">
           <h2>Central</h2>
           <label class="field">
@@ -325,6 +389,56 @@
         </section>
 
         <section class="card settings-group">
+          <h2>Radar e assistente</h2>
+          <div class="setting-row">
+            <div>
+              <strong>Radar das organizações</strong>
+              <p>Busca na web as notícias das organizações e manda as relevantes como notificação, dentro do horário dos lembretes.</p>
+            </div>
+            <label class="switch"><input type="checkbox" id="setRadar" aria-label="Radar ligado"><span></span></label>
+          </div>
+          <label class="field">
+            <span class="label">Frequência do radar</span>
+            <select id="setRadarFreq" class="select">
+              <option value="1">A cada 1 hora (cerca de US$ 0,70 por dia)</option>
+              <option value="2">A cada 2 horas</option>
+              <option value="3">A cada 3 horas</option>
+              <option value="4">A cada 4 horas</option>
+              <option value="6">A cada 6 horas</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="label">Organizações monitoradas (uma por linha)</span>
+            <textarea id="setRadarOrgs" class="input" rows="6" placeholder="Deixe vazio para usar a lista padrão"></textarea>
+            <span class="hint">A cada rodada o radar olha 4 organizações, em rodízio. Vazio = lista padrão com 20 organizações do mundo e do Brasil.</span>
+          </label>
+          <label class="field">
+            <span class="label">Seu contexto estratégico</span>
+            <textarea id="setContext" class="input" rows="6" maxlength="4000" placeholder="Cargo, empresa, pilares e prioridades. O assistente e o radar usam este texto para orientar você."></textarea>
+          </label>
+        </section>
+
+        <section class="card settings-group">
+          <h2>Financeiro do Merchan</h2>
+          <div class="setting-row">
+            <div>
+              <strong>Cobrança de NFs e pagamentos</strong>
+              <p>Entra nos lembretes: NFs vencidas, vencendo em até 3 dias sem agendamento e o fechamento do mês.</p>
+            </div>
+            <label class="switch"><input type="checkbox" id="setBills" aria-label="Cobrança de NFs ligada"><span></span></label>
+          </div>
+          <label class="field">
+            <span class="label">Prazo para enviar as NFs e XMLs do mês anterior</span>
+            <select id="setCloseDay" class="select">
+              <option value="3">Até o dia 3</option>
+              <option value="5">Até o dia 5</option>
+              <option value="7">Até o dia 7</option>
+              <option value="10">Até o dia 10</option>
+            </select>
+          </label>
+        </section>
+
+        <section class="card settings-group">
           <h2>Equipe</h2>
           <p class="hint">Pessoas que aparecem como sugestão de responsável nas tarefas e no filtro.</p>
           <div class="area-chips" id="peopleList"></div>
@@ -358,7 +472,7 @@
         <section class="card settings-group">
           <h2>Assistente de IA</h2>
           <p class="device-status" id="aiStatus">Verificando…</p>
-          <p class="hint">Usado em Notas (gerar tarefas da reunião) e na captura rápida de tarefas. Limite de uso diário por central para controlar o custo.</p>
+          <p class="hint">Usado em Notas, na captura rápida, no Assistente e no Radar. Limite de uso diário por central para controlar o custo.</p>
         </section>
 
         <section class="card settings-group">
@@ -408,10 +522,10 @@
 
   <nav class="bottom-nav" aria-label="Seções">
     <a href="#/" data-route="tasks"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></a>
-    <a href="#/notas" data-route="notes"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg><span>Notas</span></a>
-    <a href="#/agenda" data-route="agenda"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>Agenda</span></a>
-    <a href="#/historico" data-route="history"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg><span>Histórico</span></a>
-    <a href="#/config" data-route="settings"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>Ajustes</span></a>
+    <a href="#/painel" data-route="panel"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>Painel</span></a>
+    <a href="#/radar" data-route="radar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12l6-6"/></svg><span>Radar</span></a>
+    <a href="#/assistente" data-route="assistant"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg><span>Assistente</span></a>
+    <a href="#/mais" data-route="more"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Mais</span></a>
   </nav>
 
   <button class="fab" type="button" data-action="new" aria-label="Nova tarefa">
@@ -645,6 +759,109 @@
       <div class="dialog-foot">
         <span></span>
         <div class="btn-row"><button class="btn btn-primary" value="ok">Começar</button></div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- DIÁLOGO: INDICADOR -------------------------------------------------- -->
+  <dialog id="metricDialog" class="dialog" aria-labelledby="metricDialogTitle">
+    <form id="metricForm" novalidate>
+      <div class="dialog-head">
+        <h2 id="metricDialogTitle">Indicador</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <input class="title-input" name="mName" placeholder="Nome do indicador" maxlength="80" autocomplete="off" aria-label="Nome do indicador">
+        <div class="two">
+          <label class="field"><span class="label">Pilar</span><select name="mPillar" class="select"></select></label>
+          <label class="field"><span class="label">Unidade</span><select name="mUnit" class="select"></select></label>
+        </div>
+        <div class="two">
+          <label class="field"><span class="label">Meta do mês</span><input name="mTarget" type="number" step="any" inputmode="decimal" class="input"></label>
+          <label class="field"><span class="label">Direção</span><select name="mDirection" class="select"><option value="up">Quanto maior, melhor</option><option value="down">Quanto menor, melhor</option></select></label>
+        </div>
+        <label class="field"><span class="label">Como medir</span><textarea name="mDescription" rows="2" class="input" maxlength="500"></textarea></label>
+        <label class="check-row"><input type="checkbox" name="mNorth"><span>Métrica-norte (aparece em destaque no topo do painel)</span></label>
+        <div class="field"><span class="label">Histórico (últimos 6 meses)</span><div class="hist-grid" id="metricHistory"></div></div>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="link-danger" id="metricDelete">Excluir</button>
+        <div class="btn-row">
+          <button type="button" class="btn" data-close>Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- DIÁLOGO: OKR -------------------------------------------------------- -->
+  <dialog id="okrDialog" class="dialog dialog-lg" aria-labelledby="okrDialogTitle">
+    <form id="okrForm" novalidate>
+      <div class="dialog-head">
+        <h2 id="okrDialogTitle">OKR</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <input class="title-input" name="oObjective" placeholder="Objetivo: onde você quer chegar" maxlength="200" autocomplete="off" aria-label="Objetivo">
+        <div class="two">
+          <label class="field"><span class="label">Trimestre</span><select name="oQuarter" class="select"></select></label>
+          <label class="field"><span class="label">Pilar</span><select name="oPillar" class="select"></select></label>
+        </div>
+        <div class="field">
+          <span class="label">Resultados-chave</span>
+          <div id="krList" class="kr-list-edit"></div>
+          <button type="button" class="btn" id="krAdd">Adicionar resultado-chave</button>
+          <span class="hint">Ligue o KR a um indicador do painel para ele se atualizar sozinho com o último valor lançado.</span>
+        </div>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="link-danger" id="okrDelete">Excluir</button>
+        <div class="btn-row">
+          <button type="button" class="btn" data-close>Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar OKR</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- DIÁLOGO: NF / CONTA A PAGAR ----------------------------------------- -->
+  <dialog id="billDialog" class="dialog" aria-labelledby="billDialogTitle">
+    <form id="billForm" novalidate>
+      <div class="dialog-head">
+        <h2 id="billDialogTitle">NF</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <input class="title-input" name="bSupplier" placeholder="Fornecedor" maxlength="120" autocomplete="off" list="suppliersList" aria-label="Fornecedor">
+        <datalist id="suppliersList"></datalist>
+        <div class="two">
+          <label class="field"><span class="label">Número da NF</span><input name="bNumber" class="input" maxlength="40" autocomplete="off"></label>
+          <label class="field"><span class="label">Valor (R$)</span><input name="bAmount" type="number" step="0.01" inputmode="decimal" class="input"></label>
+        </div>
+        <div class="two">
+          <label class="field"><span class="label">Emissão</span><input name="bIssue" type="date" class="input"></label>
+          <label class="field"><span class="label">Vencimento</span><input name="bDue" type="date" class="input"></label>
+        </div>
+        <label class="field"><span class="label">Mês de competência (fechamento)</span><input name="bCompetence" type="month" class="input"></label>
+        <div class="field">
+          <span class="label">Documentos</span>
+          <label class="check-row"><input type="checkbox" name="bNf"><span>NF (PDF) recebida</span></label>
+          <label class="check-row"><input type="checkbox" name="bXml"><span>XML recebido</span></label>
+        </div>
+        <div class="setting-grid">
+          <label class="field"><span class="label">Enviada ao financeiro</span><input name="bSent" type="date" class="input"></label>
+          <label class="field"><span class="label">Pagamento agendado</span><input name="bScheduled" type="date" class="input"></label>
+          <label class="field"><span class="label">Paga em</span><input name="bPaid" type="date" class="input"></label>
+        </div>
+        <label class="field"><span class="label">Link (pasta da NF, Drive, Bling)</span><input name="bLink" type="url" class="input" placeholder="https://" autocomplete="off"></label>
+        <label class="field"><span class="label">Observações</span><textarea name="bNotes" rows="2" class="input" maxlength="1000"></textarea></label>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="link-danger" id="billDelete">Excluir</button>
+        <div class="btn-row">
+          <button type="button" class="btn" data-close>Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar NF</button>
+        </div>
       </div>
     </form>
   </dialog>

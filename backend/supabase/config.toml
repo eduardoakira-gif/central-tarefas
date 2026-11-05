@@ -1,0 +1,5 @@
+# Configuração mínima usada pelo GitHub Actions para publicar a função "api".
+project_id = "central-tarefas"
+
+[functions.api]
+verify_jwt = false

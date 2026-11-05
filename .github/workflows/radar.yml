@@ -1,0 +1,39 @@
+# Radar das organizações: de hora em hora pede ao servidor para buscar as
+# notícias novas (Claude API com busca na web) e notificar o celular.
+# O servidor respeita o horário e a frequência escolhidos em Configurações.
+#
+# Precisa do segredo CRON_SECRET em Settings > Secrets and variables > Actions,
+# com o MESMO valor cadastrado nos Secrets do Supabase.
+
+name: Radar das organizações
+
+on:
+  schedule:
+    - cron: "5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: js/config.js
+          sparse-checkout-cone-mode: false
+
+      - name: Rodar o radar
+        run: |
+          URL=$(grep -oE "https://[a-z0-9]+\.supabase\.co/functions/v1/api" js/config.js | head -1)
+          if [ -z "$CRON_SECRET" ] || [ -z "$URL" ]; then
+            echo "::warning::Falta o segredo CRON_SECRET. O radar não rodou."
+            exit 0
+          fi
+          FORCE=false
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then FORCE=true; fi
+          curl -sS --max-time 300 -X POST "$URL" \
+            -H "content-type: application/json" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            -d "{\"action\":\"radarRun\",\"force\":$FORCE}"

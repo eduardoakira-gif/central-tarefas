@@ -11,6 +11,11 @@ import { Tasks } from './tasks.js';
 import { Notes } from './notes.js';
 import { Notifier } from './notifications.js';
 import * as UI from './ui.js';
+import { initB2C, renderPanel, renderFinance, renderOwnerCard, view as b2cView } from './b2c.js';
+import { initRadar, renderRadar, openRadar, leaveRadar, DEFAULT_CONTEXT } from './radar.js';
+import { initAssistant, renderAssistant, openAssistant } from './assistant.js';
+
+export const APP_VERSION = '4.0.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -257,6 +262,7 @@ function renderOwnerFilter() {
 function renderTasks() {
   const now = new Date();
   renderOwnerFilter();
+  $('#ownerCard').innerHTML = renderOwnerCard();
   const d = UI.renderDashboard(Tasks.all(), state.filter, now, areas());
   $('#summary').textContent = d.summary;
   const dateText = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -316,6 +322,37 @@ function renderReport() {
   $('#reportBody').innerHTML = UI.renderReport(Tasks.all(), new Date(), areas(), state.reportDays);
 }
 
+// Re-renderiza sem perder o que está sendo digitado ou o foco
+function keepFocus(container, html) {
+  const el = container;
+  const active = document.activeElement;
+  const key = active && el.contains(active) ? active.dataset.metricValue || active.id : null;
+  const chat = $('#chatInput', el);
+  const draft = chat ? chat.value : null;
+  el.innerHTML = html;
+  if (draft) $('#chatInput', el) && ($('#chatInput', el).value = draft);
+  if (key) {
+    const again = el.querySelector(`[data-metric-value="${CSS.escape(key)}"]`) || el.querySelector('#' + CSS.escape(key));
+    if (again) again.focus();
+  }
+}
+
+function renderPanelView() {
+  keepFocus($('#panelBody'), renderPanel());
+}
+function renderFinanceView() {
+  keepFocus($('#financeBody'), renderFinance());
+}
+function renderRadarView() {
+  keepFocus($('#radarBody'), renderRadar());
+}
+function renderAssistantView() {
+  keepFocus($('#assistantBody'), renderAssistant());
+}
+function renderMore() {
+  $('#appVersion').textContent = `Central de Tarefas ${APP_VERSION}` + (Sync.v4() ? '' : ' · servidor em atualização');
+}
+
 function renderHeader() {
   $('#brandName').textContent = Sync.central.name;
   $('#centralTitle').textContent = Sync.central.name;
@@ -332,6 +369,11 @@ function renderAll() {
   if (r === 'agenda') renderAgenda();
   if (r === 'report') renderReport();
   if (r === 'settings') renderSettings();
+  if (r === 'panel') renderPanelView();
+  if (r === 'finance') renderFinanceView();
+  if (r === 'radar') renderRadarView();
+  if (r === 'assistant') renderAssistantView();
+  if (r === 'more') renderMore();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -352,10 +394,14 @@ function renderSyncStatus(status, err) {
 // -----------------------------------------------------------------------------
 // Rotas
 // -----------------------------------------------------------------------------
-const ROUTES = { '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report' };
+const ROUTES = {
+  '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
+  '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
+};
 
 function route() {
   const hash = location.hash.replace(/^#/, '');
+  if (state.route === 'radar' && hash !== '/radar') leaveRadar();
   if (hash === '/nova') {
     history.replaceState(null, '', location.pathname + location.search + '#/');
     state.route = 'tasks';
@@ -376,9 +422,15 @@ function route() {
 
 function showView() {
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== state.route));
-  const navRoute = state.route === 'note' ? 'notes' : state.route === 'report' && innerWidth <= 720 ? 'settings' : state.route;
-  $$('.nav a, .bottom-nav a').forEach((a) => a.setAttribute('aria-current', a.dataset.route === navRoute ? 'page' : 'false'));
+  const r = state.route === 'note' ? 'notes' : state.route;
+  const underMore = { nav: ['history', 'report', 'settings'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda'] };
+  const mark = (sel, list) =>
+    $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
+  mark('.nav a', underMore.nav);
+  mark('.bottom-nav a', underMore.bottom);
   document.body.dataset.route = state.route;
+  if (state.route === 'radar') openRadar();
+  if (state.route === 'assistant') openAssistant();
   renderAll();
   window.scrollTo(0, 0);
   if (state.route === 'note') {
@@ -886,7 +938,7 @@ async function handleAction(action, id, el) {
         await Sync.call('setPin', { newPin: '' });
         await Sync.setPin(null);
         Sync.central = Object.assign({}, Sync.central, { hasPin: false });
-        await Local.saveCache(state.centralId, Sync.central, Sync.tasks, Sync.notes);
+        await Sync.persist();
         toast('PIN removido');
         renderSettings();
       } catch (err) {
@@ -1011,7 +1063,7 @@ async function submitPinDialog(e) {
     await Sync.call('setPin', { newPin: pin });
     await Sync.setPin(pin);
     Sync.central = Object.assign({}, Sync.central, { hasPin: true });
-    await Local.saveCache(state.centralId, Sync.central, Sync.tasks, Sync.notes);
+    await Sync.persist();
     $('#pinDialog').close();
     toast('PIN salvo. Guarde-o: ele será pedido em aparelhos novos.');
     renderSettings();
@@ -1080,6 +1132,12 @@ async function renderSettings() {
   $('#setEnd').value = s.endTime;
   $('#setSummary').checked = s.dailySummary;
   $('#setSummaryTime').value = s.dailySummaryTime;
+  $('#setRadar').checked = s.radarEnabled;
+  $('#setRadarFreq').value = String(s.radarFrequencyHours);
+  if (document.activeElement !== $('#setRadarOrgs')) $('#setRadarOrgs').value = (s.radarOrgs || []).join('\n');
+  if (document.activeElement !== $('#setContext')) $('#setContext').value = s.context || '';
+  $('#setBills').checked = s.billsReminder;
+  $('#setCloseDay').value = String(s.monthCloseDay);
 
   $('#pinStatus').textContent = c.hasPin
     ? 'Ativo. Quem abrir o link em um aparelho novo precisa digitar o PIN.'
@@ -1159,7 +1217,7 @@ function patchSettings(patch) {
 }
 
 function exportBackup() {
-  const data = createBackup(Sync.central, Sync.tasks, Sync.notes);
+  const data = createBackup(Sync.central, Sync.tasks, Sync.notes, Sync.extra());
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -1229,7 +1287,7 @@ async function minuteTick() {
     console.warn('Lembrete:', err);
   }
   const active = document.activeElement;
-  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor');
+  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor, #panelBody, #financeBody, #chatForm, #radarBody');
   const dayChanged = state.lastDateKey !== C.toDateKey(new Date());
   state.lastDateKey = C.toDateKey(new Date());
   if (!busyNow || dayChanged) renderAll();
@@ -1436,6 +1494,23 @@ function bindEvents() {
   $('#setEnd').addEventListener('change', (e) => e.target.value && patchSettings({ endTime: e.target.value }));
   $('#setSummary').addEventListener('change', (e) => patchSettings({ dailySummary: e.target.checked }));
   $('#setSummaryTime').addEventListener('change', (e) => e.target.value && patchSettings({ dailySummaryTime: e.target.value }));
+  $('#setRadar').addEventListener('change', (e) => {
+    const patch = { radarEnabled: e.target.checked };
+    if (e.target.checked && !settings().context) patch.context = DEFAULT_CONTEXT;
+    patchSettings(patch);
+  });
+  $('#setRadarFreq').addEventListener('change', (e) => patchSettings({ radarFrequencyHours: Number(e.target.value) }));
+  $('#setRadarOrgs').addEventListener('change', (e) => {
+    const orgs = [...new Set(e.target.value.split('\n').map((x) => x.trim().slice(0, 40)).filter(Boolean))].slice(0, 40);
+    patchSettings({ radarOrgs: orgs });
+    toast(orgs.length ? `${orgs.length} organizações no radar` : 'Usando a lista padrão de organizações');
+  });
+  $('#setContext').addEventListener('change', (e) => {
+    patchSettings({ context: e.target.value.slice(0, 4000) });
+    toast('Contexto salvo');
+  });
+  $('#setBills').addEventListener('change', (e) => patchSettings({ billsReminder: e.target.checked }));
+  $('#setCloseDay').addEventListener('change', (e) => patchSettings({ monthCloseDay: Number(e.target.value) }));
   $$('input[name="theme"]').forEach((r) => r.addEventListener('change', () => applyTheme(r.value)));
   $('#importFile').addEventListener('change', (e) => {
     const file = e.target.files[0];
@@ -1458,10 +1533,28 @@ function bindEvents() {
 // -----------------------------------------------------------------------------
 // Inicialização
 // -----------------------------------------------------------------------------
+// O app se atualiza sozinho: a cada abertura (e ao voltar para ele) procura uma
+// versão nova no GitHub Pages; quando encontra, recarrega na hora certa.
 async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController || reloading) return;
+    const typing = document.activeElement && /input|textarea|select/i.test(document.activeElement.tagName);
+    const dialogOpen = !!document.querySelector('dialog[open]');
+    if (document.hidden || (!typing && !dialogOpen)) {
+      reloading = true;
+      location.reload();
+    } else {
+      toast('Nova versão da Central disponível', { label: 'Atualizar', fn: () => location.reload() });
+    }
+  });
   try {
-    await navigator.serviceWorker.register('service-worker.js', { scope: './' });
+    const reg = await navigator.serviceWorker.register('service-worker.js', { scope: './', updateViaCache: 'none' });
+    const check = () => reg.update().catch(() => {});
+    document.addEventListener('visibilitychange', () => !document.hidden && check());
+    setInterval(check, 30 * 60000);
   } catch (err) {
     console.warn('Service worker não registrado:', err);
   }
@@ -1517,6 +1610,28 @@ async function openCentral(id) {
   started = true;
   buildStaticControls();
   bindEvents();
+  const helpers = {
+    toast,
+    confirmDialog,
+    render: renderAll,
+    copy: async (text, msg) => {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      toast(msg || 'Copiado');
+    },
+    openTaskDialog: (prefill) => openTaskDialog(null, prefill),
+  };
+  initB2C(helpers);
+  initRadar(helpers);
+  initAssistant(helpers);
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

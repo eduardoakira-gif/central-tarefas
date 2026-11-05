@@ -15,14 +15,19 @@ const kv = {
 
 export const Local = {
   loadCache: (id) => kv.get('central:' + id),
-  saveCache: (id, central, tasks, notes) => kv.set('central:' + id, { central, tasks, notes, savedAt: new Date().toISOString() }),
+  saveCache: (id, central, tasks, notes, extra) =>
+    kv.set('central:' + id, Object.assign({ central, tasks, notes, savedAt: new Date().toISOString() }, extra || {})),
 
   async loadOutbox(id) {
     const ob = (await kv.get('outbox:' + id)) || {};
     const coll = (c) => Object.assign({ upserts: {}, deletes: [] }, c || {});
     // a v2 guardava só tarefas, direto na raiz
     const legacyTasks = ob.upserts ? { upserts: ob.upserts, deletes: ob.deletes || [] } : null;
-    return { tasks: coll(ob.tasks || legacyTasks), notes: coll(ob.notes), centralPatch: ob.centralPatch || null };
+    return {
+      tasks: coll(ob.tasks || legacyTasks), notes: coll(ob.notes),
+      metrics: coll(ob.metrics), okrs: coll(ob.okrs), bills: coll(ob.bills),
+      centralPatch: ob.centralPatch || null,
+    };
   },
   saveOutbox: (id, ob) => kv.set('outbox:' + id, ob),
 
@@ -123,9 +128,9 @@ export function remapTasks(tasks, map, areaIds) {
 // -----------------------------------------------------------------------------
 // Backup
 // -----------------------------------------------------------------------------
-export const BACKUP_VERSION = 3;
+export const BACKUP_VERSION = 4;
 
-export function createBackup(central, tasks, notes) {
+export function createBackup(central, tasks, notes, extra) {
   return {
     app: 'central-de-tarefas',
     version: BACKUP_VERSION,
@@ -135,6 +140,9 @@ export function createBackup(central, tasks, notes) {
     priorities: C.PRIORITIES.map(({ id, name }) => ({ id, name })),
     tasks,
     notes: notes || [],
+    metrics: (extra && extra.metrics) || [],
+    okrs: (extra && extra.okrs) || [],
+    bills: (extra && extra.bills) || [],
   };
 }
 

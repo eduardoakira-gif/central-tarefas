@@ -1,4 +1,4 @@
-// Supabase Edge Function: api — Central de Tarefas v3
+// Supabase Edge Function: api — Central de Tarefas v4
 //
 // Todas as chamadas são POST com JSON { action, ... }.
 // O código da central (que vai no link) funciona como chave de acesso.
@@ -7,7 +7,8 @@
 // Segredos (Edge Functions > Secrets no painel, nunca no GitHub):
 //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, CRON_SECRET
 //   ANTHROPIC_API_KEY  (para as funções de IA)
-// Opcionais: AI_MODEL (padrão claude-haiku-4-5-20251001), AI_DAILY_LIMIT (padrão 60 usos por central por dia)
+// Opcionais: AI_MODEL (padrão claude-haiku-4-5-20251001), AI_DAILY_LIMIT (padrão 60 usos por central por dia),
+//   AI_ASSISTANT_MODEL (assistente; padrão claude-sonnet-4-5), AI_RADAR_MODEL (radar; padrão = AI_MODEL)
 // SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já existem automaticamente.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
@@ -21,6 +22,10 @@ const ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY");
 const AI_MODEL = env("AI_MODEL") || "claude-haiku-4-5-20251001";
 const AI_BASE = env("ANTHROPIC_BASE_URL") || "https://api.anthropic.com";
 const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
+const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
+const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
+const SERVER_VERSION = 4;
+const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 if (PUSH_READY) webpush.setVapidDetails(env("VAPID_SUBJECT") || "mailto:voce@exemplo.com", VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
@@ -49,12 +54,18 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_SETTINGS = {
   notificationsEnabled: true, frequencyHours: 2, startTime: "08:00", endTime: "20:00",
   dailySummary: true, dailySummaryTime: "08:00",
+  radarEnabled: false, radarFrequencyHours: 1, radarOrgs: [] as string[], context: "",
+  billsReminder: true, monthCloseDay: 5,
 };
 type Settings = typeof DEFAULT_SETTINGS;
 const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
   tasks: { table: "tasks", maxSize: 60000 },
   notes: { table: "notes", maxSize: 200000 },
+  metrics: { table: "metrics", maxSize: 60000 },
+  okrs: { table: "okrs", maxSize: 60000 },
+  bills: { table: "bills", maxSize: 30000 },
 };
+const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "radar", "devices", "ai_usage"];
 
 function newId(len = 24) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -98,6 +109,14 @@ function cleanSettings(v: any, base: Settings = DEFAULT_SETTINGS): Settings {
     if (TIME_RE.test(v.endTime ?? "")) s.endTime = v.endTime;
     if (typeof v.dailySummary === "boolean") s.dailySummary = v.dailySummary;
     if (TIME_RE.test(v.dailySummaryTime ?? "")) s.dailySummaryTime = v.dailySummaryTime;
+    if (typeof v.radarEnabled === "boolean") s.radarEnabled = v.radarEnabled;
+    if ([1, 2, 3, 4, 6].includes(Number(v.radarFrequencyHours))) s.radarFrequencyHours = Number(v.radarFrequencyHours);
+    if (Array.isArray(v.radarOrgs)) {
+      s.radarOrgs = [...new Set(v.radarOrgs.map((o: unknown) => String(o ?? "").trim().slice(0, 40)).filter(Boolean))].slice(0, 40) as string[];
+    }
+    if (typeof v.context === "string") s.context = v.context.slice(0, 4000);
+    if (typeof v.billsReminder === "boolean") s.billsReminder = v.billsReminder;
+    if (Number(v.monthCloseDay) >= 1 && Number(v.monthCloseDay) <= 15) s.monthCloseDay = Math.round(Number(v.monthCloseDay));
   }
   return s;
 }
@@ -137,6 +156,7 @@ const publicCentral = (c: any) => ({
   settings: cleanSettings(c.settings),
   hasPin: !!c.pin_hash,
   updatedAt: c.updated_at,
+  radar: { lastAt: c.radar_last_at ?? null, lastError: c.radar_last_error ?? null },
 });
 
 async function listItems(table: string, centralId: string) {
@@ -417,12 +437,387 @@ async function callAi(central: any, text: string, refDate: string, single: boole
 }
 
 // ----------------------------------------------------------------------------
+// v4: visão de dono (contas, indicadores, tarefas paradas)
+// ----------------------------------------------------------------------------
+const money = (n: number) =>
+  "R$ " + (Math.round(n * 100) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const MONTHS_PT = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+const addDaysKey = (key: string, n: number) => {
+  const d = new Date(key + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const prevMonthKey = (today: string) => {
+  const [y, m] = today.split("-").map(Number);
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+};
+const monthName = (ym: string) => MONTHS_PT[Number(ym.slice(5, 7)) - 1] ?? ym;
+
+/** Situação de uma NF/conta a pagar. */
+function billStage(b: any) {
+  if (b.paidAt) return "paid";
+  if (b.scheduledFor) return "scheduled";
+  if (b.sentAt) return "sent";
+  if (b.nfOk && b.xmlOk) return "ready";
+  return "docs";
+}
+
+/** Alertas de "dono": o que está travando dinheiro, prazo ou rotina. */
+function ownerAlerts(tasks: any[], bills: any[], metrics: any[], s: Settings, today: string) {
+  const lines: string[] = [];
+  let urgent = 0;
+  const open = bills.filter((b) => b && !b.paidAt && !b.deletedAt);
+  if (s.billsReminder) {
+    const overdue = open.filter((b) => b.dueDate && b.dueDate < today);
+    const soon = open.filter((b) => b.dueDate && b.dueDate >= today && b.dueDate <= addDaysKey(today, 3) && !b.scheduledFor);
+    const sum = (l: any[]) => l.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+    if (overdue.length) {
+      urgent += overdue.length;
+      lines.push(`${plural(overdue.length, "NF vencida", "NFs vencidas")} sem pagamento (${money(sum(overdue))}).`);
+    }
+    if (soon.length) lines.push(`${plural(soon.length, "NF vence", "NFs vencem")} em até 3 dias sem agendamento com o financeiro (${money(sum(soon))}).`);
+    const day = Number(today.slice(8, 10));
+    if (day <= (s.monthCloseDay || 5)) {
+      const comp = prevMonthKey(today);
+      const pending = bills.filter((b) => b && !b.deletedAt && (b.competence || String(b.issueDate || "").slice(0, 7)) === comp && !b.sentAt);
+      if (pending.length) {
+        const missing = pending.filter((b) => !b.nfOk || !b.xmlOk).length;
+        lines.push(`Fechamento de ${monthName(comp)}: ${plural(pending.length, "NF/XML para enviar", "NFs/XMLs para enviar")}` + (missing ? `, ${missing} ainda sem documento.` : "."));
+      }
+    }
+  }
+  const stale = tasks.filter((t) => t && !t.deletedAt && (t.status === "pending" || t.status === "doing") &&
+    Date.parse(t.updatedAt || t.createdAt || "") < Date.now() - 3 * 86400000);
+  if (stale.length) lines.push(`${plural(stale.length, "demanda parada", "demandas paradas")} há mais de 3 dias. Atualize ou conclua.`);
+  if (metrics.length && Number(today.slice(8, 10)) <= 10) {
+    const comp = prevMonthKey(today);
+    const empty = metrics.filter((m) => m && !m.deletedAt && !(m.values && m.values[comp] != null && m.values[comp] !== "")).length;
+    if (empty) lines.push(`${plural(empty, "indicador", "indicadores")} de ${monthName(comp)} sem valor lançado no Painel B2C.`);
+  }
+  return { lines, urgent };
+}
+
+// ----------------------------------------------------------------------------
+// v4: chamadas à Claude API
+// ----------------------------------------------------------------------------
+async function anthropic(payload: any, models: string[]) {
+  if (!ANTHROPIC_API_KEY) throw new HttpError(503, "A IA ainda não foi configurada no servidor (ANTHROPIC_API_KEY).", "ai_not_configured");
+  let last = "";
+  for (const model of [...new Set(models.filter(Boolean))]) {
+    const res = await fetch(`${AI_BASE}/v1/messages`, {
+      method: "POST",
+      headers: { "x-api-key": ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ ...payload, model }),
+    });
+    if (res.ok) return await res.json();
+    last = await res.text().catch(() => "");
+    console.error("Erro da IA", model, res.status, last);
+    if (res.status === 401) throw new HttpError(502, "Chave da IA inválida.");
+    if (res.status === 429 || res.status >= 500) throw new HttpError(502, "A IA está sobrecarregada agora. Tente de novo em instantes.");
+    // 400/404: modelo indisponível ou recurso não suportado; tenta o próximo
+  }
+  let msg = "A IA não respondeu agora. Tente de novo em instantes.";
+  if (/web search/i.test(last) || /web_search/i.test(last)) msg = "A busca na web não está liberada na sua conta da Anthropic (Console > Settings > Privacy > Web search).";
+  throw new HttpError(502, msg);
+}
+
+async function countAiUse(centralId: string) {
+  const { day, count } = await checkAiLimit(centralId);
+  await db.from("ai_usage").upsert({ central_id: centralId, day, count: count + 1 }, { onConflict: "central_id,day" });
+}
+
+// ----------------------------------------------------------------------------
+// v4: Radar de notícias das organizações
+// ----------------------------------------------------------------------------
+const DEFAULT_ORGS = [
+  "T1", "Karmine Corp", "Team Liquid", "100 Thieves", "G2 Esports", "Fnatic", "Team Vitality", "Sentinels",
+  "FaZe Clan", "Gen.G", "Cloud9", "NAVI", "Team Falcons", "FURIA", "LOUD", "MIBR", "paiN Gaming", "Vivo Keyd Stars",
+  "RED Canids", "Fluxo W7M",
+];
+const RADAR_CATEGORIES = ["PR", "B2C", "Merchan", "Comunidade", "Sócio/Membership", "Patrocínio", "Negócios", "Conteúdo/Creators", "Competitivo", "Eventos", "Outros"];
+const RADAR_BATCH = 4;
+
+const RADAR_TOOL = {
+  name: "registrar_noticias",
+  description: "Registra as notícias novas encontradas, já resumidas em português.",
+  input_schema: {
+    type: "object",
+    properties: {
+      items: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            org: { type: "string", description: "Organização principal da notícia (nome curto)." },
+            title: { type: "string", description: "Título claro em português, até 120 caracteres." },
+            summary: { type: "string", description: "Resumo objetivo em 2 a 3 frases, em português." },
+            url: { type: "string", description: "Link da fonte original." },
+            source: { type: "string", description: "Nome do veículo ou site." },
+            publishedAt: { type: "string", description: "Data de publicação AAAA-MM-DD, se souber." },
+            category: { type: "string", enum: RADAR_CATEGORIES },
+            relevance: { type: "integer", minimum: 1, maximum: 5, description: "Relevância para a estratégia B2C do usuário (5 = muito relevante)." },
+            lesson: { type: "string", description: "Lição prática e específica para a área do usuário: o que copiar, testar ou evitar. 1 a 2 frases." },
+          },
+          required: ["org", "title", "summary", "url", "category", "relevance", "lesson"],
+        },
+      },
+    },
+    required: ["items"],
+  },
+};
+
+const urlKey = (u: string) => {
+  try {
+    const x = new URL(u);
+    return (x.hostname.replace(/^www\./, "") + x.pathname.replace(/\/+$/, "")).toLowerCase();
+  } catch {
+    return fold(u).slice(0, 200);
+  }
+};
+
+async function radarRecent(centralId: string, limit = 150) {
+  const { data, error } = await db.from("radar").select("data, created_at").eq("central_id", centralId)
+    .order("created_at", { ascending: false }).limit(limit);
+  if (error) throw new HttpError(500, error.message);
+  return (data ?? []).map((r: any) => ({ ...r.data, createdAt: r.created_at }));
+}
+
+async function runRadar(central: any, manual = false) {
+  const s = cleanSettings(central.settings);
+  const orgs = s.radarOrgs.length ? s.radarOrgs : DEFAULT_ORGS;
+  const cursor = Number(central.radar_cursor || 0) % orgs.length;
+  const batch = Array.from({ length: Math.min(RADAR_BATCH, orgs.length) }, (_, i) => orgs[(cursor + i) % orgs.length]);
+  const today = localNow("America/Sao_Paulo").today;
+  const recent = await radarRecent(central.id, 80);
+  const seen = recent.map((r: any) => `- ${r.org}: ${r.title}`).slice(0, 60).join("\n") || "(nenhuma ainda)";
+  const context = s.context || "Área de B2C (receitas com o torcedor) de uma organização brasileira de esports: comunidade, sócio-torcedor, merchan/e-commerce e CRM.";
+
+  const system = `Você é o analista de inteligência de mercado do usuário. Hoje é ${today}.
+Contexto do usuário (use para escrever as lições):
+${context}
+
+Tarefa: use a busca na web para encontrar notícias PUBLICADAS NOS ÚLTIMOS 3 DIAS sobre as organizações de esports listadas pelo usuário. Vale qualquer notícia relevante: PR, lançamentos de produtos e coleções, merchan, programas de membros/sócio, comunidade e eventos com fãs, patrocínios, parcerias, resultados financeiros, contratações e resultados competitivos de destaque, conteúdo e creators.
+Regras:
+- Faça no máximo 3 buscas, combinando várias organizações por busca quando possível.
+- Só registre notícias com fonte real e link encontrado na busca. Nunca invente.
+- Ignore notícias antigas e as que já foram registradas (lista abaixo).
+- Escreva tudo em português do Brasil.
+- Ao final, chame a ferramenta registrar_noticias (lista vazia se não houver nada novo).
+
+Já registradas:
+${seen}`;
+  const user = `Organizações desta rodada: ${batch.join(", ")}.`;
+
+  const messages: any[] = [{ role: "user", content: user }];
+  let items: any[] = [];
+  for (let round = 0; round < 4; round++) {
+    const out = await anthropic({
+      max_tokens: 4000,
+      system,
+      tools: [
+        { type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "BR", timezone: "America/Sao_Paulo" } },
+        RADAR_TOOL,
+      ],
+      messages,
+    }, [AI_RADAR_MODEL, "claude-sonnet-4-5"]);
+    const call = (out.content ?? []).find((c: any) => c.type === "tool_use" && c.name === RADAR_TOOL.name);
+    if (call) {
+      items = Array.isArray(call.input?.items) ? call.input.items : [];
+      break;
+    }
+    if (out.stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: out.content });
+      continue;
+    }
+    // terminou sem chamar a ferramenta: pede o registro
+    messages.push({ role: "assistant", content: out.content });
+    messages.push({ role: "user", content: "Agora chame registrar_noticias com o que encontrou (lista vazia se nada for novo)." });
+  }
+
+  const known = new Set(recent.map((r: any) => r.urlKey || urlKey(r.url || "")));
+  const knownTitles = new Set(recent.map((r: any) => fold(r.title)));
+  const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+  const fresh: any[] = [];
+  for (const it of items) {
+    const url = str(it.url, 600);
+    if (!/^https?:\/\//.test(url)) continue;
+    const key = urlKey(url);
+    const title = str(it.title, 200);
+    if (!title || known.has(key) || knownTitles.has(fold(title))) continue;
+    known.add(key);
+    knownTitles.add(fold(title));
+    fresh.push({
+      id: newId(20),
+      org: str(it.org, 60),
+      title,
+      summary: str(it.summary, 1200),
+      url,
+      urlKey: key,
+      source: str(it.source, 80),
+      publishedAt: DATE_RE.test(it.publishedAt ?? "") ? it.publishedAt : null,
+      category: RADAR_CATEGORIES.includes(it.category) ? it.category : "Outros",
+      relevance: Math.min(5, Math.max(1, Number(it.relevance) || 3)),
+      lesson: str(it.lesson, 800),
+      starred: false,
+      read: false,
+    });
+  }
+  if (fresh.length) {
+    const { error } = await db.from("radar").insert(fresh.map((d) => ({ central_id: central.id, id: d.id, url_key: d.urlKey, data: d })));
+    if (error) throw new HttpError(500, error.message);
+  }
+  // mantém só os últimos 90 dias (as salvas ficam)
+  const cutoff = new Date(Date.now() - 90 * 86400000).toISOString();
+  await db.from("radar").delete().eq("central_id", central.id).lt("created_at", cutoff).neq("data->>starred", "true");
+  await db.from("centrals").update({
+    radar_last_at: new Date().toISOString(), radar_last_error: null, radar_cursor: (cursor + batch.length) % orgs.length,
+  }).eq("id", central.id);
+  return { added: fresh, orgs: batch, manual };
+}
+
+function radarPush(central: any, added: any[]) {
+  const top = added.slice().sort((a, b) => b.relevance - a.relevance);
+  const first = top[0];
+  const lines = top.slice(0, 3).map((x) => `• ${x.org}: ${x.title}`);
+  if (first?.lesson) lines.push("", "Lição: " + first.lesson);
+  return {
+    title: `Radar: ${plural(added.length, "novidade", "novidades")} das orgs`,
+    body: lines.join("\n"),
+    centralId: central.id,
+    tag: "radar",
+    route: "#/radar",
+  };
+}
+
+// ----------------------------------------------------------------------------
+// v4: Assistente (lê a central inteira e orienta com visão de dono)
+// ----------------------------------------------------------------------------
+const STATUS_PT: Record<string, string> = { pending: "pendente", doing: "em andamento", waiting: "aguardando retorno", done: "concluída" };
+const PRIO_PT: Record<string, string> = { urgent: "urgente", high: "alta", normal: "normal", low: "baixa" };
+const PILLAR_PT: Record<string, string> = { geral: "Geral", comunidade: "Comunidade", socio: "Sócio-Torcedor", merchan: "Merchan", crm: "CRM" };
+
+function fmtMetric(m: any, v: any) {
+  if (v == null || v === "") return "sem valor";
+  const n = Number(v);
+  if (m.unit === "currency") return money(n);
+  if (m.unit === "percent") return n.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + "%";
+  return n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+}
+
+async function assistantContext(central: any) {
+  const s = cleanSettings(central.settings);
+  const { today, minutes } = localNow("America/Sao_Paulo");
+  const [tasks, metrics, okrs, bills, radar] = await Promise.all([
+    listItems("tasks", central.id), listItems("metrics", central.id), listItems("okrs", central.id),
+    listItems("bills", central.id), radarRecent(central.id, 25),
+  ]);
+  const areaName = new Map(central.areas.map((a: any) => [a.id, a.name]));
+  const live = tasks.filter((t: any) => t && !t.deletedAt);
+  const open = sortItems(live.filter((t: any) => t.status !== "done").map((t: any) => ({ t, c: classify(t, today, minutes) })));
+  const taskLine = ({ t, c }: any) => {
+    const bits = [areaName.get(t.area) ?? "", STATUS_PT[t.status] ?? t.status, "prioridade " + (PRIO_PT[t.priority] ?? t.priority)];
+    if (t.dueDate) bits.push("prazo " + t.dueDate + (t.dueTime ? " " + t.dueTime : ""));
+    if (c.overdue) bits.push("ATRASADA");
+    if (t.waitingFor) bits.push("aguardando " + t.waitingFor + (t.followUpDate ? " (cobrar em " + t.followUpDate + ")" : ""));
+    if (t.owner) bits.push("resp. " + t.owner);
+    const upd = Math.floor((Date.now() - Date.parse(t.updatedAt || t.createdAt)) / 86400000);
+    if (upd >= 3) bits.push(`sem atualização há ${upd} dias`);
+    const ck = Array.isArray(t.checklist) && t.checklist.length ? ` [checklist ${t.checklist.filter((x: any) => x.done).length}/${t.checklist.length}]` : "";
+    return `- ${t.title}${ck} (${bits.filter(Boolean).join(", ")})`;
+  };
+  const done7 = live.filter((t: any) => t.status === "done" && t.completedAt && Date.parse(t.completedAt) > Date.now() - 7 * 86400000);
+
+  const comp = today.slice(0, 7);
+  const prev = prevMonthKey(today);
+  const metricLines = metrics.filter((m: any) => m && !m.deletedAt).map((m: any) => {
+    const v = m.values?.[comp] ?? m.values?.[prev];
+    const which = m.values?.[comp] != null ? comp : prev;
+    return `- [${PILLAR_PT[m.pillar] ?? m.pillar}] ${m.name}: ${fmtMetric(m, v)} em ${which}` + (m.target != null && m.target !== "" ? `, meta ${fmtMetric(m, m.target)}` : "") + (m.direction === "down" ? " (quanto menor, melhor)" : "");
+  });
+  const okrLines = okrs.filter((o: any) => o && !o.deletedAt).flatMap((o: any) => [
+    `- ${o.quarter} [${PILLAR_PT[o.pillar] ?? o.pillar}] Objetivo: ${o.objective}`,
+    ...(o.krs ?? []).map((k: any) => `   • KR: ${k.text} — atual ${k.current ?? "?"} / meta ${k.target ?? "?"} (início ${k.start ?? 0})`),
+  ]);
+  const billLines = bills.filter((b: any) => b && !b.deletedAt && !b.paidAt).map((b: any) =>
+    `- ${b.supplier || "Fornecedor"} NF ${b.number || "s/n"}: ${money(Number(b.amount) || 0)}, vence ${b.dueDate || "?"}, etapa ${billStage(b)}` +
+    `${b.nfOk ? "" : ", sem NF"}${b.xmlOk ? "" : ", sem XML"}${b.scheduledFor ? ", agendada " + b.scheduledFor : ""}`);
+  const alerts = ownerAlerts(live, bills, metrics, s, today);
+  const radarLines = radar.slice(0, 20).map((r: any) => `- ${r.createdAt?.slice(0, 10)} ${r.org}: ${r.title}. Lição: ${r.lesson}`);
+
+  return `Hoje: ${today} (${WEEKDAYS[new Date(today + "T12:00:00Z").getUTCDay()]}), ${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")} em Brasília.
+Central: ${central.name}. Áreas: ${central.areas.map((a: any) => a.name).join(", ")}.
+
+## Contexto estratégico do usuário
+${s.context || "(não preenchido)"}
+
+## Alertas de dono
+${alerts.lines.map((l) => "- " + l).join("\n") || "- nenhum"}
+
+## Demandas abertas (${open.length}, em ordem de prioridade)
+${open.slice(0, 70).map(taskLine).join("\n") || "- nenhuma"}
+
+## Concluídas nos últimos 7 dias (${done7.length})
+${done7.slice(0, 25).map((t: any) => "- " + t.title).join("\n") || "- nenhuma"}
+
+## Indicadores do Painel B2C
+${metricLines.join("\n") || "- nenhum cadastrado"}
+
+## OKRs
+${okrLines.join("\n") || "- nenhum cadastrado"}
+
+## NFs e contas a pagar do Merchan (em aberto)
+${billLines.join("\n") || "- nenhuma"}
+
+## Radar recente das organizações
+${radarLines.join("\n") || "- nada ainda"}`;
+}
+
+const SUGGEST_TOOL = {
+  name: "sugerir_tarefas",
+  description: "Sugere tarefas concretas para o usuário adicionar à central. Use só quando o usuário pedir um plano, próximos passos ou quando houver ações claras a registrar.",
+  input_schema: {
+    type: "object",
+    properties: {
+      tasks: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string", description: "Ação curta começando com verbo." },
+            area: { type: "string", description: "Nome exato de uma área existente." },
+            priority: { type: "string", enum: ["urgent", "high", "normal", "low"] },
+            dueDate: { type: "string", description: "AAAA-MM-DD ou vazio." },
+            description: { type: "string" },
+          },
+          required: ["title", "area", "priority"],
+        },
+      },
+    },
+    required: ["tasks"],
+  },
+};
+
+function assistantSystem(contextText: string) {
+  return `Você é o assistente pessoal e "sócio-dono" do usuário dentro da Central de Tarefas dele. Pense como o dono da empresa: foco em receita, prioridades, prazos e execução.
+Seu papel:
+- Cobrar com firmeza e respeito: aponte o que está atrasado, parado ou sem dono, e diga o que fazer primeiro.
+- Dar direcionamento estratégico para a área B2C, conectando demandas, indicadores, OKRs, financeiro e o radar das organizações de referência (T1, Karmine Corp, Team Liquid, 100 Thieves, FURIA, LOUD, MIBR etc.).
+- Ensinar: quando fizer sentido, explique o porquê com exemplos de mercado, para o usuário evoluir como gestor.
+Estilo: português do Brasil, direto, frases curtas, listas curtas quando ajudar. Sem enrolação e sem bajulação. Se faltar dado, diga qual dado falta e como conseguir.
+Use apenas os dados abaixo sobre a central; não invente números. Conhecimento geral de mercado pode ser usado, deixando claro que é referência geral.
+Quando houver ações claras, chame sugerir_tarefas (o usuário revisa antes de criar).
+
+# Dados atuais da central
+${contextText}`;
+}
+
+// ----------------------------------------------------------------------------
 // Ações
 // ----------------------------------------------------------------------------
 async function handle(body: any, req: Request) {
   switch (body.action) {
     case "config":
-      return { vapidPublicKey: PUSH_READY ? VAPID_PUBLIC_KEY : null, ai: !!ANTHROPIC_API_KEY };
+      return { vapidPublicKey: PUSH_READY ? VAPID_PUBLIC_KEY : null, ai: !!ANTHROPIC_API_KEY, version: SERVER_VERSION, features: FEATURES };
 
     case "create": {
       const now = new Date().toISOString();
@@ -442,6 +837,10 @@ async function handle(body: any, req: Request) {
         central: publicCentral(central),
         tasks: await listItems("tasks", central.id),
         notes: await listItems("notes", central.id),
+        metrics: await listItems("metrics", central.id),
+        okrs: await listItems("okrs", central.id),
+        bills: await listItems("bills", central.id),
+        version: SERVER_VERSION,
       };
     }
 
@@ -470,17 +869,17 @@ async function handle(body: any, req: Request) {
         const ups = Array.isArray(c.upserts) ? c.upserts : [];
         const dels = Array.isArray(c.deletes) ? c.deletes.map(String) : [];
         total += ups.length + dels.length;
-        if (total > 1000) throw new HttpError(400, "Alterações demais de uma vez.");
+        if (total > 2000) throw new HttpError(400, "Alterações demais de uma vez.");
         result[name] = await applyChanges(cfg.table, cfg.maxSize, central.id, ups, dels);
       }
-      return { ok: true, applied: result };
+      return { ok: true, applied: result, version: SERVER_VERSION };
     }
 
     case "replaceData": {
       // Importação de backup: substitui tarefas e notas da central.
       const central = await getCentral(body.centralId, body.pin);
       for (const [name, cfg] of Object.entries(COLLECTIONS)) {
-        if (!Array.isArray(body[name])) continue;
+        if (!Array.isArray(body[name])) continue; // só substitui o que veio no backup
         const rows = body[name].slice(0, 5000).map((t: any) => cleanItem(t, cfg.maxSize));
         const { error: delErr } = await db.from(cfg.table).delete().eq("central_id", central.id);
         if (delErr) throw new HttpError(500, delErr.message);
@@ -513,7 +912,7 @@ async function handle(body: any, req: Request) {
       const id = newId();
       const { error: insErr } = await db.from("centrals").insert({ ...central, id, updated_at: new Date().toISOString() });
       if (insErr) throw new HttpError(500, insErr.message);
-      for (const table of ["tasks", "notes", "devices", "ai_usage"]) {
+      for (const table of ALL_TABLES) {
         const { error } = await db.from(table).update({ central_id: id }).eq("central_id", central.id);
         if (error) throw new HttpError(500, error.message);
       }
@@ -591,6 +990,21 @@ async function handle(body: any, req: Request) {
         if (!cache.has(id)) cache.set(id, await openTasks(id));
         return cache.get(id)!;
       };
+      const extras = new Map<string, { bills: any[]; metrics: any[] }>();
+      const extrasOf = async (id: string) => {
+        if (!extras.has(id)) extras.set(id, { bills: await listItems("bills", id), metrics: await listItems("metrics", id) });
+        return extras.get(id)!;
+      };
+      // junta o resumo das tarefas com os alertas de dono (NFs, fechamento do mês, KPIs, demandas paradas)
+      const withAlerts = async (base: { title: string; body: string } | null, c: any, s: Settings, tz: string) => {
+        const { today } = localNow(tz);
+        const ex = await extrasOf(c.id);
+        const a = ownerAlerts(await tasksOf(c.id), ex.bills, ex.metrics, s, today);
+        if (!a.lines.length) return base;
+        const block = ["", "Cobrança do dono:", ...a.lines.map((l) => "• " + l)].join("\n");
+        if (base) return { ...base, body: base.body + "\n" + block };
+        return { title: `${c.name}: cobrança do dono`, body: block.trim() };
+      };
 
       let sent = 0;
       for (const d of devices) {
@@ -604,7 +1018,7 @@ async function handle(body: any, req: Request) {
         // Resumo do dia: uma vez por dia, a partir do horário escolhido (até 3h depois)
         const summaryAt = toMin(s.dailySummaryTime) ?? 480;
         if (s.dailySummary && d.last_summary_on !== today && minutes >= summaryAt && minutes < summaryAt + 180) {
-          const summary = buildDailySummary(await tasksOf(c.id), d.timezone, c.name);
+          const summary = await withAlerts(buildDailySummary(await tasksOf(c.id), d.timezone, c.name), c, s, d.timezone);
           if (summary && (await sendPush(d, { ...summary, centralId: c.id }))) sent++;
           await db.from("devices").update({ last_summary_on: today, last_sent_at: now })
             .eq("central_id", d.central_id).eq("endpoint", d.endpoint);
@@ -614,11 +1028,119 @@ async function handle(body: any, req: Request) {
         if (!inWindow(s, minutes)) continue;
         const last = d.last_sent_at ? Date.parse(d.last_sent_at) : 0;
         if (Date.now() - last < s.frequencyHours * 3600000 - 5 * 60000) continue; // 5 min de folga
-        const digest = buildDigest(await tasksOf(c.id), d.timezone, c.name);
+        const digest = await withAlerts(buildDigest(await tasksOf(c.id), d.timezone, c.name), c, s, d.timezone);
         if (digest && (await sendPush(d, { ...digest, centralId: c.id }))) sent++;
         await db.from("devices").update({ last_sent_at: now }).eq("central_id", d.central_id).eq("endpoint", d.endpoint);
       }
       return { ok: true, sent };
+    }
+
+    case "radarList": {
+      const central = await getCentral(body.centralId, body.pin);
+      return {
+        items: await radarRecent(central.id, 200),
+        radar: { lastAt: central.radar_last_at ?? null, lastError: central.radar_last_error ?? null },
+        defaultOrgs: DEFAULT_ORGS,
+      };
+    }
+
+    case "radarMark": {
+      const central = await getCentral(body.centralId, body.pin);
+      const id = String(body.itemId ?? "");
+      const { data: row, error } = await db.from("radar").select("data").eq("central_id", central.id).eq("id", id).maybeSingle();
+      if (error) throw new HttpError(500, error.message);
+      if (!row) throw new HttpError(404, "Notícia não encontrada.");
+      const patch = body.patch ?? {};
+      const next = { ...row.data };
+      if (typeof patch.starred === "boolean") next.starred = patch.starred;
+      if (typeof patch.read === "boolean") next.read = patch.read;
+      if (typeof patch.note === "string") next.note = patch.note.slice(0, 2000);
+      const { error: upErr } = await db.from("radar").update({ data: next }).eq("central_id", central.id).eq("id", id);
+      if (upErr) throw new HttpError(500, upErr.message);
+      return { item: next };
+    }
+
+    case "radarDelete": {
+      const central = await getCentral(body.centralId, body.pin);
+      await db.from("radar").delete().eq("central_id", central.id).eq("id", String(body.itemId ?? ""));
+      return { ok: true };
+    }
+
+    case "radarRunNow": {
+      const central = await getCentral(body.centralId, body.pin);
+      await countAiUse(central.id);
+      try {
+        const r = await runRadar(central, true);
+        return { added: r.added.length, orgs: r.orgs };
+      } catch (err: any) {
+        await db.from("centrals").update({ radar_last_error: String(err?.message ?? err).slice(0, 300) }).eq("id", central.id);
+        throw err;
+      }
+    }
+
+    case "radarRun": {
+      // Chamado de hora em hora pelo GitHub Actions (.github/workflows/radar.yml)
+      if (!CRON_SECRET || req.headers.get("x-cron-secret") !== CRON_SECRET) throw new HttpError(401, "Não autorizado.");
+      const { data: centrals, error } = await db.from("centrals").select("*");
+      if (error) throw new HttpError(500, error.message);
+      const started = Date.now();
+      const report: any[] = [];
+      for (const c of centrals ?? []) {
+        const s = cleanSettings(c.settings);
+        if (!s.radarEnabled) continue;
+        if (Date.now() - started > 100000) break; // limite de tempo da função
+        const { data: devs } = await db.from("devices").select("*").eq("central_id", c.id);
+        const tz = devs?.[0]?.timezone || "America/Sao_Paulo";
+        const { minutes } = localNow(tz);
+        if (!inWindow(s, minutes) && !body.force) continue;
+        const last = c.radar_last_at ? Date.parse(c.radar_last_at) : 0;
+        if (Date.now() - last < s.radarFrequencyHours * 3600000 - 10 * 60000 && !body.force) continue;
+        try {
+          const r = await runRadar(c);
+          let sent = 0;
+          const relevant = r.added.filter((x) => x.relevance >= 3);
+          if (PUSH_READY && relevant.length && s.notificationsEnabled) {
+            for (const d of devs ?? []) if (await sendPush(d, radarPush(c, relevant))) sent++;
+          }
+          report.push({ central: c.id.slice(0, 4), added: r.added.length, sent });
+        } catch (err: any) {
+          console.error("Radar", c.id, err?.message ?? err);
+          await db.from("centrals").update({ radar_last_error: String(err?.message ?? err).slice(0, 300), radar_last_at: new Date().toISOString() }).eq("id", c.id);
+          report.push({ central: c.id.slice(0, 4), error: String(err?.message ?? err).slice(0, 120) });
+        }
+      }
+      return { ok: true, report };
+    }
+
+    case "assistantChat": {
+      const central = await getCentral(body.centralId, body.pin);
+      const raw = Array.isArray(body.messages) ? body.messages.slice(-16) : [];
+      const messages = raw
+        .map((m: any) => ({ role: m?.role === "assistant" ? "assistant" : "user", content: String(m?.content ?? "").slice(0, 8000) }))
+        .filter((m: any) => m.content.trim());
+      while (messages.length && messages[0].role !== "user") messages.shift();
+      if (!messages.length || messages[messages.length - 1].role !== "user") throw new HttpError(400, "Escreva sua mensagem.");
+      await countAiUse(central.id);
+      const out = await anthropic({
+        max_tokens: 2500,
+        system: assistantSystem(await assistantContext(central)),
+        tools: [SUGGEST_TOOL],
+        messages,
+      }, [AI_ASSISTANT_MODEL, "claude-sonnet-4-5", AI_MODEL]);
+      const text = (out.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n\n").trim();
+      const call = (out.content ?? []).find((c: any) => c.type === "tool_use" && c.name === SUGGEST_TOOL.name);
+      const byName = new Map(central.areas.map((a: any) => [fold(a.name), a.id]));
+      const tasks = (Array.isArray(call?.input?.tasks) ? call.input.tasks : []).slice(0, 12).map((t: any) => ({
+        title: String(t.title ?? "").trim().slice(0, 200),
+        areaId: byName.get(fold(t.area)) ?? central.areas[0]?.id ?? null,
+        priority: ["urgent", "high", "normal", "low"].includes(t.priority) ? t.priority : "normal",
+        dueDate: DATE_RE.test(t.dueDate ?? "") ? t.dueDate : null,
+        description: String(t.description ?? "").trim().slice(0, 2000),
+      })).filter((t: any) => t.title);
+      return {
+        reply: text || (tasks.length ? "Sugeri algumas tarefas abaixo. Revise e crie as que fizerem sentido." : "Não consegui responder agora."),
+        tasks,
+      };
     }
 
     default:

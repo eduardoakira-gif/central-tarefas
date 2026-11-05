@@ -51,6 +51,12 @@
     endTime: '20:00',
     dailySummary: true,
     dailySummaryTime: '08:00',
+    radarEnabled: false,
+    radarFrequencyHours: 1,
+    radarOrgs: [],
+    context: '',
+    billsReminder: true,
+    monthCloseDay: 5,
   };
 
   const RECURRENCES = [
@@ -369,6 +375,178 @@
     return next;
   }
 
+
+  // ---------------------------------------------------------------------------
+  // v4: Painel B2C (indicadores e OKRs) e Financeiro do Merchan
+  // ---------------------------------------------------------------------------
+  const PILLARS = [
+    { id: 'geral', name: 'Visão geral', color: '#15171C' },
+    { id: 'comunidade', name: 'Comunidade', color: '#14A38B' },
+    { id: 'socio', name: 'Sócio-Torcedor', color: '#8B5CF6' },
+    { id: 'merchan', name: 'Merchan', color: '#DB4C9A' },
+    { id: 'crm', name: 'CRM', color: '#3B82F6' },
+  ];
+  const PILLAR_MAP = byId(PILLARS);
+  const UNITS = [
+    { id: 'number', name: 'Número' },
+    { id: 'currency', name: 'R$' },
+    { id: 'percent', name: '%' },
+    { id: 'ratio', name: 'Vezes (x)' },
+    { id: 'days', name: 'Dias' },
+  ];
+
+  // Indicadores usados pelas organizações referência (T1, Team Liquid, 100 Thieves, FURIA…)
+  // IDs fixos: carregar o catálogo em dois aparelhos não duplica nada.
+  const KPI_CATALOG = [
+    ['geral', 'Receita B2C total', 'currency', 'up', 'Soma de sócio, merchan e demais receitas com o torcedor no mês. É o número que o dono olha primeiro.', true],
+    ['geral', 'Receita por torcedor ativo (ARPU)', 'currency', 'up', 'Receita B2C do mês dividida pelos torcedores ativos. Métrica-norte: mostra se a comunidade está virando negócio.', true],
+    ['geral', 'Base única de torcedores', 'number', 'up', 'Contatos únicos identificados (CRM + sócio + loja + comunidade).'],
+    ['comunidade', 'Torcedores ativos no mês (MAU)', 'number', 'up', 'Pessoas que interagiram no mês (Discord, WhatsApp, eventos, lives, redes).'],
+    ['comunidade', 'Taxa de engajamento', 'percent', 'up', 'Interações ÷ alcance nas redes principais.'],
+    ['comunidade', 'Membros nos canais próprios', 'number', 'up', 'Discord, grupos de WhatsApp e app: o público que a org controla.'],
+    ['comunidade', 'Presença em eventos e watch parties', 'number', 'up', 'Torcedores presentes nos encontros do mês (modelo Karmine Corp).'],
+    ['comunidade', 'NPS da torcida', 'number', 'up', 'De -100 a 100. Mede se o torcedor recomendaria a experiência.'],
+    ['comunidade', 'Conteúdo gerado por fãs (UGC)', 'number', 'up', 'Posts, clipes e artes de torcedores marcando a org.'],
+    ['socio', 'Sócios ativos', 'number', 'up', 'Assinaturas pagas e em dia no fim do mês.'],
+    ['socio', 'Receita recorrente mensal (MRR)', 'currency', 'up', 'Receita mensal dos planos de sócio.'],
+    ['socio', 'Churn mensal', 'percent', 'down', 'Sócios que cancelaram ou não renovaram ÷ sócios no início do mês.'],
+    ['socio', 'Novos sócios no mês', 'number', 'up', 'Adesões novas no mês.'],
+    ['socio', 'Conversão comunidade → sócio', 'percent', 'up', 'Novos sócios ÷ torcedores ativos. Mostra se a comunidade vira receita.'],
+    ['socio', 'LTV do sócio', 'currency', 'up', 'Ticket médio × meses médios de permanência.'],
+    ['socio', 'CAC do sócio', 'currency', 'down', 'Investimento em aquisição ÷ novos sócios.'],
+    ['socio', 'LTV ÷ CAC', 'ratio', 'up', 'Acima de 3x é saudável.'],
+    ['merchan', 'Faturamento do merchan', 'currency', 'up', 'Vendas da loja no mês (modelo T1: produtos ligados aos ídolos).'],
+    ['merchan', 'Pedidos', 'number', 'up', 'Quantidade de pedidos no mês.'],
+    ['merchan', 'Ticket médio', 'currency', 'up', 'Faturamento ÷ pedidos.'],
+    ['merchan', 'Margem bruta', 'percent', 'up', '(Receita − custo do produto) ÷ receita.'],
+    ['merchan', 'Taxa de recompra', 'percent', 'up', 'Clientes que compraram de novo nos últimos 90 dias.'],
+    ['merchan', 'Sell-through dos drops', 'percent', 'up', 'Unidades vendidas ÷ unidades lançadas (modelo 100 Thieves).'],
+    ['merchan', 'Conversão da loja', 'percent', 'up', 'Pedidos ÷ visitas.'],
+    ['merchan', 'Prazo médio de entrega', 'days', 'down', 'Dias entre a compra e a entrega.'],
+    ['crm', 'Contatos na base', 'number', 'up', 'Contatos válidos no RD Station.'],
+    ['crm', 'Taxa de opt-in', 'percent', 'up', 'Contatos que aceitam receber comunicação.'],
+    ['crm', 'Taxa de abertura', 'percent', 'up', 'Média das campanhas do mês.'],
+    ['crm', 'Taxa de clique (CTR)', 'percent', 'up', 'Cliques ÷ entregues.'],
+    ['crm', 'Receita atribuída ao CRM', 'currency', 'up', 'Vendas e adesões vindas de e-mails e réguas.'],
+    ['crm', 'Taxa de descadastro', 'percent', 'down', 'Descadastros ÷ entregues.'],
+  ];
+  const slug = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  function kpiCatalog() {
+    return KPI_CATALOG.map(([pillar, name, unit, direction, description, northStar], i) => ({
+      id: 'kpi-' + pillar + '-' + slug(name), pillar, name, unit, direction, description, northStar: !!northStar, order: i,
+    }));
+  }
+
+  const num = (v) => (v === '' || v == null || isNaN(Number(v)) ? null : Number(v));
+  const YM_RE = /^\d{4}-\d{2}$/;
+
+  function normalizeMetric(m) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    const values = {};
+    if (m.values && typeof m.values === 'object') {
+      for (const [k, v] of Object.entries(m.values)) if (YM_RE.test(k) && num(v) !== null) values[k] = num(v);
+    }
+    return {
+      id: str(m.id) || uid(),
+      pillar: PILLAR_MAP[m.pillar] ? m.pillar : 'geral',
+      name: str(m.name).trim().slice(0, 80) || 'Indicador',
+      unit: UNITS.some((u) => u.id === m.unit) ? m.unit : 'number',
+      direction: m.direction === 'down' ? 'down' : 'up',
+      target: num(m.target),
+      description: str(m.description).slice(0, 500),
+      northStar: !!m.northStar,
+      order: Number(m.order) || 0,
+      values,
+      createdAt: m.createdAt || now,
+      updatedAt: m.updatedAt || now,
+    };
+  }
+
+  function normalizeOkr(o) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    return {
+      id: str(o.id) || uid(),
+      quarter: /^\d{4}-Q[1-4]$/.test(o.quarter) ? o.quarter : quarterOf(new Date()),
+      pillar: PILLAR_MAP[o.pillar] ? o.pillar : 'geral',
+      objective: str(o.objective).trim().slice(0, 200),
+      krs: Array.isArray(o.krs)
+        ? o.krs.filter((k) => k && str(k.text).trim()).slice(0, 8).map((k) => ({
+            id: str(k.id) || uid(), text: str(k.text).trim().slice(0, 200),
+            start: num(k.start) ?? 0, target: num(k.target), current: num(k.current), kpiId: k.kpiId ? str(k.kpiId) : null,
+          }))
+        : [],
+      createdAt: o.createdAt || now,
+      updatedAt: o.updatedAt || now,
+    };
+  }
+
+  function quarterOf(d) {
+    return d.getFullYear() + '-Q' + (Math.floor(d.getMonth() / 3) + 1);
+  }
+  /** Quanto do trimestre já passou (0 a 1). */
+  function quarterElapsed(q, now) {
+    const [y, n] = [Number(q.slice(0, 4)), Number(q.slice(-1))];
+    const start = new Date(y, (n - 1) * 3, 1).getTime();
+    const end = new Date(y, n * 3, 1).getTime();
+    return Math.min(1, Math.max(0, ((now || new Date()).getTime() - start) / (end - start)));
+  }
+  function krProgress(k, metrics) {
+    let current = k.current;
+    if (k.kpiId && metrics) {
+      const m = metrics.find((x) => x.id === k.kpiId);
+      if (m) {
+        const months = Object.keys(m.values).sort();
+        if (months.length) current = m.values[months[months.length - 1]];
+      }
+    }
+    if (k.target == null || current == null) return { current, pct: null };
+    const span = k.target - (k.start || 0);
+    if (span === 0) return { current, pct: current >= k.target ? 1 : 0 };
+    return { current, pct: Math.max(0, Math.min(1, (current - (k.start || 0)) / span)) };
+  }
+
+  function normalizeBill(b) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    const issueDate = validDate(b.issueDate);
+    return {
+      id: str(b.id) || uid(),
+      supplier: str(b.supplier).trim().slice(0, 120),
+      number: str(b.number).trim().slice(0, 40),
+      description: str(b.description).slice(0, 500),
+      amount: num(b.amount) ?? 0,
+      issueDate,
+      dueDate: validDate(b.dueDate),
+      competence: YM_RE.test(b.competence) ? b.competence : issueDate ? issueDate.slice(0, 7) : toDateKey(new Date()).slice(0, 7),
+      nfOk: !!b.nfOk,
+      xmlOk: !!b.xmlOk,
+      sentAt: validDate(b.sentAt),
+      scheduledFor: validDate(b.scheduledFor),
+      paidAt: validDate(b.paidAt),
+      link: str(b.link).slice(0, 600),
+      notes: str(b.notes).slice(0, 1000),
+      createdAt: b.createdAt || now,
+      updatedAt: b.updatedAt || now,
+    };
+  }
+
+  const BILL_STAGES = [
+    { id: 'docs', name: 'Faltam documentos' },
+    { id: 'ready', name: 'Pronta para enviar' },
+    { id: 'sent', name: 'Enviada ao financeiro' },
+    { id: 'scheduled', name: 'Pagamento agendado' },
+    { id: 'paid', name: 'Paga' },
+  ];
+  function billStage(b) {
+    if (b.paidAt) return 'paid';
+    if (b.scheduledFor) return 'scheduled';
+    if (b.sentAt) return 'sent';
+    if (b.nfOk && b.xmlOk) return 'ready';
+    return 'docs';
+  }
+
   // ---------------------------------------------------------------------------
   // IndexedDB mínimo (usado pela página e pelo service worker)
   // ---------------------------------------------------------------------------
@@ -440,6 +618,8 @@
     pad, toDateKey, fromDateKey, addDays, toMin, uid,
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,
+    PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,
+    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage,
     idb,
   };
 })(typeof self !== 'undefined' ? self : this);

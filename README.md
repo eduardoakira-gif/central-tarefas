@@ -28,6 +28,28 @@ Sim. O app guarda uma cópia no dispositivo. Sem internet, você continua usando
 
 ## Funcionalidades
 
+**Novidades da versão 4 (assistente B2C com visão de dono)**
+- **Cobrança do dono:** no topo das Tarefas e nas notificações, aparecem NFs vencidas ou vencendo sem agendamento, o fechamento do mês (NFs e XMLs do mês anterior), demandas paradas há mais de 3 dias e indicadores do mês sem valor.
+- **Painel B2C:** 31 indicadores recomendados (métrica-norte, Comunidade, Sócio-Torcedor, Merchan e CRM), carregados em 1 clique, com meta, evolução mês a mês, saúde por pilar e OKRs do trimestre com ritmo esperado.
+- **Financeiro do Merchan:** cadastro de NFs com NF e XML, envio ao financeiro, agendamento e pagamento, fechamento do mês com resumo pronto para copiar ou mandar por e-mail.
+- **Radar das organizações:** de hora em hora (GitHub Actions) a Claude API busca na web as notícias das organizações de referência, resume em português e escreve a lição para a sua área. As relevantes chegam como notificação.
+- **Assistente:** chat que lê tarefas, indicadores, OKRs, NFs e radar e responde com cobrança e direcionamento. Sugere tarefas para criar com 1 toque.
+- **Atualização automática:** o site se atualiza sozinho ao abrir, e o servidor do Supabase é atualizado pelo GitHub Actions sempre que o código muda.
+
+### Ativar a versão 4 (uma vez só)
+Em **GitHub → Settings → Secrets and variables → Actions → New repository secret**, crie:
+
+| Nome | Valor |
+| --- | --- |
+| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account (foto) → Access Tokens → Generate new token |
+| `CRON_SECRET` | o mesmo CRON_SECRET que já está nos Secrets do Supabase |
+
+Depois vá em **Actions → Atualizar servidor → Run workflow**. A partir daí, toda atualização no código chega sozinha ao site e ao servidor.
+
+Para o radar, a busca na web precisa estar liberada no Console da Anthropic (Settings → Privacy → Web search). Opcional nos Secrets do Supabase: `AI_ASSISTANT_MODEL` (padrão `claude-sonnet-4-5`) e `AI_RADAR_MODEL` (padrão o mesmo da IA).
+
+**Custo estimado:** radar de hora em hora, das 8h às 20h, fica em torno de US$ 0,70 por dia; cada mensagem do assistente custa alguns centavos. O limite mensal no painel da Anthropic segura o gasto.
+
 **Novidades da versão 3**
 - **Notas de reunião com IA:** aba Notas para anotar reuniões (título, data, participantes e texto, salvo automaticamente). Ao terminar, o botão **Finalizei: gerar tarefas** envia a anotação para a IA, que sugere as tarefas com área, prioridade, prazo, responsável, "aguardando retorno" e checklist. Você revisa, edita, desmarca o que não quiser e só então cria. Se uma tarefa não se encaixar em nenhuma área, a IA sugere uma área nova, criada só se você aprovar. Cada tarefa guarda o vínculo com a reunião de origem.
 - **Captura rápida:** escreva algo como "Enviar proposta XPTO amanhã 16h urgente" e a IA preenche o cadastro para você confirmar.
@@ -162,7 +184,7 @@ Sem a chave da IA, tudo funciona normalmente, exceto "gerar tarefas" nas notas; 
 
 ## Como atualizar o site no futuro
 
-Edite os arquivos no GitHub e aumente `CACHE_VERSION` no topo do `service-worker.js` (ex.: `v2.0.0` → `v2.0.1`) para que os aparelhos com o app instalado baixem a nova versão. As tarefas não são afetadas.
+Não precisa trocar arquivos nem reinstalar o app. Ao enviar mudanças para o GitHub, o GitHub Pages publica o site e o app instalado baixa a versão nova sozinho; mudanças em `backend/` são publicadas no Supabase pelo workflow **Atualizar servidor**. Ao mudar o site, aumente `CACHE_VERSION` no `service-worker.js` para forçar a recarga imediata.
 
 ## Como executar localmente
 

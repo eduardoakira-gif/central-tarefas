@@ -1,4 +1,4 @@
--- Central de Tarefas v3
+-- Central de Tarefas v4
 -- Rode no Supabase: SQL Editor > New query > cole tudo e clique em Run.
 -- Pode rodar quantas vezes quiser: só cria o que ainda não existe e não apaga dados.
 
@@ -57,3 +57,50 @@ alter table public.devices  enable row level security;
 alter table public.ai_usage enable row level security;
 
 drop table if exists public.push_devices; -- tabela da versão 1, não é mais usada
+
+-- ---------------------------------------------------------------------------
+-- v4: Painel B2C (indicadores e OKRs), Financeiro do Merchan e Radar
+-- ---------------------------------------------------------------------------
+create table if not exists public.metrics (
+  central_id  text not null references public.centrals(id) on delete cascade,
+  id          text not null,
+  data        jsonb not null,
+  updated_at  timestamptz not null,
+  primary key (central_id, id)
+);
+
+create table if not exists public.okrs (
+  central_id  text not null references public.centrals(id) on delete cascade,
+  id          text not null,
+  data        jsonb not null,
+  updated_at  timestamptz not null,
+  primary key (central_id, id)
+);
+
+create table if not exists public.bills (
+  central_id  text not null references public.centrals(id) on delete cascade,
+  id          text not null,
+  data        jsonb not null,
+  updated_at  timestamptz not null,
+  primary key (central_id, id)
+);
+
+create table if not exists public.radar (
+  central_id  text not null references public.centrals(id) on delete cascade,
+  id          text not null,
+  url_key     text not null default '',
+  data        jsonb not null,
+  created_at  timestamptz not null default now(),
+  primary key (central_id, id)
+);
+create index if not exists radar_central_created on public.radar (central_id, created_at desc);
+
+alter table public.centrals add column if not exists radar_last_at    timestamptz;
+alter table public.centrals add column if not exists radar_last_error text;
+alter table public.centrals add column if not exists radar_cursor     integer not null default 0;
+alter table public.devices  add column if not exists last_radar_push_at timestamptz;
+
+alter table public.metrics enable row level security;
+alter table public.okrs    enable row level security;
+alter table public.bills   enable row level security;
+alter table public.radar   enable row level security;
