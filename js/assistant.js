@@ -23,6 +23,7 @@ const PROMPTS = [
   ['Revisar newsletter', 'Vou colar o assunto e o texto da próxima newsletter. Revise como um especialista em CRM de clubes: assunto, pré-cabeçalho, ordem das seções (sem assuntos repetidos), chamada principal e segmentação, comparando com meus números de abertura e clique. Me devolva a versão melhorada.'],
   ['Campanhas de sócio', 'Me dê 3 campanhas de aquisição e 2 de retenção para o Sócio-Torcedor, inspiradas no MyBlue da Team Liquid, no Torcedor Premiado (Flamengo e Santos), no Segue o FX e no que os clubes fazem. Inclua meta, canal e as tarefas.'],
   ['Fechamento do mês', 'Como está o fechamento do merchan: NFs, XMLs, envio ao financeiro e pagamentos? O que falta e qual a ordem?'],
+  ['Aula de marketing', 'Me dá uma aula curta de marketing de hoje: escolha 1 conceito (ex.: funil, posicionamento, LTV/CAC, awareness), explique em português simples, mostre como uma organização de esports aplica, como eu falo disso numa reunião de diretoria e um exercício prático para eu fazer no Fluxo W7M esta semana.'],
   ['Me ensina', 'Escolha um conceito de gestão ou de B2C que eu deveria dominar agora (ex.: LTV/CAC, churn, comunidade como produto) e me ensine com exemplos de organizações de esports.'],
 ];
 
@@ -150,6 +151,13 @@ async function createTask(mi, ti) {
   await Tasks.create({ title: t.title, area: t.areaId, priority: t.priority, dueDate: t.dueDate, description: t.description });
   t.created = true;
   await saveChat();
+}
+
+/** Abre o Assistente já perguntando algo (usado pelo glossário). */
+export async function askAssistant(text) {
+  await loadChat();
+  location.hash = '#/assistente';
+  setTimeout(() => send(text), 250);
 }
 
 export async function openAssistant() {

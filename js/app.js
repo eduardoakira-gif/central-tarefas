@@ -16,8 +16,10 @@ import { initRadar, renderRadar, openRadar, leaveRadar, DEFAULT_CONTEXT } from '
 import { initAssistant, renderAssistant, openAssistant } from './assistant.js';
 import { initCrm, renderCrm } from './crm.js';
 import { initReferences, renderReferences } from './references.js';
+import { initLearn, renderLearn, renderTermCard } from './learn.js';
+import { askAssistant } from './assistant.js';
 
-export const APP_VERSION = '4.4.0';
+export const APP_VERSION = '4.5.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -264,7 +266,7 @@ function renderOwnerFilter() {
 function renderTasks() {
   const now = new Date();
   renderOwnerFilter();
-  $('#ownerCard').innerHTML = renderOwnerCard();
+  $('#ownerCard').innerHTML = renderOwnerCard() + renderTermCard();
   const d = UI.renderDashboard(Tasks.all(), state.filter, now, areas());
   $('#summary').textContent = d.summary;
   const dateText = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -357,6 +359,9 @@ function renderCrmView() {
 function renderReferencesView() {
   keepFocus($('#refBody'), renderReferences());
 }
+function renderLearnView() {
+  keepFocus($('#learnBody'), renderLearn());
+}
 function renderMore() {
   $('#appVersion').textContent = `Central de Tarefas ${APP_VERSION}` + (Sync.v4() ? '' : ' · servidor em atualização');
 }
@@ -384,6 +389,7 @@ function renderAll() {
   if (r === 'more') renderMore();
   if (r === 'crm') renderCrmView();
   if (r === 'refs') renderReferencesView();
+  if (r === 'learn') renderLearnView();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -407,7 +413,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn',
 };
 
 function route() {
@@ -434,7 +440,7 @@ function route() {
 function showView() {
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== state.route));
   const r = state.route === 'note' ? 'notes' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs'] };
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
@@ -1659,6 +1665,7 @@ async function openCentral(id) {
   initAssistant(helpers);
   initCrm(helpers);
   initReferences(helpers);
+  initLearn(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);
