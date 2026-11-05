@@ -1299,3 +1299,24 @@ textarea.note-body { min-height: 46vh; }
 .board-table { min-width: 540px; }
 .board-table td { white-space: nowrap; }
 .board-table td:first-child { white-space: normal; min-width: 150px; }
+/* v4.8: abas por área */
+.area-hub { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.area-tile { padding: 16px 18px; text-decoration: none; display: flex; flex-direction: column; gap: 6px; border-top: 4px solid var(--area); }
+.area-tile strong { font-size: 17px; }
+.area-mission { font-size: 13.5px; color: var(--text-2); }
+.area-nums { font-size: 13px; color: var(--muted); }
+.area-nums .is-bad, .is-bad { color: var(--red); }
+.area-tabs { margin-bottom: 14px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; }
+.area-tabs .chip { text-decoration: none; white-space: nowrap; }
+.area-tabs .chip[aria-pressed="true"] { background: var(--area); border-color: var(--area); color: #fff; }
+.area-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; flex-wrap: wrap; padding: 16px 18px; margin-bottom: 14px; border-radius: var(--radius); background: color-mix(in srgb, var(--area) 10%, var(--surface)); border: 1px solid color-mix(in srgb, var(--area) 30%, var(--border)); }
+.area-head h2 { font-size: 22px; color: var(--area); }
+.area-head p { color: var(--text-2); font-size: 14px; max-width: 60ch; }
+.plan-list { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+.plan-list .is-done { color: var(--muted); text-decoration: line-through; }
+@media (max-width: 720px) {
+  body[data-route="areas"] .fab, body[data-route="area"] .fab { display: none; }
+  .area-head .btn-row { width: 100%; }
+  .area-head .btn-row .btn { flex: 1; }
+}
+a.btn { text-decoration: none; }

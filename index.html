@@ -103,12 +103,12 @@
       </a>
       <nav class="nav" aria-label="Seções">
         <a href="#/" data-route="tasks">Tarefas</a>
+        <a href="#/areas" data-route="areas">Áreas</a>
         <a href="#/painel" data-route="panel">Painel</a>
         <a href="#/financeiro" data-route="finance">Financeiro</a>
         <a href="#/radar" data-route="radar">Radar</a>
         <a href="#/assistente" data-route="assistant">Assistente</a>
         <a href="#/referencias" data-route="refs">Referências</a>
-        <a href="#/notas" data-route="notes">Notas</a>
         <a href="#/mais" data-route="more">Mais</a>
       </nav>
       <span class="sync-status" id="syncStatus" data-status="idle"><i></i><span></span></span>
@@ -317,6 +317,17 @@
       <div id="refBody"></div>
     </section>
 
+    <!-- ÁREAS ------------------------------------------------------------------ -->
+    <section class="view" data-view="area" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Minhas áreas</h1>
+          <p class="summary">Cada área com as próprias demandas, indicadores, OKRs, plano de 90 dias e referências.</p>
+        </div>
+      </div>
+      <div id="areaBody"></div>
+    </section>
+
     <!-- RELATÓRIO DA DIRETORIA ------------------------------------------------ -->
     <section class="view" data-view="board" hidden>
       <div class="page-head">
@@ -343,12 +354,12 @@
     <section class="view" data-view="more" hidden>
       <div class="page-head"><div><h1>Mais</h1></div></div>
       <div class="hub">
+        <a class="card hub-item" href="#/painel"><strong>Painel B2C</strong><span>Todos os indicadores, funil do torcedor e OKRs</span></a>
         <a class="card hub-item" href="#/diretoria"><strong>Relatório da diretoria</strong><span>Reunião mensal pronta: indicadores x meta, OKRs, entregas e decisões, com apresentação pela IA</span></a>
         <a class="card hub-item" href="#/aprender"><strong>Aprender marketing</strong><span>Glossário com awareness, funil, CAC, LTV, churn e outros termos, e o termo do dia</span></a>
         <a class="card hub-item" href="#/referencias"><strong>Referências</strong><span>Casos, campanhas e práticas por área: Comunidade, Sócio, Merchan, CRM, Inferno Roxo e Kings League</span></a>
         <a class="card hub-item" href="#/crm"><strong>CRM e Newsletter</strong><span>Envios do RD Station, diagnóstico e checklist</span></a>
         <a class="card hub-item" href="#/financeiro"><strong>Financeiro do Merchan</strong><span>NFs, XMLs, fechamento do mês e pagamentos</span></a>
-        <a class="card hub-item" href="#/painel"><strong>Painel B2C</strong><span>Indicadores, metas e OKRs</span></a>
         <a class="card hub-item" href="#/notas"><strong>Notas de reunião</strong><span>Anote e gere tarefas com IA</span></a>
         <a class="card hub-item" href="#/agenda"><strong>Agenda</strong><span>Prazos e cobranças dos próximos dias</span></a>
         <a class="card hub-item" href="#/relatorio"><strong>Relatório</strong><span>Entregas, prazos e produtividade</span></a>
@@ -585,7 +596,7 @@
 
   <nav class="bottom-nav" aria-label="Seções">
     <a href="#/" data-route="tasks"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg><span>Tarefas</span></a>
-    <a href="#/painel" data-route="panel"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg><span>Painel</span></a>
+    <a href="#/areas" data-route="areas"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2l9 5-9 5-9-5z"/><path d="M3 12l9 5 9-5"/><path d="M3 17l9 5 9-5"/></svg><span>Áreas</span></a>
     <a href="#/radar" data-route="radar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="M12 12l6-6"/></svg><span>Radar</span></a>
     <a href="#/assistente" data-route="assistant"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 17l.8 2.2L22 20l-2.2.8L19 23l-.8-2.2L16 20l2.2-.8z"/></svg><span>Assistente</span></a>
     <a href="#/mais" data-route="more"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Mais</span></a>

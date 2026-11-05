@@ -37,7 +37,7 @@ function addMonths(ym, n) {
 }
 export const monthLabel = (ym) => MONTHS[Number(ym.slice(5, 7)) - 1] + ' ' + ym.slice(0, 4);
 const monthShort = (ym) => MONTHS[Number(ym.slice(5, 7)) - 1].slice(0, 3);
-function defaultMonth(now = new Date()) {
+export function defaultMonth(now = new Date()) {
   // no começo do mês, o que se lança é o mês que acabou
   return now.getDate() <= 10 ? addMonths(ymOf(now), -1) : ymOf(now);
 }
@@ -242,7 +242,7 @@ function spark(m, ym) {
   return `<svg class="spark" viewBox="-2 0 84 24" aria-hidden="true"><polyline points="${line}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${last[0] * 16}" cy="${y(last[1])}" r="2.4" fill="currentColor"/></svg>`;
 }
 
-function metricCard(m, ym, entry) {
+export function metricCard(m, ym, entry) {
   const v = m.values[ym];
   const prev = m.values[addMonths(ym, -1)];
   const st = metricStatus(m, v);
@@ -273,7 +273,7 @@ function pillarHealth(list, ym) {
   return { ok, withTarget: withTarget.length, filled, total: list.length };
 }
 
-function okrCard(o, metrics, now) {
+export function okrCard(o, metrics, now) {
   const krs = o.krs.map((k) => Object.assign({ k }, C.krProgress(k, metrics)));
   const measured = krs.filter((x) => x.pct != null);
   const pct = measured.length ? measured.reduce((a, x) => a + x.pct, 0) / measured.length : null;

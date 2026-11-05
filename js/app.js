@@ -19,8 +19,9 @@ import { initReferences, renderReferences } from './references.js';
 import { initLearn, renderLearn, renderTermCard } from './learn.js';
 import { askAssistant } from './assistant.js';
 import { initBoard, renderBoard, openBoard, renderTeamCard } from './board.js';
+import { initAreas, renderArea, renderAreasHub, view as areaView } from './areas.js';
 
-export const APP_VERSION = '4.7.0';
+export const APP_VERSION = '4.8.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -360,6 +361,11 @@ function renderCrmView() {
 function renderReferencesView() {
   keepFocus($('#refBody'), renderReferences());
 }
+function renderAreaView() {
+  keepFocus($('#areaBody'), state.route === 'areas' ? renderAreasHub() : renderArea());
+  const on = $('#areaBody .area-tabs [aria-pressed="true"]');
+  if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' });
+}
 function renderBoardView() {
   keepFocus($('#boardBody'), renderBoard());
 }
@@ -395,6 +401,7 @@ function renderAll() {
   if (r === 'refs') renderReferencesView();
   if (r === 'learn') renderLearnView();
   if (r === 'board') renderBoardView();
+  if (r === 'area' || r === 'areas') renderAreaView();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -418,7 +425,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas',
 };
 
 function route() {
@@ -431,8 +438,13 @@ function route() {
     openTaskDialog();
     return;
   }
+  const am = hash.match(/^\/area\/([\w-]+)$/);
   const m = hash.match(/^\/notas\/([\w-]+)$/);
-  if (m) {
+  if (am) {
+    state.route = 'area';
+    areaView.id = am[1];
+    state.noteId = null;
+  } else if (m) {
     state.route = 'note';
     state.noteId = m[1];
   } else {
@@ -443,15 +455,16 @@ function route() {
 }
 
 function showView() {
-  $$('.view').forEach((v) => (v.hidden = v.dataset.view !== state.route));
-  const r = state.route === 'note' ? 'notes' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board'] };
+  const viewName = state.route === 'areas' ? 'area' : state.route;
+  $$('.view').forEach((v) => (v.hidden = v.dataset.view !== viewName));
+  const r = state.route === 'note' ? 'notes' : state.route === 'area' ? 'areas' : state.route;
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
   mark('.bottom-nav a', underMore.bottom);
   document.body.dataset.route = state.route;
-  if (state.route === 'radar' || state.route === 'refs') openRadar();
+  if (['radar', 'refs', 'area'].includes(state.route)) openRadar();
   if (state.route === 'assistant') openAssistant();
   if (state.route === 'board') openBoard();
   renderAll();
@@ -1680,6 +1693,7 @@ async function openCentral(id) {
   initReferences(helpers);
   initLearn(Object.assign({ ask: askAssistant }, helpers));
   initBoard(Object.assign({ ask: askAssistant }, helpers));
+  initAreas(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);
