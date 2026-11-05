@@ -18,8 +18,9 @@ import { initCrm, renderCrm } from './crm.js';
 import { initReferences, renderReferences } from './references.js';
 import { initLearn, renderLearn, renderTermCard } from './learn.js';
 import { askAssistant } from './assistant.js';
+import { initBoard, renderBoard, openBoard, renderTeamCard } from './board.js';
 
-export const APP_VERSION = '4.6.0';
+export const APP_VERSION = '4.7.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -266,7 +267,7 @@ function renderOwnerFilter() {
 function renderTasks() {
   const now = new Date();
   renderOwnerFilter();
-  $('#ownerCard').innerHTML = renderOwnerCard() + renderTermCard();
+  $('#ownerCard').innerHTML = renderOwnerCard() + renderTeamCard() + renderTermCard();
   const d = UI.renderDashboard(Tasks.all(), state.filter, now, areas());
   $('#summary').textContent = d.summary;
   const dateText = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -359,6 +360,9 @@ function renderCrmView() {
 function renderReferencesView() {
   keepFocus($('#refBody'), renderReferences());
 }
+function renderBoardView() {
+  keepFocus($('#boardBody'), renderBoard());
+}
 function renderLearnView() {
   keepFocus($('#learnBody'), renderLearn());
 }
@@ -390,6 +394,7 @@ function renderAll() {
   if (r === 'crm') renderCrmView();
   if (r === 'refs') renderReferencesView();
   if (r === 'learn') renderLearnView();
+  if (r === 'board') renderBoardView();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -413,7 +418,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board',
 };
 
 function route() {
@@ -440,7 +445,7 @@ function route() {
 function showView() {
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== state.route));
   const r = state.route === 'note' ? 'notes' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn'] };
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
@@ -448,6 +453,7 @@ function showView() {
   document.body.dataset.route = state.route;
   if (state.route === 'radar' || state.route === 'refs') openRadar();
   if (state.route === 'assistant') openAssistant();
+  if (state.route === 'board') openBoard();
   renderAll();
   window.scrollTo(0, 0);
   if (state.route === 'note') {
@@ -1323,7 +1329,7 @@ async function minuteTick() {
     console.warn('Lembrete:', err);
   }
   const active = document.activeElement;
-  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor, #panelBody, #financeBody, #chatForm, #radarBody, #crmBody');
+  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor, #panelBody, #financeBody, #chatForm, #radarBody, #crmBody, #boardBody');
   const dayChanged = state.lastDateKey !== C.toDateKey(new Date());
   state.lastDateKey = C.toDateKey(new Date());
   if (!busyNow || dayChanged) renderAll();
@@ -1673,6 +1679,7 @@ async function openCentral(id) {
   initCrm(helpers);
   initReferences(helpers);
   initLearn(Object.assign({ ask: askAssistant }, helpers));
+  initBoard(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

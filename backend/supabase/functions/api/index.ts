@@ -25,6 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
+const SERVER_BUILD = "4.7.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -985,7 +986,7 @@ async function aiBriefing(central: any) {
 async function handle(body: any, req: Request) {
   switch (body.action) {
     case "config":
-      return { vapidPublicKey: PUSH_READY ? VAPID_PUBLIC_KEY : null, ai: !!ANTHROPIC_API_KEY, version: SERVER_VERSION, features: FEATURES };
+      return { vapidPublicKey: PUSH_READY ? VAPID_PUBLIC_KEY : null, ai: !!ANTHROPIC_API_KEY, version: SERVER_VERSION, build: SERVER_BUILD, features: FEATURES };
 
     case "create": {
       const now = new Date().toISOString();
