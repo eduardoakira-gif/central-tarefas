@@ -14,7 +14,7 @@ import { Local } from './storage.js';
 
 const C = window.Core;
 const BASE = ['tasks', 'notes'];
-const V4 = ['metrics', 'okrs', 'bills', 'campaigns']; // só são enviadas quando o servidor já foi atualizado
+const V4 = ['metrics', 'okrs', 'bills', 'campaigns', 'posts']; // só são enviadas quando o servidor já foi atualizado
 const COLLECTIONS = BASE.concat(V4);
 const NORMALIZE = {
   notes: (x) => C.normalizeNote(x),
@@ -22,6 +22,7 @@ const NORMALIZE = {
   okrs: (x) => C.normalizeOkr(x),
   bills: (x) => C.normalizeBill(x),
   campaigns: (x) => C.normalizeCampaign(x),
+  posts: (x) => C.normalizePost(x),
 };
 const changeListeners = new Set();
 const statusListeners = new Set();
@@ -37,6 +38,7 @@ export const Sync = {
   okrs: [],
   bills: [],
   campaigns: [],
+  posts: [],
   serverVersion: 0, // 4 = servidor com Painel B2C, Financeiro, Radar e Assistente
   status: 'idle', // saved | saving | offline | error
   lastError: null,
@@ -88,7 +90,7 @@ export const Sync = {
     return this.serverVersion >= 4;
   },
   extra() {
-    return { metrics: this.metrics, okrs: this.okrs, bills: this.bills, campaigns: this.campaigns, serverVersion: this.serverVersion };
+    return { metrics: this.metrics, okrs: this.okrs, bills: this.bills, campaigns: this.campaigns, posts: this.posts, serverVersion: this.serverVersion };
   },
 
   /** Abre a central: mostra o cache na hora e depois atualiza pelo servidor. */

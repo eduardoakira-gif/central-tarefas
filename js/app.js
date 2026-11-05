@@ -20,8 +20,9 @@ import { initLearn, renderLearn, renderTermCard } from './learn.js';
 import { askAssistant } from './assistant.js';
 import { initBoard, renderBoard, openBoard, renderTeamCard } from './board.js';
 import { initAreas, renderArea, renderAreasHub, view as areaView } from './areas.js';
+import { initBrand, renderBrand, renderBrandAlert } from './brand.js';
 
-export const APP_VERSION = '4.8.0';
+export const APP_VERSION = '4.9.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -268,7 +269,7 @@ function renderOwnerFilter() {
 function renderTasks() {
   const now = new Date();
   renderOwnerFilter();
-  $('#ownerCard').innerHTML = renderOwnerCard() + renderTeamCard() + renderTermCard();
+  $('#ownerCard').innerHTML = renderOwnerCard() + renderTeamCard() + renderBrandAlert() + renderTermCard();
   const d = UI.renderDashboard(Tasks.all(), state.filter, now, areas());
   $('#summary').textContent = d.summary;
   const dateText = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -361,6 +362,9 @@ function renderCrmView() {
 function renderReferencesView() {
   keepFocus($('#refBody'), renderReferences());
 }
+function renderBrandView() {
+  keepFocus($('#brandBody'), renderBrand());
+}
 function renderAreaView() {
   keepFocus($('#areaBody'), state.route === 'areas' ? renderAreasHub() : renderArea());
   const on = $('#areaBody .area-tabs [aria-pressed="true"]');
@@ -402,6 +406,7 @@ function renderAll() {
   if (r === 'learn') renderLearnView();
   if (r === 'board') renderBoardView();
   if (r === 'area' || r === 'areas') renderAreaView();
+  if (r === 'brand') renderBrandView();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -425,7 +430,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand',
 };
 
 function route() {
@@ -458,7 +463,7 @@ function showView() {
   const viewName = state.route === 'areas' ? 'area' : state.route;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== viewName));
   const r = state.route === 'note' ? 'notes' : state.route === 'area' ? 'areas' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel'] };
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
@@ -1342,7 +1347,7 @@ async function minuteTick() {
     console.warn('Lembrete:', err);
   }
   const active = document.activeElement;
-  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor, #panelBody, #financeBody, #chatForm, #radarBody, #crmBody, #boardBody');
+  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor, #panelBody, #financeBody, #chatForm, #radarBody, #crmBody, #boardBody, #brandBody');
   const dayChanged = state.lastDateKey !== C.toDateKey(new Date());
   state.lastDateKey = C.toDateKey(new Date());
   if (!busyNow || dayChanged) renderAll();
@@ -1694,6 +1699,7 @@ async function openCentral(id) {
   initLearn(Object.assign({ ask: askAssistant }, helpers));
   initBoard(Object.assign({ ask: askAssistant }, helpers));
   initAreas(Object.assign({ ask: askAssistant }, helpers));
+  initBrand(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

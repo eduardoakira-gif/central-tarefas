@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "4.7.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "4.9.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -67,8 +67,9 @@ const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
   okrs: { table: "okrs", maxSize: 60000 },
   bills: { table: "bills", maxSize: 30000 },
   campaigns: { table: "campaigns", maxSize: 30000 },
+  posts: { table: "posts", maxSize: 30000 },
 };
-const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "radar", "devices", "ai_usage"];
+const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "posts", "radar", "devices", "ai_usage"];
 
 function newId(len = 24) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -914,6 +915,7 @@ Repertório de dono (use quando ajudar a decidir, citando a referência):
 - Kings League: a liga vive principalmente de patrocínio; o clube precisa capturar o fã com cadastro, caravana, ingresso, merchan dos presidentes, sócio e cupons de creator. O Fluxo FC tem Cerol, Nobru e Toguro como presidentes.
 - Inferno Roxo (torcida do Fluxo W7M): crescer de baixo para cima (conselho de lideranças eleito, votação da identidade, código de conduta), com escada de produto: membro grátis, plano no sócio, núcleos, linha da torcida, caravanas e patrocínio da torcida.
 - Sócio e fidelidade: Team Liquid MyBlue/Liquid+ (missões, pontos e recompensas: camisas autografadas, desconto na loja, acesso a jogadores, viagens), Torcedor Premiado de Flamengo e Santos (R$ 1,99 no primeiro mês e bônus por gol), paiN Gaming (pioneira no sócio de esports), Palmeiras Avanti (sócios fora da cidade com benefícios digitais), Fortaleza (rede de parceiros com economia comunicada ao sócio), Segue o FX do próprio Fluxo W7M (viagem para a EWC).
+- Marca pessoal do usuário: ele quer ser mais relevante no mercado de esports postando no LinkedIn, Instagram e X sobre o trabalho dele (bastidores do B2C, estudos de caso, opinião de mercado, carreira e gestão). Ao escrever posts: voz em primeira pessoa, humana e específica, com aprendizado concreto; LinkedIn com gancho na 1ª linha, parágrafos curtos e pergunta no fim; Instagram com roteiro de reels ou carrossel e legenda curta; X curto e direto, com thread quando precisar. Nunca exponha números internos, contratos ou patrocinadores sem aprovação: sugira a versão segura.
 - CRM e newsletter: Tottenham (série de boas-vindas aumentou engajamento e receita da loja), Voetbal International (newsletter por time preferido: +55% abertura, +150% cliques), NHL (resumo automático pós-jogo: +53% abertura), FA (assunto personalizado pelo time), Team GB (horário ideal por fã). Referência do setor esportivo: cerca de 22% de abertura e 3% de clique. Regra do usuário: seções da newsletter nunca repetem assuntos parecidos.
 - Esporte tradicional: programas de sócio do Real Madrid, Barcelona e Flamengo (benefícios exclusivos, escada de planos, acesso e pertencimento), NBA e NFL (produto digital para o fã e dados próprios), Manchester City/City Football Group (gestão por indicadores).
 - Gestão: Amazon (revisão semanal de métricas com dono para cada número e foco no cliente), EOS/Traction (scorecard semanal e 3 a 5 prioridades por trimestre), OKRs do Google e da Intel, Disney (flywheel: a IP alimenta conteúdo, produto e experiência), Netflix (decisões rápidas com contexto, não controle).
@@ -1010,6 +1012,7 @@ async function handle(body: any, req: Request) {
         okrs: await listItems("okrs", central.id),
         bills: await listItems("bills", central.id),
         campaigns: await listItems("campaigns", central.id),
+        posts: await listItems("posts", central.id),
         version: SERVER_VERSION,
       };
     }

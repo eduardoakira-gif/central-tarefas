@@ -410,6 +410,7 @@
     { id: 'crm', name: 'CRM', color: '#3B82F6' },
     { id: 'inferno', name: 'Inferno Roxo', color: '#7C3AED' },
     { id: 'kings', name: 'Kings League', color: '#C08A1E' },
+    { id: 'marca', name: 'Marca pessoal', color: '#0A66C2' },
   ];
   const PILLAR_MAP = byId(PILLARS);
   const UNITS = [
@@ -465,6 +466,12 @@
     ['kings', 'Ocupação da caravana', 'percent', 'up', 'Lugares ocupados ÷ lugares oferecidos.'],
     ['kings', 'Receita de merchan do Fluxo FC', 'currency', 'up', 'Linha dos presidentes, drops de vitória e itens de jogo.'],
     ['kings', 'Vendas por cupom de creator', 'currency', 'up', 'Receita atribuída aos cupons de Nobru, Cerol, Toguro e creators.'],
+    ['marca', 'Seguidores no LinkedIn', 'number', 'up', 'Total no fim do mês.'],
+    ['marca', 'Seguidores no Instagram', 'number', 'up', 'Total no fim do mês.'],
+    ['marca', 'Seguidores no X', 'number', 'up', 'Total no fim do mês.'],
+    ['marca', 'Impressões no LinkedIn', 'number', 'up', 'Soma das impressões dos posts do mês (painel do LinkedIn).'],
+    ['marca', 'Posts publicados no mês', 'number', 'up', 'Somando as três redes.'],
+    ['marca', 'Convites e oportunidades', 'number', 'up', 'Palestras, entrevistas, podcasts, parcerias e contatos que vieram do conteúdo.'],
     ['kings', 'Receita B2C da Kings por jogo', 'currency', 'up', 'Caravana + ingresso + merchan + sócio atribuído, dividido pelos jogos do mês.'],
   ];
   const slug = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -588,6 +595,23 @@
     };
   }
 
+  function normalizePost(p) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    return {
+      id: str(p.id) || uid(),
+      network: ['linkedin', 'instagram', 'x'].includes(p.network) ? p.network : 'linkedin',
+      pillar: str(p.pillar).slice(0, 40),
+      title: str(p.title).trim().slice(0, 200) || 'Post',
+      text: str(p.text).slice(0, 6000),
+      date: validDate(p.date) || toDateKey(new Date()),
+      status: ['ideia', 'rascunho', 'agendado', 'publicado'].includes(p.status) ? p.status : 'rascunho',
+      link: str(p.link).slice(0, 600),
+      createdAt: p.createdAt || now,
+      updatedAt: p.updatedAt || now,
+    };
+  }
+
   const BILL_STAGES = [
     { id: 'docs', name: 'Faltam documentos' },
     { id: 'ready', name: 'Pronta para enviar' },
@@ -675,7 +699,7 @@
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,
     FUNNEL, FUNNEL_MAP, PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,
-    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign,
+    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign, normalizePost,
     idb,
   };
 })(typeof self !== 'undefined' ? self : this);

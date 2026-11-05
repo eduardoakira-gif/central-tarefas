@@ -12,7 +12,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
 const nowIso = () => new Date().toISOString();
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-const PILLAR_ORDER = ['comunidade', 'inferno', 'socio', 'merchan', 'kings', 'crm', 'geral'];
+const PILLAR_ORDER = ['comunidade', 'inferno', 'socio', 'merchan', 'kings', 'crm', 'marca', 'geral'];
 
 let H = null; // helpers vindos do app.js (toast, confirmDialog, openTaskDialog, render)
 

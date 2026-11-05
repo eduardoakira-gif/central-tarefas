@@ -105,9 +105,9 @@
         <a href="#/" data-route="tasks">Tarefas</a>
         <a href="#/areas" data-route="areas">Áreas</a>
         <a href="#/painel" data-route="panel">Painel</a>
-        <a href="#/financeiro" data-route="finance">Financeiro</a>
         <a href="#/radar" data-route="radar">Radar</a>
         <a href="#/assistente" data-route="assistant">Assistente</a>
+        <a href="#/marca" data-route="brand">Marca</a>
         <a href="#/referencias" data-route="refs">Referências</a>
         <a href="#/mais" data-route="more">Mais</a>
       </nav>
@@ -317,6 +317,17 @@
       <div id="refBody"></div>
     </section>
 
+    <!-- MARCA PESSOAL ---------------------------------------------------------- -->
+    <section class="view" data-view="brand" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Marca pessoal</h1>
+          <p class="summary">Seu plano de conteúdo para LinkedIn, Instagram e X: posicionamento, calendário, ideias do seu trabalho e metas, para você ser cada vez mais relevante no cenário.</p>
+        </div>
+      </div>
+      <div id="brandBody"></div>
+    </section>
+
     <!-- ÁREAS ------------------------------------------------------------------ -->
     <section class="view" data-view="area" hidden>
       <div class="page-head">
@@ -354,6 +365,7 @@
     <section class="view" data-view="more" hidden>
       <div class="page-head"><div><h1>Mais</h1></div></div>
       <div class="hub">
+        <a class="card hub-item" href="#/marca"><strong>Marca pessoal</strong><span>Plano de conteúdo no LinkedIn, Instagram e X, calendário de posts e metas</span></a>
         <a class="card hub-item" href="#/painel"><strong>Painel B2C</strong><span>Todos os indicadores, funil do torcedor e OKRs</span></a>
         <a class="card hub-item" href="#/diretoria"><strong>Relatório da diretoria</strong><span>Reunião mensal pronta: indicadores x meta, OKRs, entregas e decisões, com apresentação pela IA</span></a>
         <a class="card hub-item" href="#/aprender"><strong>Aprender marketing</strong><span>Glossário com awareness, funil, CAC, LTV, churn e outros termos, e o termo do dia</span></a>
@@ -973,6 +985,34 @@
       </div>
       <div class="dialog-foot">
         <button type="button" class="link-danger" id="campaignDelete">Excluir</button>
+        <div class="btn-row">
+          <button type="button" class="btn" data-close>Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- DIÁLOGO: POST ------------------------------------------------------ -->
+  <dialog id="postDialog" class="dialog" aria-labelledby="postDialogTitle">
+    <form id="postForm" novalidate>
+      <div class="dialog-head">
+        <h2 id="postDialogTitle">Post</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <input class="title-input" name="pTitle" placeholder="Tema do post" maxlength="200" autocomplete="off" aria-label="Tema">
+        <div class="setting-grid">
+          <label class="field"><span class="label">Rede</span><select name="pNetwork" class="select"><option value="linkedin">LinkedIn</option><option value="instagram">Instagram</option><option value="x">X</option></select></label>
+          <label class="field"><span class="label">Data</span><input name="pDate" type="date" class="input"></label>
+          <label class="field"><span class="label">Status</span><select name="pStatus" class="select"><option value="ideia">Ideia</option><option value="rascunho">Rascunho</option><option value="agendado">Agendado</option><option value="publicado">Publicado</option></select></label>
+        </div>
+        <label class="field"><span class="label">Pilar</span><select name="pPillar" class="select"></select></label>
+        <label class="field"><span class="label">Texto</span><textarea name="pText" rows="8" class="input" placeholder="Cole aqui o texto que o Assistente escreveu ou escreva o seu."></textarea></label>
+        <label class="field"><span class="label">Link do post publicado</span><input name="pLink" type="url" class="input" placeholder="https://" autocomplete="off"></label>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="link-danger" id="postDelete">Excluir</button>
         <div class="btn-row">
           <button type="button" class="btn" data-close>Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar</button>

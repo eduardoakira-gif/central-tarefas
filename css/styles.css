@@ -1320,3 +1320,13 @@ textarea.note-body { min-height: 46vh; }
   .area-head .btn-row .btn { flex: 1; }
 }
 a.btn { text-decoration: none; }
+/* v4.9: marca pessoal */
+.brand-pos textarea { font-size: 15px; line-height: 1.5; }
+.brand-alert { border-left-color: #0A66C2; }
+.post-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; }
+.post-row + .post-row { border-top: 1px solid var(--border); }
+.post-row.is-late { box-shadow: inset 3px 0 0 var(--amber); }
+.post-net { font-size: 12px; font-weight: 700; color: #fff; background: var(--net); padding: 3px 8px; border-radius: 99px; }
+.post-main { all: unset; cursor: pointer; display: flex; flex-direction: column; min-width: 0; }
+.post-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 720px) { body[data-route="brand"] .fab { display: none; } }
