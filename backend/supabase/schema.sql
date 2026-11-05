@@ -85,6 +85,15 @@ create table if not exists public.bills (
   primary key (central_id, id)
 );
 
+create table if not exists public.campaigns (
+  central_id  text not null references public.centrals(id) on delete cascade,
+  id          text not null,
+  data        jsonb not null,
+  updated_at  timestamptz not null,
+  primary key (central_id, id)
+);
+alter table public.campaigns enable row level security;
+
 create table if not exists public.radar (
   central_id  text not null references public.centrals(id) on delete cascade,
   id          text not null,

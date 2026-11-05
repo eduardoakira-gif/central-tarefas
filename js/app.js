@@ -14,8 +14,10 @@ import * as UI from './ui.js';
 import { initB2C, renderPanel, renderFinance, renderOwnerCard, view as b2cView } from './b2c.js';
 import { initRadar, renderRadar, openRadar, leaveRadar, DEFAULT_CONTEXT } from './radar.js';
 import { initAssistant, renderAssistant, openAssistant } from './assistant.js';
+import { initCrm, renderCrm } from './crm.js';
+import { initReferences, renderReferences } from './references.js';
 
-export const APP_VERSION = '4.3.0';
+export const APP_VERSION = '4.4.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -349,6 +351,12 @@ function renderRadarView() {
 function renderAssistantView() {
   keepFocus($('#assistantBody'), renderAssistant());
 }
+function renderCrmView() {
+  keepFocus($('#crmBody'), renderCrm());
+}
+function renderReferencesView() {
+  keepFocus($('#refBody'), renderReferences());
+}
 function renderMore() {
   $('#appVersion').textContent = `Central de Tarefas ${APP_VERSION}` + (Sync.v4() ? '' : ' · servidor em atualização');
 }
@@ -374,6 +382,8 @@ function renderAll() {
   if (r === 'radar') renderRadarView();
   if (r === 'assistant') renderAssistantView();
   if (r === 'more') renderMore();
+  if (r === 'crm') renderCrmView();
+  if (r === 'refs') renderReferencesView();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -397,6 +407,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
+  '/crm': 'crm', '/referencias': 'refs',
 };
 
 function route() {
@@ -423,13 +434,13 @@ function route() {
 function showView() {
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== state.route));
   const r = state.route === 'note' ? 'notes' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda'] };
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
   mark('.bottom-nav a', underMore.bottom);
   document.body.dataset.route = state.route;
-  if (state.route === 'radar') openRadar();
+  if (state.route === 'radar' || state.route === 'refs') openRadar();
   if (state.route === 'assistant') openAssistant();
   renderAll();
   window.scrollTo(0, 0);
@@ -1299,7 +1310,7 @@ async function minuteTick() {
     console.warn('Lembrete:', err);
   }
   const active = document.activeElement;
-  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor, #panelBody, #financeBody, #chatForm, #radarBody');
+  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor, #panelBody, #financeBody, #chatForm, #radarBody, #crmBody');
   const dayChanged = state.lastDateKey !== C.toDateKey(new Date());
   state.lastDateKey = C.toDateKey(new Date());
   if (!busyNow || dayChanged) renderAll();
@@ -1646,6 +1657,8 @@ async function openCentral(id) {
   initB2C(helpers);
   initRadar(helpers);
   initAssistant(helpers);
+  initCrm(helpers);
+  initReferences(helpers);
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

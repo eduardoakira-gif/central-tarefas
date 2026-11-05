@@ -20,6 +20,8 @@ const PROMPTS = [
   ['Lições do radar', 'O que as organizações de referência fizeram nos últimos dias que eu deveria copiar ou testar? Traga ideias práticas para o Fluxo W7M.'],
   ['Inferno Roxo', 'Como está o Inferno Roxo e qual o próximo passo para transformar a torcida em marca e produto? Use referências como Blue Wall da Karmine, Dezorganizada Furiosa e a Tribo do G3X.'],
   ['Kings League em receita', 'Como transformar a Kings League em receita B2C este mês? Pense em caravana, ingresso, merchan do Fluxo FC, sócio, cupons dos presidentes e CRM. Sugira as tarefas.'],
+  ['Revisar newsletter', 'Vou colar o assunto e o texto da próxima newsletter. Revise como um especialista em CRM de clubes: assunto, pré-cabeçalho, ordem das seções (sem assuntos repetidos), chamada principal e segmentação, comparando com meus números de abertura e clique. Me devolva a versão melhorada.'],
+  ['Campanhas de sócio', 'Me dê 3 campanhas de aquisição e 2 de retenção para o Sócio-Torcedor, inspiradas no MyBlue da Team Liquid, no Torcedor Premiado (Flamengo e Santos), no Segue o FX e no que os clubes fazem. Inclua meta, canal e as tarefas.'],
   ['Fechamento do mês', 'Como está o fechamento do merchan: NFs, XMLs, envio ao financeiro e pagamentos? O que falta e qual a ordem?'],
   ['Me ensina', 'Escolha um conceito de gestão ou de B2C que eu deveria dominar agora (ex.: LTV/CAC, churn, comunidade como produto) e me ensine com exemplos de organizações de esports.'],
 ];

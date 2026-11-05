@@ -25,7 +25,7 @@ export const Local = {
     const legacyTasks = ob.upserts ? { upserts: ob.upserts, deletes: ob.deletes || [] } : null;
     return {
       tasks: coll(ob.tasks || legacyTasks), notes: coll(ob.notes),
-      metrics: coll(ob.metrics), okrs: coll(ob.okrs), bills: coll(ob.bills),
+      metrics: coll(ob.metrics), okrs: coll(ob.okrs), bills: coll(ob.bills), campaigns: coll(ob.campaigns),
       centralPatch: ob.centralPatch || null,
     };
   },
@@ -143,6 +143,7 @@ export function createBackup(central, tasks, notes, extra) {
     metrics: (extra && extra.metrics) || [],
     okrs: (extra && extra.okrs) || [],
     bills: (extra && extra.bills) || [],
+    campaigns: (extra && extra.campaigns) || [],
   };
 }
 

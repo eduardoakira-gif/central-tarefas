@@ -53,6 +53,7 @@ export async function openRadar() {
     const cache = await kv.get('radar:' + Sync.id);
     if (cache) Object.assign(R, { items: cache.items || [], status: cache.status || R.status, defaultOrgs: cache.defaultOrgs || [] });
   }
+  if (document.body.dataset.route !== 'radar') return load();
   if (R.seenAt === null) R.seenAt = (await Local.loadDevice(Sync.id)).radarSeenAt || null;
   load();
 }

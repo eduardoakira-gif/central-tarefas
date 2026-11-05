@@ -557,6 +557,25 @@
     };
   }
 
+  function normalizeCampaign(c) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    const n0 = (v) => Math.max(0, num(v) ?? 0);
+    return {
+      id: str(c.id) || uid(),
+      name: str(c.name).trim().slice(0, 120) || 'Campanha',
+      kind: ['newsletter', 'promo', 'socio', 'reativacao', 'automacao', 'outro'].includes(c.kind) ? c.kind : 'newsletter',
+      date: validDate(c.date) || toDateKey(new Date()),
+      subject: str(c.subject).slice(0, 200),
+      audience: str(c.audience).slice(0, 120),
+      delivered: n0(c.delivered), opens: n0(c.opens), clicks: n0(c.clicks), unsubs: n0(c.unsubs),
+      conversions: n0(c.conversions), revenue: n0(c.revenue),
+      notes: str(c.notes).slice(0, 1000),
+      createdAt: c.createdAt || now,
+      updatedAt: c.updatedAt || now,
+    };
+  }
+
   const BILL_STAGES = [
     { id: 'docs', name: 'Faltam documentos' },
     { id: 'ready', name: 'Pronta para enviar' },
@@ -644,7 +663,7 @@
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,
     PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,
-    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage,
+    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign,
     idb,
   };
 })(typeof self !== 'undefined' ? self : this);

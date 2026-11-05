@@ -65,8 +65,9 @@ const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
   metrics: { table: "metrics", maxSize: 60000 },
   okrs: { table: "okrs", maxSize: 60000 },
   bills: { table: "bills", maxSize: 30000 },
+  campaigns: { table: "campaigns", maxSize: 30000 },
 };
-const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "radar", "devices", "ai_usage"];
+const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "radar", "devices", "ai_usage"];
 
 function newId(len = 24) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -799,10 +800,13 @@ function fmtMetric(m: any, v: any) {
 async function assistantContext(central: any) {
   const s = cleanSettings(central.settings);
   const { today, minutes } = localNow("America/Sao_Paulo");
-  const [tasks, metrics, okrs, bills, radar] = await Promise.all([
+  const [tasks, metrics, okrs, bills, radar, campaigns] = await Promise.all([
     listItems("tasks", central.id), listItems("metrics", central.id), listItems("okrs", central.id),
-    listItems("bills", central.id), radarRecent(central.id, 25),
+    listItems("bills", central.id), radarRecent(central.id, 25), listItems("campaigns", central.id),
   ]);
+  const pct = (a: number, b: number) => (b ? ((a / b) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + "%" : "–");
+  const campLines = campaigns.filter((c: any) => c && !c.deletedAt).sort((a: any, b: any) => String(b.date).localeCompare(String(a.date))).slice(0, 15)
+    .map((c: any) => `- ${c.date} "${c.name}"${c.subject ? ` (assunto: ${c.subject})` : ""}: entregues ${c.delivered}, abertura ${pct(c.opens, c.delivered)}, clique ${pct(c.clicks, c.delivered)}, descadastros ${c.unsubs ?? 0}` + (c.revenue ? `, receita ${money(Number(c.revenue))}` : ""));
   const areaName = new Map(central.areas.map((a: any) => [a.id, a.name]));
   const live = tasks.filter((t: any) => t && !t.deletedAt);
   const open = sortItems(live.filter((t: any) => t.status !== "done").map((t: any) => ({ t, c: classify(t, today, minutes) })));
@@ -861,6 +865,10 @@ ${okrLines.join("\n") || "- nenhum cadastrado"}
 ## NFs e contas a pagar do Merchan (em aberto)
 ${billLines.join("\n") || "- nenhuma"}
 
+## Campanhas de e-mail e newsletter (RD Station)
+${campLines.join("\n") || "- nenhuma registrada"}
+Referência do setor esportivo: cerca de 22% de abertura e 3% de clique.
+
 ## Radar recente das organizações
 ${radarLines.join("\n") || "- nada ainda"}`;
 }
@@ -901,6 +909,8 @@ Repertório de dono (use quando ajudar a decidir, citando a referência):
 - Torcidas e comunidades: Blue Wall da Karmine Corp (cultura de ultras no esport), Dezorganizada Furiosa da FURIA (movimento orgânico, cultura brasileira, levou mais de 130 torcedores a um Major em Budapeste), Tribo do Gaules e G3X FC (comunidade de creator virou time da Kings League, patrocínio integrado à live, financiamento coletivo do CT), núcleos oficiais "penyes" do Barcelona (torcida regional reconhecida pelo clube).
 - Kings League: a liga vive principalmente de patrocínio; o clube precisa capturar o fã com cadastro, caravana, ingresso, merchan dos presidentes, sócio e cupons de creator. O Fluxo FC tem Cerol, Nobru e Toguro como presidentes.
 - Inferno Roxo (torcida do Fluxo W7M): crescer de baixo para cima (conselho de lideranças eleito, votação da identidade, código de conduta), com escada de produto: membro grátis, plano no sócio, núcleos, linha da torcida, caravanas e patrocínio da torcida.
+- Sócio e fidelidade: Team Liquid MyBlue/Liquid+ (missões, pontos e recompensas: camisas autografadas, desconto na loja, acesso a jogadores, viagens), Torcedor Premiado de Flamengo e Santos (R$ 1,99 no primeiro mês e bônus por gol), paiN Gaming (pioneira no sócio de esports), Palmeiras Avanti (sócios fora da cidade com benefícios digitais), Fortaleza (rede de parceiros com economia comunicada ao sócio), Segue o FX do próprio Fluxo W7M (viagem para a EWC).
+- CRM e newsletter: Tottenham (série de boas-vindas aumentou engajamento e receita da loja), Voetbal International (newsletter por time preferido: +55% abertura, +150% cliques), NHL (resumo automático pós-jogo: +53% abertura), FA (assunto personalizado pelo time), Team GB (horário ideal por fã). Referência do setor esportivo: cerca de 22% de abertura e 3% de clique. Regra do usuário: seções da newsletter nunca repetem assuntos parecidos.
 - Esporte tradicional: programas de sócio do Real Madrid, Barcelona e Flamengo (benefícios exclusivos, escada de planos, acesso e pertencimento), NBA e NFL (produto digital para o fã e dados próprios), Manchester City/City Football Group (gestão por indicadores).
 - Gestão: Amazon (revisão semanal de métricas com dono para cada número e foco no cliente), EOS/Traction (scorecard semanal e 3 a 5 prioridades por trimestre), OKRs do Google e da Intel, Disney (flywheel: a IP alimenta conteúdo, produto e experiência), Netflix (decisões rápidas com contexto, não controle).
 Regras de cobrança: atrasado há 2 dias ou mais vira prioridade ou é renegociado hoje; tarefa sem dono ou sem prazo não existe; dinheiro travado (NF vencida, pagamento sem agendamento, receita parada) vem antes de tarefa interna; toda semana precisa de no máximo 3 prioridades (foco da semana).
@@ -993,6 +1003,7 @@ async function handle(body: any, req: Request) {
         metrics: await listItems("metrics", central.id),
         okrs: await listItems("okrs", central.id),
         bills: await listItems("bills", central.id),
+        campaigns: await listItems("campaigns", central.id),
         version: SERVER_VERSION,
       };
     }

@@ -107,8 +107,8 @@
         <a href="#/financeiro" data-route="finance">Financeiro</a>
         <a href="#/radar" data-route="radar">Radar</a>
         <a href="#/assistente" data-route="assistant">Assistente</a>
+        <a href="#/referencias" data-route="refs">Referências</a>
         <a href="#/notas" data-route="notes">Notas</a>
-        <a href="#/agenda" data-route="agenda">Agenda</a>
         <a href="#/mais" data-route="more">Mais</a>
       </nav>
       <span class="sync-status" id="syncStatus" data-status="idle"><i></i><span></span></span>
@@ -295,10 +295,34 @@
       <div id="assistantBody"></div>
     </section>
 
+    <!-- CRM E NEWSLETTER ---------------------------------------------------- -->
+    <section class="view" data-view="crm" hidden>
+      <div class="page-head">
+        <div>
+          <h1>CRM e Newsletter</h1>
+          <p class="summary">Envios do RD Station, indicadores contra a referência do setor esportivo, diagnóstico e checklist.</p>
+        </div>
+      </div>
+      <div id="crmBody"></div>
+    </section>
+
+    <!-- REFERÊNCIAS ---------------------------------------------------------- -->
+    <section class="view" data-view="refs" hidden>
+      <div class="page-head">
+        <div>
+          <h1>Referências</h1>
+          <p class="summary">O que as maiores organizações de esports, clubes e empresas fazem e que funciona, por área, com como aplicar no Fluxo W7M.</p>
+        </div>
+      </div>
+      <div id="refBody"></div>
+    </section>
+
     <!-- MAIS ---------------------------------------------------------------- -->
     <section class="view" data-view="more" hidden>
       <div class="page-head"><div><h1>Mais</h1></div></div>
       <div class="hub">
+        <a class="card hub-item" href="#/referencias"><strong>Referências</strong><span>Casos, campanhas e práticas por área: Comunidade, Sócio, Merchan, CRM, Inferno Roxo e Kings League</span></a>
+        <a class="card hub-item" href="#/crm"><strong>CRM e Newsletter</strong><span>Envios do RD Station, diagnóstico e checklist</span></a>
         <a class="card hub-item" href="#/financeiro"><strong>Financeiro do Merchan</strong><span>NFs, XMLs, fechamento do mês e pagamentos</span></a>
         <a class="card hub-item" href="#/painel"><strong>Painel B2C</strong><span>Indicadores, metas e OKRs</span></a>
         <a class="card hub-item" href="#/notas"><strong>Notas de reunião</strong><span>Anote e gere tarefas com IA</span></a>
@@ -876,6 +900,41 @@
         <div class="btn-row">
           <button type="button" class="btn" data-close>Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar NF</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- DIÁLOGO: ENVIO DE CAMPANHA ----------------------------------------- -->
+  <dialog id="campaignDialog" class="dialog" aria-labelledby="campaignDialogTitle">
+    <form id="campaignForm" novalidate>
+      <div class="dialog-head">
+        <h2 id="campaignDialogTitle">Registrar envio</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <input class="title-input" name="cName" placeholder="Nome da campanha no RD Station" maxlength="120" autocomplete="off" aria-label="Nome">
+        <div class="two">
+          <label class="field"><span class="label">Tipo</span><select name="cKind" class="select"></select></label>
+          <label class="field"><span class="label">Data do envio</span><input name="cDate" type="date" class="input"></label>
+        </div>
+        <label class="field"><span class="label">Assunto</span><input name="cSubject" class="input" maxlength="200" autocomplete="off"></label>
+        <label class="field"><span class="label">Público / segmento</span><input name="cAudience" class="input" maxlength="120" placeholder="Ex.: base toda, sócios ativos, inativos 90 dias" autocomplete="off"></label>
+        <div class="setting-grid">
+          <label class="field"><span class="label">Entregues</span><input name="c_delivered" type="number" min="0" inputmode="numeric" class="input"></label>
+          <label class="field"><span class="label">Aberturas</span><input name="c_opens" type="number" min="0" inputmode="numeric" class="input"></label>
+          <label class="field"><span class="label">Cliques</span><input name="c_clicks" type="number" min="0" inputmode="numeric" class="input"></label>
+          <label class="field"><span class="label">Descadastros</span><input name="c_unsubs" type="number" min="0" inputmode="numeric" class="input"></label>
+          <label class="field"><span class="label">Conversões</span><input name="c_conversions" type="number" min="0" inputmode="numeric" class="input"></label>
+          <label class="field"><span class="label">Receita (R$)</span><input name="c_revenue" type="number" min="0" step="0.01" inputmode="decimal" class="input"></label>
+        </div>
+        <label class="field"><span class="label">Observações</span><textarea name="cNotes" rows="2" class="input" maxlength="1000"></textarea></label>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="link-danger" id="campaignDelete">Excluir</button>
+        <div class="btn-row">
+          <button type="button" class="btn" data-close>Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar</button>
         </div>
       </div>
     </form>
