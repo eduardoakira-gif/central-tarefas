@@ -66,7 +66,7 @@ jobs:
       - name: Publicar função api
         if: steps.check.outputs.ok == 'true'
         working-directory: backend
-        run: supabase functions deploy api --project-ref "$REF" --no-verify-jwt
+        run: supabase functions deploy api --project-ref "$REF" --no-verify-jwt --yes
 
       - name: Conferir servidor
         if: steps.check.outputs.ok == 'true'
