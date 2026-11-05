@@ -34,17 +34,15 @@ Sim. O app guarda uma cópia no dispositivo. Sem internet, você continua usando
 - **Financeiro do Merchan:** cadastro de NFs com NF e XML, envio ao financeiro, agendamento e pagamento, fechamento do mês com resumo pronto para copiar ou mandar por e-mail.
 - **Radar das organizações:** de hora em hora (GitHub Actions) a Claude API busca na web as notícias das organizações de referência, resume em português e escreve a lição para a sua área. As relevantes chegam como notificação.
 - **Assistente:** chat que lê tarefas, indicadores, OKRs, NFs e radar e responde com cobrança e direcionamento. Sugere tarefas para criar com 1 toque.
+- **Foco da semana:** toque na ★ em até 3 tarefas. A cobrança acompanha essas prioridades e avisa se ainda não começaram no meio da semana.
+- **Briefing do dono pela IA:** no horário do resumo do dia, a notificação traz cobrança, as 3 prioridades de hoje e uma dica de organização de referência.
+- **Revisão da semana** na sexta às 17h e **estudo de caso** toda segunda no Radar.
 - **Atualização automática:** o site se atualiza sozinho ao abrir, e o servidor do Supabase é atualizado pelo GitHub Actions sempre que o código muda.
 
 ### Ativar a versão 4 (uma vez só)
-Em **GitHub → Settings → Secrets and variables → Actions → New repository secret**, crie:
+Em **GitHub → Settings → Secrets and variables → Actions → New repository secret**, crie `SUPABASE_ACCESS_TOKEN` com um token gerado em supabase.com → Account (foto) → Access Tokens → Generate new token. Funciona pelo navegador do celular.
 
-| Nome | Valor |
-| --- | --- |
-| `SUPABASE_ACCESS_TOKEN` | supabase.com → Account (foto) → Access Tokens → Generate new token |
-| `CRON_SECRET` | o mesmo CRON_SECRET que já está nos Secrets do Supabase |
-
-Depois vá em **Actions → Atualizar servidor → Run workflow**. A partir daí, toda atualização no código chega sozinha ao site e ao servidor.
+Depois vá em **Actions → Atualizar servidor → Run workflow**. O radar roda pelo próprio agendador do Supabase (o mesmo dos lembretes); o workflow "Radar das organizações" é opcional e só precisa do segredo `CRON_SECRET` se você quiser usá-lo. A partir daí, toda atualização no código chega sozinha ao site e ao servidor.
 
 Para o radar, a busca na web precisa estar liberada no Console da Anthropic (Settings → Privacy → Web search). Opcional nos Secrets do Supabase: `AI_ASSISTANT_MODEL` (padrão `claude-sonnet-4-5`) e `AI_RADAR_MODEL` (padrão o mesmo da IA).
 

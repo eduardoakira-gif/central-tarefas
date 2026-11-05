@@ -15,7 +15,7 @@ import { initB2C, renderPanel, renderFinance, renderOwnerCard, view as b2cView }
 import { initRadar, renderRadar, openRadar, leaveRadar, DEFAULT_CONTEXT } from './radar.js';
 import { initAssistant, renderAssistant, openAssistant } from './assistant.js';
 
-export const APP_VERSION = '4.1.0';
+export const APP_VERSION = '4.2.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -826,6 +826,16 @@ async function handleAction(action, id, el) {
       return openTaskDialog(id);
     case 'wait':
       return openWaitDialog(id);
+    case 'focus': {
+      const week = C.weekStart(new Date());
+      if (t.focusWeek === week) {
+        await Tasks.update(id, { focusWeek: null });
+        return toast('Saiu do foco da semana');
+      }
+      const n = Tasks.all().filter((x) => x.status !== 'done' && x.focusWeek === week).length;
+      await Tasks.update(id, { focusWeek: week });
+      return toast(n >= 3 ? `Agora são ${n + 1} prioridades. Dono com foco escolhe no máximo 3.` : `Foco da semana: ${n + 1} de 3`);
+    }
     case 'complete': {
       const prevStatus = t.status;
       const { next } = await Tasks.complete(id);
@@ -1139,6 +1149,7 @@ async function renderSettings() {
   $('#setBills').checked = s.billsReminder;
   $('#setCloseDay').value = String(s.monthCloseDay);
   $('#setWeekly').checked = s.weeklyReview;
+  $('#setBriefing').checked = s.aiBriefing;
 
   $('#pinStatus').textContent = c.hasPin
     ? 'Ativo. Quem abrir o link em um aparelho novo precisa digitar o PIN.'
@@ -1513,6 +1524,7 @@ function bindEvents() {
   $('#setBills').addEventListener('change', (e) => patchSettings({ billsReminder: e.target.checked }));
   $('#setCloseDay').addEventListener('change', (e) => patchSettings({ monthCloseDay: Number(e.target.value) }));
   $('#setWeekly').addEventListener('change', (e) => patchSettings({ weeklyReview: e.target.checked }));
+  $('#setBriefing').addEventListener('change', (e) => patchSettings({ aiBriefing: e.target.checked }));
   $$('input[name="theme"]').forEach((r) => r.addEventListener('change', () => applyTheme(r.value)));
   $('#importFile').addEventListener('change', (e) => {
     const file = e.target.files[0];

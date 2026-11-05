@@ -25,6 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
 if (PUSH_READY) webpush.setVapidDetails(env("VAPID_SUBJECT") || "mailto:voce@exemplo.com", VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
@@ -55,7 +56,7 @@ const DEFAULT_SETTINGS = {
   notificationsEnabled: true, frequencyHours: 2, startTime: "08:00", endTime: "20:00",
   dailySummary: true, dailySummaryTime: "08:00",
   radarEnabled: false, radarFrequencyHours: 0, radarTimes: ["09:00", "15:00"], radarOrgs: [] as string[], context: "",
-  billsReminder: true, monthCloseDay: 5, weeklyReview: true,
+  billsReminder: true, monthCloseDay: 5, weeklyReview: true, aiBriefing: true,
 };
 type Settings = typeof DEFAULT_SETTINGS;
 const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
@@ -117,6 +118,7 @@ function cleanSettings(v: any, base: Settings = DEFAULT_SETTINGS): Settings {
       if (t.length) s.radarTimes = t;
     }
     if (typeof v.weeklyReview === "boolean") s.weeklyReview = v.weeklyReview;
+    if (typeof v.aiBriefing === "boolean") s.aiBriefing = v.aiBriefing;
     if (Array.isArray(v.radarOrgs)) {
       s.radarOrgs = [...new Set(v.radarOrgs.map((o: unknown) => String(o ?? "").trim().slice(0, 40)).filter(Boolean))].slice(0, 40) as string[];
     }
@@ -454,6 +456,11 @@ const addDaysKey = (key: string, n: number) => {
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
+const weekStartKey = (today: string) => {
+  const d = new Date(today + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+};
 const prevMonthKey = (today: string) => {
   const [y, m] = today.split("-").map(Number);
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
@@ -492,6 +499,17 @@ function ownerAlerts(tasks: any[], bills: any[], metrics: any[], s: Settings, to
         lines.push(`Fechamento de ${monthName(comp)}: ${plural(pending.length, "NF/XML para enviar", "NFs/XMLs para enviar")}` + (missing ? `, ${missing} ainda sem documento.` : "."));
       }
     }
+  }
+  // Foco da semana (as 3 prioridades que o dono escolheu)
+  const monday = weekStartKey(today);
+  const focus = tasks.filter((t) => t && !t.deletedAt && t.status !== "done" && t.focusWeek === monday);
+  const wd = new Date(today + "T12:00:00Z").getUTCDay();
+  if (focus.length) {
+    const late = wd >= 3 ? focus.filter((t) => t.status === "pending").length : 0;
+    lines.unshift(`Foco da semana: ${plural(focus.length, "prioridade aberta", "prioridades abertas")}` +
+      (late ? `, ${late} ainda sem começar (já é ${WEEKDAYS[wd]}).` : `: ${focus.slice(0, 3).map((t) => t.title).join("; ")}.`));
+  } else if (wd >= 1 && wd <= 2 && tasks.some((t) => t && t.status !== "done")) {
+    lines.unshift("Defina as 3 prioridades da semana (estrela nas tarefas). Dono sem foco vira apagador de incêndio.");
   }
   const stale = tasks.filter((t) => t && !t.deletedAt && (t.status === "pending" || t.status === "doing") &&
     Date.parse(t.updatedAt || t.createdAt || "") < Date.now() - 3 * 86400000);
@@ -794,6 +812,7 @@ async function assistantContext(central: any) {
     if (c.overdue) bits.push("ATRASADA");
     if (t.waitingFor) bits.push("aguardando " + t.waitingFor + (t.followUpDate ? " (cobrar em " + t.followUpDate + ")" : ""));
     if (t.owner) bits.push("resp. " + t.owner);
+    if (t.focusWeek === weekStartKey(today)) bits.push("★ FOCO DA SEMANA");
     const upd = Math.floor((Date.now() - Date.parse(t.updatedAt || t.createdAt)) / 86400000);
     if (upd >= 3) bits.push(`sem atualização há ${upd} dias`);
     const ck = Array.isArray(t.checklist) && t.checklist.length ? ` [checklist ${t.checklist.filter((x: any) => x.done).length}/${t.checklist.length}]` : "";
@@ -877,12 +896,69 @@ Seu papel:
 - Cobrar com firmeza e respeito: aponte o que está atrasado, parado ou sem dono, e diga o que fazer primeiro.
 - Dar direcionamento estratégico para a área B2C, conectando demandas, indicadores, OKRs, financeiro e o radar das organizações de referência (T1, Karmine Corp, Team Liquid, 100 Thieves, FURIA, LOUD, MIBR etc.).
 - Ensinar: quando fizer sentido, explique o porquê com exemplos de mercado, para o usuário evoluir como gestor.
+Repertório de dono (use quando ajudar a decidir, citando a referência):
+- Esports: T1 (fandom no modelo K-pop, ídolos como IP e merchan assinado), Karmine Corp (comunidade com cultura de torcida e eventos próprios que lotam arenas), Team Liquid (programa de fidelidade com pontos e dados do fã), 100 Thieves (merchan como marca de lifestyle e drops com escassez), G2 (tom de voz e conteúdo), FaZe Clan (alerta: hype e creators sem governança e sem caixa quebram a empresa), FURIA (marca lifestyle e experiências presenciais), LOUD (crescimento por creators e conteúdo), MIBR (tradição e nostalgia).
+- Esporte tradicional: programas de sócio do Real Madrid, Barcelona e Flamengo (benefícios exclusivos, escada de planos, acesso e pertencimento), NBA e NFL (produto digital para o fã e dados próprios), Manchester City/City Football Group (gestão por indicadores).
+- Gestão: Amazon (revisão semanal de métricas com dono para cada número e foco no cliente), EOS/Traction (scorecard semanal e 3 a 5 prioridades por trimestre), OKRs do Google e da Intel, Disney (flywheel: a IP alimenta conteúdo, produto e experiência), Netflix (decisões rápidas com contexto, não controle).
+Regras de cobrança: atrasado há 2 dias ou mais vira prioridade ou é renegociado hoje; tarefa sem dono ou sem prazo não existe; dinheiro travado (NF vencida, pagamento sem agendamento, receita parada) vem antes de tarefa interna; toda semana precisa de no máximo 3 prioridades (foco da semana).
 Estilo: português do Brasil, direto, frases curtas, listas curtas quando ajudar. Sem enrolação e sem bajulação. Se faltar dado, diga qual dado falta e como conseguir.
 Use apenas os dados abaixo sobre a central; não invente números. Conhecimento geral de mercado pode ser usado, deixando claro que é referência geral.
 Quando houver ações claras, chame sugerir_tarefas (o usuário revisa antes de criar).
 
 # Dados atuais da central
 ${contextText}`;
+}
+
+// ----------------------------------------------------------------------------
+// v4: rodadas do radar (chamadas pelo agendador)
+// ----------------------------------------------------------------------------
+async function runDueRadars(force: boolean) {
+  const { data: centrals, error } = await db.from("centrals").select("*");
+  if (error) throw new HttpError(500, error.message);
+  const started = Date.now();
+  const report: any[] = [];
+  for (const c of centrals ?? []) {
+    const s = cleanSettings(c.settings);
+    if (!s.radarEnabled) continue;
+    if (Date.now() - started > 100000) break; // limite de tempo da função
+    const { data: devs } = await db.from("devices").select("*").eq("central_id", c.id);
+    const tz = devs?.[0]?.timezone || "America/Sao_Paulo";
+    if (!force && !radarDue(s, c.radar_last_at, tz)) continue;
+    // marca o início para outra chamada simultânea não repetir a rodada
+    await db.from("centrals").update({ radar_last_at: new Date().toISOString() }).eq("id", c.id);
+    try {
+      const r = await runRadar(c);
+      if (localNow(tz).weekday === 1) {
+        const cs = await caseStudy(c, false).catch((err) => (console.error("Estudo de caso", err?.message), null));
+        if (cs) r.added.unshift(cs);
+      }
+      let sent = 0;
+      const relevant = r.added.filter((x) => x.relevance >= 3);
+      if (PUSH_READY && relevant.length && s.notificationsEnabled) {
+        for (const d of devs ?? []) if (await sendPush(d, radarPush(c, relevant))) sent++;
+      }
+      report.push({ central: c.id.slice(0, 4), added: r.added.length, sent });
+    } catch (err: any) {
+      console.error("Radar", c.id, err?.message ?? err);
+      await db.from("centrals").update({ radar_last_error: String(err?.message ?? err).slice(0, 300) }).eq("id", c.id);
+      report.push({ central: c.id.slice(0, 4), error: String(err?.message ?? err).slice(0, 120) });
+    }
+  }
+  return report;
+}
+
+/** Briefing da manhã escrito pela IA (curto, para caber na notificação). */
+async function aiBriefing(central: any) {
+  const out = await anthropic({
+    max_tokens: 500,
+    system: assistantSystem(await assistantContext(central)),
+    messages: [{
+      role: "user",
+      content: "Escreva o briefing da manhã para uma notificação de celular, em no máximo 550 caracteres, sem markdown: comece com uma frase de cobrança do dono, depois as 3 prioridades de hoje numeradas (1. 2. 3.) e termine com uma dica curta inspirada em uma organização de referência.",
+    }],
+  }, [AI_MODEL]);
+  const text = (out.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n").trim();
+  return text ? text.replace(/\*\*/g, "").slice(0, 900) : null;
 }
 
 // ----------------------------------------------------------------------------
@@ -1051,6 +1127,10 @@ async function handle(body: any, req: Request) {
 
     case "send": {
       if (!CRON_SECRET || req.headers.get("x-cron-secret") !== CRON_SECRET) throw new HttpError(401, "Não autorizado.");
+      // o radar roda em segundo plano, sem atrasar os lembretes
+      const radarJob = runDueRadars(false).catch((err) => console.error("Radar", err?.message ?? err));
+      if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) EdgeRuntime.waitUntil(radarJob);
+      else await radarJob;
       if (!PUSH_READY) return { ok: true, sent: 0, note: "VAPID não configurado" };
       const { data: devices, error } = await db.from("devices").select("*");
       if (error) throw new HttpError(500, error.message);
@@ -1064,6 +1144,7 @@ async function handle(body: any, req: Request) {
         if (!cache.has(id)) cache.set(id, await openTasks(id));
         return cache.get(id)!;
       };
+      const briefings = new Map<string, string | null>();
       const extras = new Map<string, { bills: any[]; metrics: any[] }>();
       const extrasOf = async (id: string) => {
         if (!extras.has(id)) extras.set(id, { bills: await listItems("bills", id), metrics: await listItems("metrics", id) });
@@ -1110,7 +1191,12 @@ async function handle(body: any, req: Request) {
         // Resumo do dia: uma vez por dia, a partir do horário escolhido (até 3h depois)
         const summaryAt = toMin(s.dailySummaryTime) ?? 480;
         if (s.dailySummary && d.last_summary_on !== today && minutes >= summaryAt && minutes < summaryAt + 180) {
-          const summary = await withAlerts(buildDailySummary(await tasksOf(c.id), d.timezone, c.name), c, s, d.timezone);
+          let summary = await withAlerts(buildDailySummary(await tasksOf(c.id), d.timezone, c.name), c, s, d.timezone);
+          if (s.aiBriefing && ANTHROPIC_API_KEY && (summary || (await tasksOf(c.id)).length)) {
+            if (!briefings.has(c.id)) briefings.set(c.id, await aiBriefing(c).catch((err) => (console.error("Briefing", err?.message), null)));
+            const text = briefings.get(c.id);
+            if (text) summary = { title: `${c.name}: briefing do dono`, body: text, route: "#/assistente" };
+          }
           if (summary && (await sendPush(d, { ...summary, centralId: c.id }))) sent++;
           await db.from("devices").update({ last_summary_on: today, last_sent_at: now })
             .eq("central_id", d.central_id).eq("endpoint", d.endpoint);
@@ -1186,39 +1272,9 @@ async function handle(body: any, req: Request) {
     }
 
     case "radarRun": {
-      // Chamado de hora em hora pelo GitHub Actions (.github/workflows/radar.yml)
+      // Pode ser chamado pelo GitHub Actions; o agendador do Supabase ("send") também roda o radar sozinho.
       if (!CRON_SECRET || req.headers.get("x-cron-secret") !== CRON_SECRET) throw new HttpError(401, "Não autorizado.");
-      const { data: centrals, error } = await db.from("centrals").select("*");
-      if (error) throw new HttpError(500, error.message);
-      const started = Date.now();
-      const report: any[] = [];
-      for (const c of centrals ?? []) {
-        const s = cleanSettings(c.settings);
-        if (!s.radarEnabled) continue;
-        if (Date.now() - started > 100000) break; // limite de tempo da função
-        const { data: devs } = await db.from("devices").select("*").eq("central_id", c.id);
-        const tz = devs?.[0]?.timezone || "America/Sao_Paulo";
-        if (!body.force && !radarDue(s, c.radar_last_at, tz)) continue;
-        try {
-          const r = await runRadar(c);
-          // segunda-feira: estudo de caso da semana com o que o radar juntou
-          if (localNow(tz).weekday === 1) {
-            const cs = await caseStudy(c, false).catch((err) => (console.error("Estudo de caso", err?.message), null));
-            if (cs) r.added.unshift(cs);
-          }
-          let sent = 0;
-          const relevant = r.added.filter((x) => x.relevance >= 3);
-          if (PUSH_READY && relevant.length && s.notificationsEnabled) {
-            for (const d of devs ?? []) if (await sendPush(d, radarPush(c, relevant))) sent++;
-          }
-          report.push({ central: c.id.slice(0, 4), added: r.added.length, sent });
-        } catch (err: any) {
-          console.error("Radar", c.id, err?.message ?? err);
-          await db.from("centrals").update({ radar_last_error: String(err?.message ?? err).slice(0, 300), radar_last_at: new Date().toISOString() }).eq("id", c.id);
-          report.push({ central: c.id.slice(0, 4), error: String(err?.message ?? err).slice(0, 120) });
-        }
-      }
-      return { ok: true, report };
+      return { ok: true, report: await runDueRadars(!!body.force) };
     }
 
     case "assistantChat": {

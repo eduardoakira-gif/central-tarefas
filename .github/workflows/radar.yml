@@ -1,3 +1,5 @@
+# OPCIONAL: o radar já roda pelo agendador do Supabase (ação "send", a cada 15 min).
+# Este workflow só serve para disparar o radar manualmente ou como reserva.
 # Radar das organizações: de hora em hora pede ao servidor para buscar as
 # notícias novas (Claude API com busca na web) e notificar o celular.
 # O servidor respeita o horário e a frequência escolhidos em Configurações.

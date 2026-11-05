@@ -59,6 +59,7 @@
     billsReminder: true,
     monthCloseDay: 5,
     weeklyReview: true,
+    aiBriefing: true,
   };
 
   const RECURRENCES = [
@@ -110,6 +111,13 @@
   const validDate = (v) => (typeof v === 'string' && DATE_RE.test(v) ? v : null);
   const validTime = (v) => (typeof v === 'string' && TIME_RE.test(v) ? v : null);
 
+  /** Segunda-feira da semana (AAAA-MM-DD). */
+  function weekStart(d) {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return toDateKey(x);
+  }
+
   function uid() {
     if (root.crypto && root.crypto.randomUUID) return root.crypto.randomUUID();
     return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -152,6 +160,7 @@
       comments,
       recurrence: RECURRENCE_MAP[t.recurrence] ? t.recurrence : null,
       noteId: t.noteId ? str(t.noteId) : null,
+      focusWeek: validDate(t.focusWeek),
       deletedAt: t.deletedAt || null,
     };
   }
@@ -617,7 +626,7 @@
     AREA_COLORS, LEGACY_AREAS, STATUSES, PRIORITIES, STATUS_MAP, PRIORITY_MAP,
     DEFAULT_SETTINGS, mergeSettings, newAreaId, nextAreaColor,
     RECURRENCES, RECURRENCE_MAP, normalizeNote, nextRecurrenceDate, buildDailySummary,
-    pad, toDateKey, fromDateKey, addDays, toMin, uid,
+    pad, toDateKey, fromDateKey, addDays, toMin, uid, weekStart,
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,
     PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,

@@ -114,6 +114,8 @@ export function taskCard(t, now, areaMap, mode = '') {
   const badges = [];
   if (!done && t.priority === 'urgent') badges.push('<span class="badge badge-urgent">Urgente</span>');
   if (!done && t.priority === 'high') badges.push('<span class="badge badge-high">Alta</span>');
+  const focused = !done && t.focusWeek === C.weekStart(now);
+  if (focused) badges.push('<span class="badge badge-focus">★ Foco da semana</span>');
   if (c.followUpDue) badges.push(`<span class="badge badge-follow">${c.overdue ? 'Cobrança atrasada' : 'Cobrar retorno hoje'}</span>`);
   else if (c.overdue) badges.push('<span class="badge badge-overdue">Atrasada</span>');
 
@@ -167,6 +169,7 @@ export function taskCard(t, now, areaMap, mode = '') {
       : btn('complete', icons.check, 'Concluir', 'act-complete') +
         btn('edit', icons.edit, 'Editar') +
         btn('wait', icons.wait, 'Aguardando retorno') +
+        `<button type="button" class="act act-focus${focused ? ' is-on' : ''}" data-action="focus" title="${focused ? 'Tirar do foco da semana' : 'Colocar no foco da semana'}" aria-label="Foco da semana" aria-pressed="${focused}"><svg viewBox="0 0 24 24" width="16" height="16" fill="${focused ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg><span>Foco</span></button>` +
         gcal +
         btn('delete', icons.trash, 'Excluir', 'act-danger');
   const trashLine = mode === 'trash' && t.deletedAt

@@ -154,6 +154,15 @@ export function ownerAlerts(now = new Date()) {
       }
     }
   }
+  const week = C.weekStart(now);
+  const focus = Sync.tasks.filter((t) => !t.deletedAt && t.status !== 'done' && t.focusWeek === week);
+  const wd = now.getDay();
+  if (!focus.length && wd >= 1 && wd <= 2 && Sync.tasks.some((t) => !t.deletedAt && t.status !== 'done')) {
+    out.unshift({ level: 'amber', route: '#/', text: 'Defina as 3 prioridades da semana: toque em ★ Foco nas tarefas. Dono sem foco vira apagador de incêndio.' });
+  } else if (focus.length && wd >= 3) {
+    const idle = focus.filter((t) => t.status === 'pending').length;
+    if (idle) out.unshift({ level: 'red', route: '#/', text: `${idle === 1 ? '1 prioridade da semana ainda não começou' : idle + ' prioridades da semana ainda não começaram'}. Comece hoje ou renegocie.` });
+  }
   const stale = Sync.tasks.filter((t) => !t.deletedAt && (t.status === 'pending' || t.status === 'doing') && Date.parse(t.updatedAt) < now.getTime() - 3 * 86400000);
   if (stale.length) out.push({ level: 'muted', route: '#/', text: `${stale.length === 1 ? '1 demanda parada' : stale.length + ' demandas paradas'} há mais de 3 dias. Atualize, delegue ou conclua.` });
   const metrics = Metrics.all();
@@ -167,10 +176,18 @@ export function ownerAlerts(now = new Date()) {
 
 export function renderOwnerCard() {
   const alerts = ownerAlerts();
-  if (!alerts.length) return '';
+  const now = new Date();
+  const week = C.weekStart(now);
+  const focus = Sync.tasks.filter((t) => !t.deletedAt && t.focusWeek === week);
+  const focusHtml = focus.length
+    ? `<div class="focus-box"><span class="label">Foco da semana · ${focus.filter((t) => t.status === 'done').length}/${focus.length} entregues</span>
+        ${focus.map((t) => `<span class="focus-item${t.status === 'done' ? ' is-done' : ''}">${t.status === 'done' ? '✓' : '★'} ${esc(t.title)}</span>`).join('')}</div>`
+    : '';
+  if (!alerts.length && !focusHtml) return '';
   return `<section class="card owner-card">
     <div class="owner-head"><strong>Cobrança do dono</strong><a class="link-muted" href="#/assistente">Pedir direcionamento ›</a></div>
-    <ul>${alerts.map((a) => `<li class="owner-${a.level}"><a href="${a.route}">${esc(a.text)}</a></li>`).join('')}</ul>
+    ${focusHtml}
+    ${alerts.length ? `<ul>${alerts.map((a) => `<li class="owner-${a.level}"><a href="${a.route}">${esc(a.text)}</a></li>`).join('')}</ul>` : '<p class="hint">Nada travado agora. Bom trabalho.</p>'}
   </section>`;
 }
 

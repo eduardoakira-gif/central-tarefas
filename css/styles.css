@@ -1213,3 +1213,8 @@ textarea.note-body { min-height: 46vh; }
 .radar-lesson p, .radar-item.is-case .radar-summary { white-space: pre-line; }
 .radar-item.is-case { border-color: color-mix(in srgb, var(--focus) 40%, var(--border)); box-shadow: var(--shadow); }
 .radar-item.is-case .radar-cat { background: color-mix(in srgb, var(--focus) 14%, transparent); color: var(--focus); font-weight: 600; }
+.badge-focus { background: color-mix(in srgb, var(--focus) 14%, transparent); color: var(--focus); }
+.act-focus.is-on { color: var(--focus); }
+.focus-box { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--focus) 7%, var(--surface)); }
+.focus-item { font-size: 14px; font-weight: 500; }
+.focus-item.is-done { color: var(--muted); text-decoration: line-through; }
