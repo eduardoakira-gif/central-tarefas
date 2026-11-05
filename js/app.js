@@ -22,7 +22,7 @@ import { initBoard, renderBoard, openBoard, renderTeamCard } from './board.js';
 import { initAreas, renderArea, renderAreasHub, view as areaView } from './areas.js';
 import { initBrand, renderBrand, renderBrandAlert } from './brand.js';
 
-export const APP_VERSION = '4.9.0';
+export const APP_VERSION = '4.9.1';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);

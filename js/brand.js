@@ -37,6 +37,22 @@ const WEEK = [
   ['Sáb/Dom', 'Instagram + X', 'Dia de jogo/evento: stories e comentários ao vivo'],
 ];
 
+// Stories descontraídos: [dia (0=dom), nome, roteiro, recurso do Instagram, objetivo]
+const STORIES = [
+  [1, 'Bom dia do office', 'Vídeo de 10s chegando no office ou com o café: "Bora, semana cheia: hoje tem ___". Mostre o lugar, não precisa aparecer o tempo todo.', 'Música + sticker de horário', 'Rotina e presença'],
+  [1, 'Enquete da semana', 'Pergunte algo leve para a torcida: "Qual jogo vocês querem ver na watch party?" ou "Camisa preta ou roxa no próximo drop?"', 'Enquete', 'Conversa e pesquisa de verdade'],
+  [2, 'Adivinha o que vem aí', 'Mostre um pedaço borrado ou de longe de algo que está preparando (camisa, evento, caravana): "Não posso contar ainda… palpites?"', 'Caixinha de perguntas', 'Expectativa antes do lançamento'],
+  [2, 'Mesa de trabalho', 'Foto rápida da sua tela ou do quadro com post-its (sem dados internos): "Montando o plano do Inferno Roxo. Quem aí faz parte?"', 'Sticker de menção', 'Mostrar o que você faz'],
+  [3, 'Um minuto de aprendizado', 'Você falando para a câmera, 15 a 30s: "Hoje aprendi uma coisa sobre ___" (use o termo do dia da Central).', 'Legenda automática', 'Autoridade leve'],
+  [3, 'Bastidor com o time', 'Story com alguém da equipe ou um creator: "Fulano tá aprovando a arte do drop, olha a cara dele" (com autorização).', 'Menção + música', 'Valorizar o time'],
+  [4, 'Caixinha de perguntas', '"Me pergunta qualquer coisa sobre trabalhar com esports". Responda 3 a 5 durante o dia, com humor.', 'Caixinha de perguntas', 'Proximidade e alcance'],
+  [4, 'Antes e depois', 'Mostre como algo estava e como ficou: arte, evento montado, loja, setup. "Ontem x hoje".', 'Sticker de seta / GIF', 'Resultado do trabalho'],
+  [5, 'Sextou do B2C', 'Resumo da semana em 3 stories: o que entregou, o que deu errado (com bom humor) e o que vem semana que vem.', 'Contagem regressiva para o próximo evento', 'Constância e narrativa'],
+  [5, 'Meme do cenário', 'Um meme ou trend do momento adaptado ao seu dia a dia de trabalho com esports.', 'Música do trend', 'Humor e compartilhamento'],
+  [6, 'Dia de jogo', 'Stories ao vivo do jogo, da Kings League ou do evento: torcida, Inferno Roxo, caravana, reação nos lances.', 'Localização + menção ao Fluxo W7M', 'Paixão e comunidade'],
+  [0, 'Domingo leve', 'Algo pessoal que conversa com o trabalho: jogando, assistindo um campeonato, lendo sobre o mercado. "Domingo também é dia de estudar a concorrência".', 'Enquete leve', 'Humanizar a marca'],
+];
+
 const DEFAULT_POSITIONING = 'Head de B2C e Novas Receitas do Fluxo W7M. Transformo torcida em comunidade e comunidade em receita: sócio-torcedor, merchan, Inferno Roxo, Kings League e CRM. Compartilho os bastidores e o que aprendo com as maiores organizações de esports do mundo.';
 
 let H = null;
@@ -126,6 +142,8 @@ export function renderBrand() {
       <p class="hint">É a frase que guia tudo: bio dos perfis, o que você posta e o que você não posta. Ser relevante = ser lembrado por um assunto. O seu: <strong>comunidade e receita no esport</strong>.</p>
     </section>
 
+    ${renderStories()}
+
     <div class="kpis kpis-4">
       <div class="card kpi"><span class="stat-label">Nesta semana</span><span class="stat-num">${wc.published}/${Math.max(wc.planned, 4)}</span><span class="stat-sub">posts publicados (meta: 4+)</span></div>
       ${metrics.slice(0, 3).map((m) => `<div class="card kpi"><span class="stat-label">${esc(m.name.replace('Seguidores no ', 'Seguidores · '))}</span><span class="stat-num">${m.values[ym] ?? '–'}</span><span class="stat-sub">${m.target != null ? 'meta ' + m.target : 'defina a meta no Painel'}</span></div>`).join('') || '<div class="card kpi"><span class="stat-label">Metas</span><span class="stat-num">–</span><span class="stat-sub">carregue os indicadores no Painel</span></div>'}
@@ -178,6 +196,25 @@ export function renderBrand() {
         <li>Toda segunda, lance os seguidores no Painel (pilar Marca pessoal) para acompanhar a evolução.</li>
       </ul>
     </section>`;
+}
+
+function renderStories() {
+  const wd = new Date().getDay();
+  const today = STORIES.map((s, i) => Object.assign({ i }, { d: s[0], name: s[1], how: s[2], tool: s[3], goal: s[4] })).filter((s) => s.d === wd);
+  const names = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  return `<section class="card report-card stories">
+    <div class="closing-head"><h2>Stories de hoje</h2><button type="button" class="btn btn-sm" data-brand="stories-ai">Roteiro do dia com IA</button></div>
+    <p class="hint">Descontraído e constante: 3 a 5 stories por dia de trabalho. Mostre o processo e as pessoas, nunca números internos.</p>
+    <div class="ref-grid">${today.map((s) => `<article class="card ref-card" style="--area:#E1306C">
+        <div class="ref-top"><span class="radar-org">Instagram · Stories</span><span class="radar-cat">${esc(s.goal)}</span></div>
+        <h3>${esc(s.name)}</h3><p>${esc(s.how)}</p>
+        <div class="radar-lesson"><strong>Use</strong><p>${esc(s.tool)}</p></div>
+        <div class="btn-row"><button type="button" class="btn btn-sm" data-story-plan="${s.i}">Marcar no calendário</button></div>
+      </article>`).join('')}</div>
+    <details class="more"><summary>Rotina da semana inteira</summary>
+      <ul class="owner-list">${STORIES.slice().sort((a, b) => ((a[0] + 6) % 7) - ((b[0] + 6) % 7)).map((s) => `<li><span><strong>${names[s[0]]} · ${esc(s[1])}</strong><br><span class="hint">${esc(s[2])}</span></span></li>`).join('')}</ul>
+    </details>
+  </section>`;
 }
 
 function openDialog(id, prefill) {
@@ -239,6 +276,12 @@ export function initBrand(helpers) {
       await Posts.save({ title: i.title, network: i.network, pillar: i.pillar, status: 'ideia', date: nextSlot(i.network), text: i.hint });
       return H.toast('Ideia colocada no calendário');
     }
+    const sp = e.target.closest('[data-story-plan]');
+    if (sp) {
+      const s = STORIES[Number(sp.dataset.storyPlan)];
+      await Posts.save({ title: 'Stories: ' + s[1], network: 'instagram', pillar: 'bastidor', status: 'agendado', date: C.toDateKey(new Date()), text: s[2] + '\nUse: ' + s[3] });
+      return H.toast('Stories no calendário de hoje. Depois de postar, toque em Publiquei.');
+    }
     const b = e.target.closest('[data-brand]');
     if (!b) return;
     const id = b.closest('[data-post-id]') && b.closest('[data-post-id]').dataset.postId;
@@ -250,6 +293,8 @@ export function initBrand(helpers) {
       case 'published':
         await Posts.save({ id, status: 'publicado' });
         return H.toast('Publicado! Responda os comentários nas primeiras 2 horas.');
+      case 'stories-ai':
+        return H.ask(`Monte meus stories de hoje no Instagram, descontraídos e promovendo meu trabalho como head de B2C do Fluxo W7M. Use o que está acontecendo nas minhas demandas, áreas e no radar. Entregue de 3 a 5 stories em ordem, cada um com: o que filmar ou fotografar, o texto na tela (curto e com humor leve), o recurso do Instagram (enquete, caixinha, música, menção) e o objetivo. Nada de números internos ou contratos.`);
       case 'ask-bio':
         return H.ask(`Com base no meu posicionamento ("${state.positioning}"), escreva minhas bios para LinkedIn (título de até 220 caracteres + seção Sobre curta), Instagram (até 150 caracteres) e X (até 160 caracteres). Tom profissional e próximo, com palavras que o mercado de esports procura.`);
       case 'plan-month':
