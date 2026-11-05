@@ -137,6 +137,7 @@ export function taskCard(t, now, areaMap, mode = '') {
     const doneCount = t.checklist.filter((x) => x.done).length;
     meta.push(`<button type="button" class="pill pill-check${doneCount === t.checklist.length ? ' is-complete' : ''}" data-action="edit" title="Checklist">${icons.checklist}${doneCount}/${t.checklist.length}</button>`);
   }
+  if (t.funnel && C.FUNNEL_MAP[t.funnel]) meta.push(`<span class="meta-item funnel-tag" style="--funnel:${C.FUNNEL_MAP[t.funnel].color}" title="${esc(C.FUNNEL_MAP[t.funnel].hint)}"><i></i>${esc(C.FUNNEL_MAP[t.funnel].short)}</span>`);
   if (t.recurrence) meta.push(`<span class="meta-item" title="Tarefa recorrente">${icons.repeat}${esc(C.RECURRENCE_MAP[t.recurrence].name)}</span>`);
   if (t.owner) meta.push(`<span class="meta-item">${icons.user}${esc(t.owner)}</span>`);
   if (t.comments && t.comments.length) meta.push(`<button type="button" class="meta-item meta-btn" data-action="edit" title="Comentários">${icons.comment}${t.comments.length}</button>`);
@@ -451,6 +452,36 @@ export function renderAgenda(all, now, areas, offset = 0) {
 // -----------------------------------------------------------------------------
 // Relatório
 // -----------------------------------------------------------------------------
+/** Onde está o esforço: demandas abertas e entregues por etapa do funil. */
+function funnelCard(all, now) {
+  const since = now.getTime() - 30 * 86400000;
+  const relevant = all.filter((t) => t.status !== 'done' || (t.completedAt && Date.parse(t.completedAt) >= since));
+  const tagged = relevant.filter((t) => t.funnel);
+  if (!relevant.length) return '';
+  const total = Math.max(1, tagged.length);
+  const rows = C.FUNNEL.map((f) => {
+    const n = tagged.filter((t) => t.funnel === f.id).length;
+    return `<div class="bar-row" style="--area:${f.color}"><span class="bar-label"><i></i>${esc(f.short)}</span>
+      <span class="bar-track"><span class="bar-done" style="width:${(n / total) * 100}%"></span></span>
+      <span class="bar-value">${n} · ${Math.round((n / total) * 100)}%</span></div>`;
+  }).join('');
+  const share = (id) => tagged.filter((t) => t.funnel === id).length / total;
+  const tips = [];
+  if (tagged.length < relevant.length * 0.5) tips.push(`Só ${tagged.length} de ${relevant.length} demandas têm etapa do funil. Marque as outras para enxergar onde está o seu esforço.`);
+  if (tagged.length >= 5) {
+    if (share('operacao') > 0.5) tips.push('Mais da metade do esforço está em operação. Delegue ou automatize o bastidor para sobrar tempo para o que gera receita.');
+    if (share('conversao') + share('retencao') < 0.25) tips.push('Pouco esforço em conversão e retenção, que é onde está a receita. Toda semana precisa ter pelo menos 1 ação de venda e 1 de renovação.');
+    if (share('awareness') > 0.4) tips.push('Muito esforço em atenção (awareness). Alcance sem cadastro some: garanta que toda ação de topo leve para um cadastro no CRM.');
+    if (share('advocacy') === 0) tips.push('Nenhuma ação de indicação (advocacy). O Inferno Roxo e um “indique um amigo” no sócio fazem o fã trazer outros fãs.');
+  }
+  return `<section class="card report-card">
+      <h2>Esforço por etapa do funil</h2>
+      <div class="bars">${rows}</div>
+      ${tips.length ? `<ul class="checklist-static">${tips.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p class="hint">Esforço equilibrado entre as etapas.</p>'}
+      <p class="hint">Demandas abertas e concluídas nos últimos 30 dias. A etapa é escolhida no cadastro da tarefa.</p>
+    </section>`;
+}
+
 export function renderReport(all, now, areas, days = 30) {
   const since = now.getTime() - days * 86400000;
   const inPeriod = (iso) => iso && Date.parse(iso) >= since;
@@ -517,6 +548,7 @@ export function renderReport(all, now, areas, days = 30) {
       ${kpi('Tempo médio', avg === null ? '–' : avg < 1 ? 'menos de 1 dia' : Math.round(avg) + (Math.round(avg) === 1 ? ' dia' : ' dias'), 'da criação à conclusão')}
       ${kpi('Atrasadas agora', overdueNow)}
     </div>
+    ${funnelCard(all, now)}
     <section class="card report-card">
       <h2>Por área</h2>
       <div class="bars">${areaRows}</div>

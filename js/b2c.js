@@ -356,10 +356,51 @@ export function renderPanel() {
 
   return `${notice}${head}
     ${north.length ? `<div class="kpi-grid kpi-north">${north.map((m) => metricCard(m, ym, view.entry)).join('')}</div>` : ''}
+    ${renderFunnel(metrics, ym)}
     <div class="health-row">${health}</div>
     ${sections}
     ${renderOkrs(metrics, now, ym)}
     <p class="hint">Clique no nome de um indicador para editar meta, histórico e descrição. Os valores ficam salvos na central e o assistente usa tudo isso para te orientar.</p>`;
+}
+
+// Funil do torcedor montado com os indicadores do painel
+const FUNNEL_STEPS = [
+  { name: 'Base única de torcedores', label: 'Base no CRM', stage: 'Atenção → cadastro' },
+  { name: 'Torcedores ativos no mês (MAU)', label: 'Ativos no mês', stage: 'Consideração' },
+  { name: 'Sócios ativos', label: 'Sócios pagantes', stage: 'Conversão' },
+  { name: 'Pedidos', label: 'Pedidos na loja', stage: 'Conversão (merchan)' },
+  { name: 'Membros cadastrados no Inferno Roxo', label: 'Inferno Roxo', stage: 'Indicação (advocacy)' },
+];
+function renderFunnel(metrics, ym) {
+  const steps = FUNNEL_STEPS.map((s) => {
+    const m = metrics.find((x) => x.name === s.name);
+    return Object.assign({}, s, { m, v: m ? m.values[ym] : null });
+  }).filter((s) => s.m);
+  if (steps.length < 2) return '';
+  const max = Math.max(1, ...steps.map((s) => s.v || 0));
+  const rows = steps.map((s, i) => {
+    const prev = i > 0 ? steps[i - 1].v : null;
+    const conv = s.v != null && prev ? `${nf.format((s.v / prev) * 100)}% da etapa anterior` : '';
+    return `<div class="funnel-step">
+      <span class="funnel-bar" style="width:${s.v ? Math.max(6, (s.v / max) * 100) : 6}%"></span>
+      <span class="funnel-text"><strong>${s.v == null ? '–' : nf.format(s.v)}</strong> ${esc(s.label)} <span class="hint">· ${esc(s.stage)}${conv ? ' · ' + conv : ''}</span></span>
+    </div>`;
+  }).join('');
+  const filled = steps.filter((s) => s.v != null);
+  let tip = 'Lance os valores do mês para ver onde o torcedor está se perdendo.';
+  if (filled.length >= 2) {
+    let worst = null;
+    for (let i = 1; i < filled.length; i++) {
+      const r = filled[i].v / (filled[i - 1].v || 1);
+      if (!worst || r < worst.r) worst = { r, from: filled[i - 1].label, to: filled[i].label };
+    }
+    tip = `Maior perda: de “${worst.from}” para “${worst.to}” (${nf.format(worst.r * 100)}%). É ali que uma campanha rende mais agora.`;
+  }
+  return `<section class="card report-card funnel-card">
+    <h2>Funil do torcedor</h2>
+    <div class="funnel">${rows}</div>
+    <p class="hint">${esc(tip)}</p>
+  </section>`;
 }
 
 function renderOkrs(metrics, now, ym) {

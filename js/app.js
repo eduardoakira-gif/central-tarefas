@@ -19,7 +19,7 @@ import { initReferences, renderReferences } from './references.js';
 import { initLearn, renderLearn, renderTermCard } from './learn.js';
 import { askAssistant } from './assistant.js';
 
-export const APP_VERSION = '4.5.0';
+export const APP_VERSION = '4.6.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -483,6 +483,8 @@ function buildStaticControls() {
     list.map((o) => `<label class="seg-opt"><input type="radio" name="${name}" value="${o.id}"><span>${esc(o.name)}</span></label>`).join('');
   $('#fPriority').innerHTML = radio('priority', C.PRIORITIES.slice().reverse());
   $('#fStatus').innerHTML = radio('status', C.STATUSES);
+  $('#fFunnel').innerHTML = '<option value="">Sem etapa definida</option>' + C.FUNNEL.map((f) => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  $('#fFunnel').addEventListener('change', (e) => ($('#fFunnelHint').textContent = e.target.value ? C.FUNNEL_MAP[e.target.value].hint : ''));
 }
 
 function setRadio(form, name, value) {
@@ -561,6 +563,8 @@ async function openTaskDialog(id, prefill) {
   form.dueDate.value = v.dueDate || '';
   form.dueTime.value = v.dueTime || '';
   form.recurrence.value = v.recurrence || '';
+  form.funnel.value = v.funnel || '';
+  $('#fFunnelHint').textContent = v.funnel && C.FUNNEL_MAP[v.funnel] ? C.FUNNEL_MAP[v.funnel].hint : '';
   ['description', 'owner', 'waitingFor', 'link', 'notes'].forEach((k) => (form[k].value = v[k] || ''));
   form.waitingSince.value = v.waitingSince || '';
   form.followUpDate.value = v.followUpDate || '';
@@ -598,6 +602,7 @@ async function submitTaskForm(e) {
     dueDate,
     dueTime: dueDate ? form.dueTime.value || null : null,
     recurrence,
+    funnel: form.funnel.value || null,
     checklist: state.formChecklist.filter((c) => c.text.trim()),
     description: form.description.value.trim(),
     owner: form.owner.value.trim(),
@@ -675,6 +680,7 @@ async function quickCapture(e) {
       owner: s.owner,
       waitingFor: s.waitingFor,
       checklist: s.checklist,
+      funnel: s.funnel,
     });
   } catch (err) {
     if (err.code === 'ai_not_configured') state.ai = false;
@@ -816,6 +822,7 @@ async function submitReview(e) {
         waitingFor: f('waitingFor'),
         waitingSince: status === 'waiting' ? note ? note.date : C.toDateKey(new Date()) : null,
         checklist: s.checklist.map((text) => ({ text, done: false })),
+        funnel: s.funnel || null,
         noteId: r.noteId,
       });
       created.push(t.id);

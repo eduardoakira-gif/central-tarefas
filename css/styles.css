@@ -1269,3 +1269,10 @@ textarea.note-body { min-height: 46vh; }
 .term p { font-size: 14px; color: var(--text-2); margin-top: 8px; }
 .term[hidden] { display: none; }
 @media (max-width: 720px) { body[data-route="learn"] .fab { display: none; } }
+/* v4.6: funil */
+.funnel-tag i { width: 7px; height: 7px; border-radius: 50%; background: var(--funnel); display: inline-block; }
+.hint-inline { font-weight: 400; color: var(--muted); font-size: 12px; }
+.funnel { display: flex; flex-direction: column; gap: 8px; }
+.funnel-step { position: relative; display: flex; flex-direction: column; gap: 4px; }
+.funnel-bar { display: block; height: 10px; border-radius: 99px; background: linear-gradient(90deg, var(--focus), color-mix(in srgb, var(--focus) 40%, transparent)); }
+.funnel-text { font-size: 14px; }

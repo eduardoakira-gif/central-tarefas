@@ -357,6 +357,7 @@ const TASK_TOOL = {
             owner: { type: "string", description: "Responsável, se foi mencionado. Vazio se for o próprio usuário ou não for dito." },
             waitingFor: { type: "string", description: "Pessoa ou empresa de quem se aguarda retorno. Vazio se não houver." },
             checklist: { type: "array", items: { type: "string" }, description: "Etapas, se a tarefa tiver várias partes claras." },
+            funnel: { type: "string", enum: ["awareness", "consideracao", "conversao", "retencao", "advocacy", "operacao"], description: "Etapa do funil de marketing que a tarefa move: awareness (atrair atenção), consideracao (engajar quem conhece), conversao (venda, cadastro, adesão), retencao (renovação, manter cliente), advocacy (indicação, torcida), operacao (bastidor administrativo)." },
           },
           required: ["title", "area", "priority", "status"],
         },
@@ -441,6 +442,7 @@ async function callAi(central: any, text: string, refDate: string, single: boole
         owner: str(t.owner, 60),
         waitingFor: str(t.waitingFor, 80),
         checklist: Array.isArray(t.checklist) ? t.checklist.map((c: unknown) => str(c, 200)).filter(Boolean).slice(0, 20) : [],
+        funnel: ["awareness", "consideracao", "conversao", "retencao", "advocacy", "operacao"].includes(t.funnel) ? t.funnel : null,
       };
     })
     .filter((t: any) => t.title);
@@ -817,6 +819,7 @@ async function assistantContext(central: any) {
     if (t.waitingFor) bits.push("aguardando " + t.waitingFor + (t.followUpDate ? " (cobrar em " + t.followUpDate + ")" : ""));
     if (t.owner) bits.push("resp. " + t.owner);
     if (t.focusWeek === weekStartKey(today)) bits.push("★ FOCO DA SEMANA");
+    if (t.funnel) bits.push("funil: " + t.funnel);
     const upd = Math.floor((Date.now() - Date.parse(t.updatedAt || t.createdAt)) / 86400000);
     if (upd >= 3) bits.push(`sem atualização há ${upd} dias`);
     const ck = Array.isArray(t.checklist) && t.checklist.length ? ` [checklist ${t.checklist.filter((x: any) => x.done).length}/${t.checklist.length}]` : "";
@@ -917,6 +920,7 @@ Regras de cobrança: atrasado há 2 dias ou mais vira prioridade ou é renegocia
 O usuário está desenvolvendo a visão de marketing e a comunicação executiva: sempre que usar um termo de marketing em inglês ou técnico (awareness, churn, CAC, LTV, CTR, funil, posicionamento...), explique entre parênteses em português simples na primeira vez. Quando fizer sentido, sugira como ele pode falar aquilo numa reunião de diretoria.
 Estilo: português do Brasil, direto, frases curtas, listas curtas quando ajudar. Sem enrolação e sem bajulação. Se faltar dado, diga qual dado falta e como conseguir.
 Use apenas os dados abaixo sobre a central; não invente números. Conhecimento geral de mercado pode ser usado, deixando claro que é referência geral.
+Visão de marketing: classifique as ações pelo funil (atenção/awareness, consideração, conversão, retenção, indicação/advocacy) e aponte quando o esforço está desequilibrado, por exemplo muita operação e pouca conversão. Toda ação de topo de funil precisa levar a um cadastro no CRM.
 Quando houver ações claras, chame sugerir_tarefas (o usuário revisa antes de criar).
 
 # Dados atuais da central
@@ -968,7 +972,7 @@ async function aiBriefing(central: any) {
     system: assistantSystem(await assistantContext(central)),
     messages: [{
       role: "user",
-      content: "Escreva o briefing da manhã para uma notificação de celular, em no máximo 550 caracteres, sem markdown: comece com uma frase de cobrança do dono, depois as 3 prioridades de hoje numeradas (1. 2. 3.) e termine com uma dica curta inspirada em uma organização de referência.",
+      content: "Escreva o briefing da manhã para uma notificação de celular, em no máximo 550 caracteres, sem markdown: comece com uma frase de cobrança do dono, depois as 3 prioridades de hoje numeradas (1. 2. 3.) e termine com uma dica curta de marketing inspirada em uma organização de referência, explicando em português simples o termo técnico que usar (ex.: retenção, awareness, conversão).",
     }],
   }, [AI_MODEL]);
   const text = (out.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n").trim();

@@ -62,6 +62,17 @@
     aiBriefing: true,
   };
 
+  // Etapa do funil de marketing de cada demanda (visão de marketing da central)
+  const FUNNEL = [
+    { id: 'awareness', name: 'Atenção (awareness)', short: 'Atenção', color: '#0EA5C6', hint: 'Fazer mais gente conhecer o Fluxo W7M: conteúdo, creators, eventos abertos.' },
+    { id: 'consideracao', name: 'Consideração', short: 'Consideração', color: '#3B82F6', hint: 'Engajar e educar quem já conhece: newsletter, comunidade, bastidores.' },
+    { id: 'conversao', name: 'Conversão', short: 'Conversão', color: '#8B5CF6', hint: 'Transformar em receita ou cadastro: sócio, loja, ingresso, caravana.' },
+    { id: 'retencao', name: 'Retenção', short: 'Retenção', color: '#2F9E6E', hint: 'Manter quem já é cliente: renovação, benefícios, réguas, atendimento.' },
+    { id: 'advocacy', name: 'Indicação (advocacy)', short: 'Indicação', color: '#DB4C9A', hint: 'Fazer o fã trazer outros: Inferno Roxo, indique um amigo, UGC.' },
+    { id: 'operacao', name: 'Operação / bastidor', short: 'Operação', color: '#8A92A3', hint: 'Necessário, mas não move o funil: NFs, contratos, relatórios.' },
+  ];
+  const FUNNEL_MAP = byId(FUNNEL);
+
   const RECURRENCES = [
     { id: 'daily', name: 'Todo dia' },
     { id: 'weekdays', name: 'Dias úteis' },
@@ -161,6 +172,7 @@
       recurrence: RECURRENCE_MAP[t.recurrence] ? t.recurrence : null,
       noteId: t.noteId ? str(t.noteId) : null,
       focusWeek: validDate(t.focusWeek),
+      funnel: FUNNEL_MAP[t.funnel] ? t.funnel : null,
       deletedAt: t.deletedAt || null,
     };
   }
@@ -662,7 +674,7 @@
     pad, toDateKey, fromDateKey, addDays, toMin, uid, weekStart,
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,
-    PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,
+    FUNNEL, FUNNEL_MAP, PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,
     quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign,
     idb,
   };
