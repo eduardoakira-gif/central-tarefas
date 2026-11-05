@@ -396,6 +396,8 @@
     { id: 'socio', name: 'Sócio-Torcedor', color: '#8B5CF6' },
     { id: 'merchan', name: 'Merchan', color: '#DB4C9A' },
     { id: 'crm', name: 'CRM', color: '#3B82F6' },
+    { id: 'inferno', name: 'Inferno Roxo', color: '#7C3AED' },
+    { id: 'kings', name: 'Kings League', color: '#C08A1E' },
   ];
   const PILLAR_MAP = byId(PILLARS);
   const UNITS = [
@@ -440,6 +442,18 @@
     ['crm', 'Taxa de clique (CTR)', 'percent', 'up', 'Cliques ÷ entregues.'],
     ['crm', 'Receita atribuída ao CRM', 'currency', 'up', 'Vendas e adesões vindas de e-mails e réguas.'],
     ['crm', 'Taxa de descadastro', 'percent', 'down', 'Descadastros ÷ entregues.'],
+    ['inferno', 'Membros cadastrados no Inferno Roxo', 'number', 'up', 'Torcedores com carteirinha/cadastro de membro (entram no CRM).'],
+    ['inferno', 'Membros ativos no mês', 'number', 'up', 'Membros que participaram de algo no mês: evento, caravana, grupo, ação.'],
+    ['inferno', 'Presença em eventos e caravanas', 'number', 'up', 'Torcedores do Inferno Roxo presentes no mês (modelo Dezorganizada Furiosa e Blue Wall).'],
+    ['inferno', 'Núcleos regionais ativos', 'number', 'up', 'Grupos por cidade com líder e agenda (modelo penyes do Barcelona).'],
+    ['inferno', 'Receita da torcida', 'currency', 'up', 'Kits, caravanas pagas, produtos da linha Inferno Roxo e patrocínio da torcida.'],
+    ['inferno', 'Conversão membro → sócio', 'percent', 'up', 'Membros que viraram sócios pagos ÷ membros ativos.'],
+    ['kings', 'Torcedores do Fluxo FC no CRM', 'number', 'up', 'Cadastros capturados em jogo, caravana, QR code e lives dos presidentes.'],
+    ['kings', 'Ingressos resgatados e vendidos', 'number', 'up', 'Ingressos da Kings League entregues a sócios e vendidos no mês.'],
+    ['kings', 'Ocupação da caravana', 'percent', 'up', 'Lugares ocupados ÷ lugares oferecidos.'],
+    ['kings', 'Receita de merchan do Fluxo FC', 'currency', 'up', 'Linha dos presidentes, drops de vitória e itens de jogo.'],
+    ['kings', 'Vendas por cupom de creator', 'currency', 'up', 'Receita atribuída aos cupons de Nobru, Cerol, Toguro e creators.'],
+    ['kings', 'Receita B2C da Kings por jogo', 'currency', 'up', 'Caravana + ingresso + merchan + sócio atribuído, dividido pelos jogos do mês.'],
   ];
   const slug = (s) => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   function kpiCatalog() {

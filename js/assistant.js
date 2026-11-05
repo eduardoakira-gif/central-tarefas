@@ -18,6 +18,8 @@ const PROMPTS = [
   ['Como estão meus KPIs?', 'Analise meus indicadores e OKRs do Painel B2C: onde estou bem, onde estou mal e quais 3 ações movem mais o resultado este mês.'],
   ['Plano da semana', 'Monte meu plano da semana priorizando Comunidade, depois Sócio-Torcedor, Merchan e CRM. Sugira as tarefas.'],
   ['Lições do radar', 'O que as organizações de referência fizeram nos últimos dias que eu deveria copiar ou testar? Traga ideias práticas para o Fluxo W7M.'],
+  ['Inferno Roxo', 'Como está o Inferno Roxo e qual o próximo passo para transformar a torcida em marca e produto? Use referências como Blue Wall da Karmine, Dezorganizada Furiosa e a Tribo do G3X.'],
+  ['Kings League em receita', 'Como transformar a Kings League em receita B2C este mês? Pense em caravana, ingresso, merchan do Fluxo FC, sócio, cupons dos presidentes e CRM. Sugira as tarefas.'],
   ['Fechamento do mês', 'Como está o fechamento do merchan: NFs, XMLs, envio ao financeiro e pagamentos? O que falta e qual a ordem?'],
   ['Me ensina', 'Escolha um conceito de gestão ou de B2C que eu deveria dominar agora (ex.: LTV/CAC, churn, comunidade como produto) e me ensine com exemplos de organizações de esports.'],
 ];

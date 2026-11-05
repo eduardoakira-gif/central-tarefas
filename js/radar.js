@@ -14,6 +14,7 @@ const kv = { get: (k) => C.idb.get('kv', k), set: (k, v) => C.idb.put('kv', v, k
 
 export const DEFAULT_CONTEXT = `Sou head de B2C do Fluxo W7M, organização brasileira de esports (Free Fire, Rainbow Six, LoL, Valorant, CS2, EA FC, Mobile Legends, Kings League, Fortnite e Delta Force), patrocinada pelo Banco do Brasil. Minha área cuida das novas receitas com o torcedor.
 Pilares em ordem de prioridade: 1) Comunidade (o mais importante), 2) Sócio-Torcedor, 3) Merchan/E-commerce, 4) CRM (régua de comunicação que conecta tudo).
+Frentes estratégicas: Inferno Roxo (torcida organizada do Fluxo W7M, que quero transformar em marca e produto, liderada pela torcida e com código de conduta) e Kings League (Fluxo FC, presidido por Cerol, Nobru e Toguro, que quero transformar em receita B2C com caravanas, ingressos, merchan, sócio e CRM).
 Referências: Karmine Corp (comunidade e eventos), T1 (fandom e merchan ligado a ídolos), Team Liquid (fidelidade e CRM), 100 Thieves (merchan lifestyle e drops), FURIA, LOUD e MIBR no Brasil.`;
 
 export const R = {

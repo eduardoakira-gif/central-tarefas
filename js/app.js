@@ -15,7 +15,7 @@ import { initB2C, renderPanel, renderFinance, renderOwnerCard, view as b2cView }
 import { initRadar, renderRadar, openRadar, leaveRadar, DEFAULT_CONTEXT } from './radar.js';
 import { initAssistant, renderAssistant, openAssistant } from './assistant.js';
 
-export const APP_VERSION = '4.2.0';
+export const APP_VERSION = '4.3.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);

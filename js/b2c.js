@@ -12,7 +12,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const $$ = (sel, el = document) => Array.from(el.querySelectorAll(sel));
 const nowIso = () => new Date().toISOString();
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-const PILLAR_ORDER = ['comunidade', 'socio', 'merchan', 'crm', 'geral'];
+const PILLAR_ORDER = ['comunidade', 'inferno', 'socio', 'merchan', 'kings', 'crm', 'geral'];
 
 let H = null; // helpers vindos do app.js (toast, confirmDialog, openTaskDialog, render)
 
@@ -174,8 +174,34 @@ export function ownerAlerts(now = new Date()) {
   return out;
 }
 
+const WANTED_AREAS = [
+  { name: 'Inferno Roxo', color: '#7C3AED' },
+  { name: 'Kings League', color: '#C08A1E' },
+];
+const fold = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+function missingAreas() {
+  const have = new Set((Sync.central.areas || []).map((a) => fold(a.name)));
+  return WANTED_AREAS.filter((a) => !have.has(fold(a.name)));
+}
+export async function addWantedAreas() {
+  const list = Sync.central.areas.map((a) => Object.assign({}, a));
+  for (const a of missingAreas()) if (list.length < 20) list.push({ id: C.newAreaId(), name: a.name, color: a.color });
+  await Sync.patchCentral({ areas: list });
+  // indicadores dos pilares novos
+  const have = new Set(Sync.metrics.map((m) => m.id));
+  if (Sync.metrics.length) {
+    for (const k of C.kpiCatalog().filter((k) => (k.pillar === 'inferno' || k.pillar === 'kings') && !have.has(k.id))) {
+      await Sync.upsert('metrics', C.normalizeMetric(Object.assign({}, k, { createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() })));
+    }
+  }
+}
+
 export function renderOwnerCard() {
   const alerts = ownerAlerts();
+  const miss = missingAreas();
+  const areaNotice = miss.length
+    ? `<div class="notice"><span>Adicionar as áreas ${miss.map((a) => '<strong>' + esc(a.name) + '</strong>').join(' e ')} e os indicadores delas no Painel?</span><button type="button" class="btn btn-sm" data-b2c="add-areas">Adicionar</button></div>`
+    : '';
   const now = new Date();
   const week = C.weekStart(now);
   const focus = Sync.tasks.filter((t) => !t.deletedAt && t.focusWeek === week);
@@ -183,9 +209,10 @@ export function renderOwnerCard() {
     ? `<div class="focus-box"><span class="label">Foco da semana · ${focus.filter((t) => t.status === 'done').length}/${focus.length} entregues</span>
         ${focus.map((t) => `<span class="focus-item${t.status === 'done' ? ' is-done' : ''}">${t.status === 'done' ? '✓' : '★'} ${esc(t.title)}</span>`).join('')}</div>`
     : '';
-  if (!alerts.length && !focusHtml) return '';
+  if (!alerts.length && !focusHtml) return areaNotice;
   return `<section class="card owner-card">
     <div class="owner-head"><strong>Cobrança do dono</strong><a class="link-muted" href="#/assistente">Pedir direcionamento ›</a></div>
+    ${areaNotice}
     ${focusHtml}
     ${alerts.length ? `<ul>${alerts.map((a) => `<li class="owner-${a.level}"><a href="${a.route}">${esc(a.text)}</a></li>`).join('')}</ul>` : '<p class="hint">Nada travado agora. Bom trabalho.</p>'}
   </section>`;
@@ -624,6 +651,9 @@ async function onAction(action, el) {
   const billId = el.closest('[data-bill-id]') && el.closest('[data-bill-id]').dataset.billId;
   const today = C.toDateKey(new Date());
   switch (action) {
+    case 'add-areas':
+      await addWantedAreas();
+      return H.toast('Áreas Inferno Roxo e Kings League adicionadas');
     case 'month':
       view.month = addMonths(view.month || defaultMonth(), Number(el.dataset.step));
       return H.render();
