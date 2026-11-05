@@ -54,8 +54,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DEFAULT_SETTINGS = {
   notificationsEnabled: true, frequencyHours: 2, startTime: "08:00", endTime: "20:00",
   dailySummary: true, dailySummaryTime: "08:00",
-  radarEnabled: false, radarFrequencyHours: 1, radarOrgs: [] as string[], context: "",
-  billsReminder: true, monthCloseDay: 5,
+  radarEnabled: false, radarFrequencyHours: 0, radarTimes: ["09:00", "15:00"], radarOrgs: [] as string[], context: "",
+  billsReminder: true, monthCloseDay: 5, weeklyReview: true,
 };
 type Settings = typeof DEFAULT_SETTINGS;
 const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
@@ -110,7 +110,13 @@ function cleanSettings(v: any, base: Settings = DEFAULT_SETTINGS): Settings {
     if (typeof v.dailySummary === "boolean") s.dailySummary = v.dailySummary;
     if (TIME_RE.test(v.dailySummaryTime ?? "")) s.dailySummaryTime = v.dailySummaryTime;
     if (typeof v.radarEnabled === "boolean") s.radarEnabled = v.radarEnabled;
-    if ([1, 2, 3, 4, 6].includes(Number(v.radarFrequencyHours))) s.radarFrequencyHours = Number(v.radarFrequencyHours);
+    // 0 = em horários fixos (radarTimes, padrão 9h e 15h); 1 a 6 = a cada N horas
+    if ([0, 1, 2, 3, 4, 6].includes(Number(v.radarFrequencyHours))) s.radarFrequencyHours = Number(v.radarFrequencyHours);
+    if (Array.isArray(v.radarTimes)) {
+      const t = [...new Set(v.radarTimes.filter((x: unknown) => TIME_RE.test(String(x))))].sort().slice(0, 4) as string[];
+      if (t.length) s.radarTimes = t;
+    }
+    if (typeof v.weeklyReview === "boolean") s.weeklyReview = v.weeklyReview;
     if (Array.isArray(v.radarOrgs)) {
       s.radarOrgs = [...new Set(v.radarOrgs.map((o: unknown) => String(o ?? "").trim().slice(0, 40)).filter(Boolean))].slice(0, 40) as string[];
     }
@@ -196,16 +202,17 @@ const toMin = (hhmm?: string | null) => {
   return h * 60 + (m || 0);
 };
 
-function localNow(tz: string): { today: string; minutes: number } {
+function localNow(tz: string, at: Date = new Date()): { today: string; minutes: number; weekday: number } {
   try {
     const parts = Object.fromEntries(
       new Intl.DateTimeFormat("en-CA", {
         timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-      }).formatToParts(new Date()).map((p) => [p.type, p.value]),
+      }).formatToParts(at).map((p) => [p.type, p.value]),
     );
-    return { today: `${parts.year}-${parts.month}-${parts.day}`, minutes: Number(parts.hour) * 60 + Number(parts.minute) };
+    const today = `${parts.year}-${parts.month}-${parts.day}`;
+    return { today, minutes: Number(parts.hour) * 60 + Number(parts.minute), weekday: new Date(today + "T12:00:00Z").getUTCDay() };
   } catch {
-    return tz === "America/Sao_Paulo" ? { today: new Date().toISOString().slice(0, 10), minutes: 0 } : localNow("America/Sao_Paulo");
+    return tz === "America/Sao_Paulo" ? { today: at.toISOString().slice(0, 10), minutes: 0, weekday: at.getUTCDay() } : localNow("America/Sao_Paulo", at);
   }
 }
 
@@ -534,8 +541,25 @@ const DEFAULT_ORGS = [
   "FaZe Clan", "Gen.G", "Cloud9", "NAVI", "Team Falcons", "FURIA", "LOUD", "MIBR", "paiN Gaming", "Vivo Keyd Stars",
   "RED Canids", "Fluxo W7M",
 ];
-const RADAR_CATEGORIES = ["PR", "B2C", "Merchan", "Comunidade", "Sócio/Membership", "Patrocínio", "Negócios", "Conteúdo/Creators", "Competitivo", "Eventos", "Outros"];
-const RADAR_BATCH = 4;
+const RADAR_CATEGORIES = ["Estudo de caso", "PR", "B2C", "Merchan", "Comunidade", "Sócio/Membership", "Patrocínio", "Negócios", "Conteúdo/Creators", "Competitivo", "Eventos", "Outros"];
+/** Rodadas mais raras olham mais organizações de uma vez. */
+const radarBatch = (s: Settings) => (s.radarFrequencyHours === 0 ? { orgs: 8, searches: 5 } : { orgs: 4, searches: 3 });
+
+/** Hora de rodar o radar? Horários fixos (2x por dia) ou a cada N horas. */
+function radarDue(s: Settings, lastAt: string | null, tz: string) {
+  const last = lastAt ? Date.parse(lastAt) : 0;
+  const { today, minutes } = localNow(tz);
+  if (s.radarFrequencyHours > 0) {
+    return inWindow(s, minutes) && Date.now() - last >= s.radarFrequencyHours * 3600000 - 10 * 60000;
+  }
+  const slots = s.radarTimes.map((t) => toMin(t) ?? 0).filter((m) => m <= minutes);
+  if (!slots.length) return false;
+  const slot = Math.max(...slots);
+  if (minutes - slot > 180) return false; // passou muito do horário: espera o próximo
+  if (!last) return true;
+  const l = localNow(tz, new Date(last));
+  return !(l.today === today && l.minutes >= slot - 10);
+}
 
 const RADAR_TOOL = {
   name: "registrar_noticias",
@@ -586,7 +610,8 @@ async function runRadar(central: any, manual = false) {
   const s = cleanSettings(central.settings);
   const orgs = s.radarOrgs.length ? s.radarOrgs : DEFAULT_ORGS;
   const cursor = Number(central.radar_cursor || 0) % orgs.length;
-  const batch = Array.from({ length: Math.min(RADAR_BATCH, orgs.length) }, (_, i) => orgs[(cursor + i) % orgs.length]);
+  const size = radarBatch(s);
+  const batch = Array.from({ length: Math.min(size.orgs, orgs.length) }, (_, i) => orgs[(cursor + i) % orgs.length]);
   const today = localNow("America/Sao_Paulo").today;
   const recent = await radarRecent(central.id, 80);
   const seen = recent.map((r: any) => `- ${r.org}: ${r.title}`).slice(0, 60).join("\n") || "(nenhuma ainda)";
@@ -598,7 +623,7 @@ ${context}
 
 Tarefa: use a busca na web para encontrar notícias PUBLICADAS NOS ÚLTIMOS 3 DIAS sobre as organizações de esports listadas pelo usuário. Vale qualquer notícia relevante: PR, lançamentos de produtos e coleções, merchan, programas de membros/sócio, comunidade e eventos com fãs, patrocínios, parcerias, resultados financeiros, contratações e resultados competitivos de destaque, conteúdo e creators.
 Regras:
-- Faça no máximo 3 buscas, combinando várias organizações por busca quando possível.
+- Faça no máximo ${size.searches} buscas, combinando várias organizações por busca quando possível.
 - Só registre notícias com fonte real e link encontrado na busca. Nunca invente.
 - Ignore notícias antigas e as que já foram registradas (lista abaixo).
 - Escreva tudo em português do Brasil.
@@ -615,7 +640,7 @@ ${seen}`;
       max_tokens: 4000,
       system,
       tools: [
-        { type: "web_search_20250305", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "BR", timezone: "America/Sao_Paulo" } },
+        { type: "web_search_20250305", name: "web_search", max_uses: size.searches, user_location: { type: "approximate", country: "BR", timezone: "America/Sao_Paulo" } },
         RADAR_TOOL,
       ],
       messages,
@@ -673,6 +698,55 @@ ${seen}`;
     radar_last_at: new Date().toISOString(), radar_last_error: null, radar_cursor: (cursor + batch.length) % orgs.length,
   }).eq("id", central.id);
   return { added: fresh, orgs: batch, manual };
+}
+
+const CASE_TOOL = {
+  name: "registrar_estudo",
+  description: "Registra o estudo de caso da semana.",
+  input_schema: {
+    type: "object",
+    properties: {
+      org: { type: "string", description: "Organização (ou organizações) do caso." },
+      title: { type: "string", description: "Título do estudo de caso, até 120 caracteres." },
+      summary: { type: "string", description: "O caso em 4 a 6 frases: o que fizeram, por que funcionou, números se houver." },
+      lesson: { type: "string", description: "Como aplicar no Fluxo W7M: 3 ações práticas numeradas, cada uma com pilar e primeiro passo." },
+    },
+    required: ["org", "title", "summary", "lesson"],
+  },
+};
+
+/** Estudo de caso semanal, feito com as notícias dos últimos 7 dias (sem busca na web). */
+async function caseStudy(central: any, manual: boolean) {
+  const recent = await radarRecent(central.id, 120);
+  const week = recent.filter((r: any) => Date.parse(r.createdAt) > Date.now() - 7 * 86400000);
+  if (!manual && week.some((r: any) => r.category === "Estudo de caso" && Date.parse(r.createdAt) > Date.now() - 6 * 86400000)) return null;
+  const news = week.filter((r: any) => r.category !== "Estudo de caso").sort((a: any, b: any) => (b.starred ? 1 : 0) - (a.starred ? 1 : 0) || b.relevance - a.relevance).slice(0, 25);
+  if (news.length < 2) {
+    if (manual) throw new HttpError(400, "O radar ainda não juntou notícias suficientes nesta semana. Rode uma busca antes.");
+    return null;
+  }
+  const s = cleanSettings(central.settings);
+  const out = await anthropic({
+    max_tokens: 2000,
+    system: `Você é consultor de estratégia de esports. Escolha, entre as notícias da semana, o caso MAIS útil para a área do usuário e escreva um estudo de caso prático em português do Brasil. Use só os fatos das notícias; conhecimento geral só como contexto, deixando claro.
+Contexto do usuário:
+${s.context || "Área B2C de uma organização brasileira de esports."}`,
+    tools: [CASE_TOOL],
+    tool_choice: { type: "tool", name: CASE_TOOL.name },
+    messages: [{ role: "user", content: news.map((n: any) => `- ${n.org}: ${n.title}. ${n.summary} (fonte: ${n.url})`).join("\n") }],
+  }, [AI_MODEL]);
+  const call = (out.content ?? []).find((c: any) => c.type === "tool_use");
+  if (!call?.input?.title) return null;
+  const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
+  const top = news[0];
+  const item = {
+    id: newId(20), org: str(call.input.org, 60), title: str(call.input.title, 200), summary: str(call.input.summary, 2500),
+    url: top?.url ?? "", urlKey: "case:" + newId(8), source: "Estudo de caso da semana", publishedAt: localNow("America/Sao_Paulo").today,
+    category: "Estudo de caso", relevance: 5, lesson: str(call.input.lesson, 2500), starred: false, read: false,
+  };
+  const { error } = await db.from("radar").insert({ central_id: central.id, id: item.id, url_key: item.urlKey, data: item });
+  if (error) throw new HttpError(500, error.message);
+  return item;
 }
 
 function radarPush(central: any, added: any[]) {
@@ -1003,7 +1077,25 @@ async function handle(body: any, req: Request) {
         if (!a.lines.length) return base;
         const block = ["", "Cobrança do dono:", ...a.lines.map((l) => "• " + l)].join("\n");
         if (base) return { ...base, body: base.body + "\n" + block };
-        return { title: `${c.name}: cobrança do dono`, body: block.trim() };
+        return { title: `${c.name}: cobrança do dono`, body: block.trim(), route: a.lines.some((l) => /NF/.test(l)) ? "#/financeiro" : "" };
+      };
+      const weeklyReview = async (c: any, s: Settings, tz: string) => {
+        const { today } = localNow(tz);
+        const all = (await listItems("tasks", c.id)).filter((t: any) => t && !t.deletedAt);
+        const weekAgo = Date.now() - 7 * 86400000;
+        const done = all.filter((t: any) => t.status === "done" && t.completedAt && Date.parse(t.completedAt) > weekAgo).length;
+        const created = all.filter((t: any) => Date.parse(t.createdAt) > weekAgo).length;
+        const open = all.filter((t: any) => t.status !== "done");
+        const late = open.filter((t: any) => t.dueDate && t.dueDate < today).length;
+        const ex = await extrasOf(c.id);
+        const nextWeek = ex.bills.filter((b: any) => b && !b.paidAt && b.dueDate && b.dueDate > today && b.dueDate <= addDaysKey(today, 7));
+        const lines = [
+          `Semana: ${plural(done, "demanda concluída", "demandas concluídas")} e ${plural(created, "criada", "criadas")}.`,
+          `Em aberto: ${open.length}` + (late ? `, ${plural(late, "atrasada", "atrasadas")}.` : "."),
+        ];
+        if (nextWeek.length) lines.push(`Próxima semana: ${plural(nextWeek.length, "NF vence", "NFs vencem")} (${money(nextWeek.reduce((a: number, b: any) => a + (Number(b.amount) || 0), 0))}).`);
+        lines.push("", "Antes de sair: feche o que der, atualize o status do resto e defina as 3 prioridades de segunda. Peça o plano no Assistente.");
+        return { title: `${c.name}: revisão da semana`, body: lines.join("\n"), route: "#/assistente" };
       };
 
       let sent = 0;
@@ -1022,6 +1114,14 @@ async function handle(body: any, req: Request) {
           if (summary && (await sendPush(d, { ...summary, centralId: c.id }))) sent++;
           await db.from("devices").update({ last_summary_on: today, last_sent_at: now })
             .eq("central_id", d.central_id).eq("endpoint", d.endpoint);
+          continue;
+        }
+
+        // Revisão da semana: sexta, a partir das 17h, uma vez
+        if (s.weeklyReview && localNow(d.timezone).weekday === 5 && minutes >= 1020 && minutes < 1200 && d.last_review_on !== today) {
+          const review = await weeklyReview(c, s, d.timezone);
+          if (review && (await sendPush(d, { ...review, centralId: c.id }))) sent++;
+          await db.from("devices").update({ last_review_on: today, last_sent_at: now }).eq("central_id", d.central_id).eq("endpoint", d.endpoint);
           continue;
         }
 
@@ -1078,6 +1178,13 @@ async function handle(body: any, req: Request) {
       }
     }
 
+    case "radarCaseStudy": {
+      const central = await getCentral(body.centralId, body.pin);
+      await countAiUse(central.id);
+      const item = await caseStudy(central, true);
+      return { item };
+    }
+
     case "radarRun": {
       // Chamado de hora em hora pelo GitHub Actions (.github/workflows/radar.yml)
       if (!CRON_SECRET || req.headers.get("x-cron-secret") !== CRON_SECRET) throw new HttpError(401, "Não autorizado.");
@@ -1091,12 +1198,14 @@ async function handle(body: any, req: Request) {
         if (Date.now() - started > 100000) break; // limite de tempo da função
         const { data: devs } = await db.from("devices").select("*").eq("central_id", c.id);
         const tz = devs?.[0]?.timezone || "America/Sao_Paulo";
-        const { minutes } = localNow(tz);
-        if (!inWindow(s, minutes) && !body.force) continue;
-        const last = c.radar_last_at ? Date.parse(c.radar_last_at) : 0;
-        if (Date.now() - last < s.radarFrequencyHours * 3600000 - 10 * 60000 && !body.force) continue;
+        if (!body.force && !radarDue(s, c.radar_last_at, tz)) continue;
         try {
           const r = await runRadar(c);
+          // segunda-feira: estudo de caso da semana com o que o radar juntou
+          if (localNow(tz).weekday === 1) {
+            const cs = await caseStudy(c, false).catch((err) => (console.error("Estudo de caso", err?.message), null));
+            if (cs) r.added.unshift(cs);
+          }
           let sent = 0;
           const relevant = r.added.filter((x) => x.relevance >= 3);
           if (PUSH_READY && relevant.length && s.notificationsEnabled) {

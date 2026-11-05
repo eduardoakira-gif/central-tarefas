@@ -83,7 +83,12 @@ function dayLabel(iso) {
 
 function card(it) {
   const isNew = R.seenAt && it.createdAt > R.seenAt;
-  return `<article class="card radar-item${it.starred ? ' is-starred' : ''}" data-radar-id="${esc(it.id)}">
+  const isCase = it.category === 'Estudo de caso';
+  let host = '';
+  try {
+    host = new URL(it.url).hostname.replace(/^www\./, '');
+  } catch {}
+  return `<article class="card radar-item${it.starred ? ' is-starred' : ''}${isCase ? ' is-case' : ''}" data-radar-id="${esc(it.id)}">
     <div class="radar-top">
       <span class="radar-org">${esc(it.org)}</span>
       <span class="radar-cat">${esc(it.category)}</span>
@@ -92,9 +97,9 @@ function card(it) {
     </div>
     <a class="radar-title" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>
     <p class="radar-summary">${esc(it.summary)}</p>
-    ${it.lesson ? `<div class="radar-lesson"><strong>Lição para você</strong><p>${esc(it.lesson)}</p></div>` : ''}
+    ${it.lesson ? `<div class="radar-lesson"><strong>${isCase ? 'Como aplicar no Fluxo W7M' : 'Lição para você'}</strong><p>${esc(it.lesson)}</p></div>` : ''}
     <div class="radar-foot">
-      <span class="hint">${esc(it.source || new URL(it.url).hostname.replace(/^www\./, ''))}${it.publishedAt ? ' · ' + C.fromDateKey(it.publishedAt).toLocaleDateString('pt-BR') : ''}</span>
+      <span class="hint">${esc(it.source || host)}${it.publishedAt ? ' · ' + C.fromDateKey(it.publishedAt).toLocaleDateString('pt-BR') : ''}</span>
       <div class="btn-row">
         <button type="button" class="btn btn-sm" data-radar="star">${it.starred ? '★ Salva' : '☆ Salvar referência'}</button>
         <button type="button" class="btn btn-sm" data-radar="task">Virar tarefa</button>
@@ -110,15 +115,21 @@ export function renderRadar() {
   if (!s.radarEnabled) {
     return `<section class="card empty-panel">
       <h2>Ligue o radar das organizações</h2>
-      <p>De hora em hora, a Central busca na web o que as maiores organizações de esports do mundo e do Brasil publicaram (T1, Karmine Corp, Team Liquid, 100 Thieves, G2, FURIA, LOUD, MIBR e outras), resume em português e escreve a lição prática para a sua área. As novidades relevantes chegam como notificação no celular.</p>
-      <p class="hint">Usa seus créditos da Claude API: cerca de US$ 0,05 a 0,08 por busca. De hora em hora, das ${s.startTime} às ${s.endTime}, fica em torno de US$ 0,70 por dia. Dá para trocar a frequência em Configurações.</p>
+      <p>Duas vezes por dia, a Central busca na web o que as maiores organizações de esports do mundo e do Brasil publicaram (T1, Karmine Corp, Team Liquid, 100 Thieves, G2, FURIA, LOUD, MIBR e outras), resume em português e escreve a lição prática para a sua área. As novidades relevantes chegam como notificação no celular.</p>
+      <p class="hint">Roda 2 vezes por dia, às 9h e às 15h, e toda segunda gera um estudo de caso da semana. Usa seus créditos da Claude API: cerca de US$ 0,25 por dia (uns US$ 7 por mês). Dá para mudar em Configurações.</p>
       <div class="btn-row"><button type="button" class="btn btn-primary" data-radar="enable">Ligar o radar</button></div>
     </section>`;
   }
   const items = R.items.filter((it) => (!R.filter.cat || it.category === R.filter.cat) && (!R.filter.org || it.org === R.filter.org) && (!R.filter.starred || it.starred));
   const cats = [...new Set(R.items.map((i) => i.category))].sort();
   const orgs = [...new Set(R.items.map((i) => i.org))].sort((a, b) => a.localeCompare(b));
-  const next = R.status.lastAt ? new Date(Date.parse(R.status.lastAt) + s.radarFrequencyHours * 3600000) : null;
+  let next = null;
+  if (s.radarFrequencyHours > 0) next = R.status.lastAt ? new Date(Date.parse(R.status.lastAt) + s.radarFrequencyHours * 3600000) : null;
+  else {
+    const now = new Date();
+    const times = (s.radarTimes || ['09:00', '15:00']).map((t) => { const [h, m] = t.split(':').map(Number); return new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m); });
+    next = times.find((d) => d > now) || new Date(times[0].getTime() + 86400000);
+  }
 
   let list = '';
   let day = '';
@@ -131,8 +142,11 @@ export function renderRadar() {
     list += card(it);
   }
   return `<div class="radar-status">
-      <span>Última busca: <strong>${ago(R.status.lastAt)}</strong>${next && next > new Date() ? ` · próxima por volta de ${next.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
-      <button type="button" class="btn btn-sm" data-radar="run" id="radarRun">Buscar agora</button>
+      <span>Última busca: <strong>${ago(R.status.lastAt)}</strong>${next && next > new Date() ? ` · próxima ${C.toDateKey(next) === C.toDateKey(new Date()) ? 'hoje' : 'amanhã'} por volta de ${next.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+      <div class="btn-row">
+        <button type="button" class="btn btn-sm" data-radar="case" id="radarCase">Gerar estudo de caso</button>
+        <button type="button" class="btn btn-sm" data-radar="run" id="radarRun">Buscar agora</button>
+      </div>
     </div>
     ${R.status.lastError ? `<p class="notice">A última busca falhou: ${esc(R.status.lastError)}</p>` : ''}
     <div class="toolbar radar-toolbar">
@@ -172,6 +186,22 @@ async function onAction(action, el) {
     }
     case 'run':
       return runNow();
+    case 'case': {
+      const btn = $('#radarCase');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Escrevendo o estudo…';
+      }
+      try {
+        const r = await Sync.call('radarCaseStudy', {}, { timeout: 120000 });
+        H.toast(r.item ? 'Estudo de caso pronto: ' + r.item.title : 'Não consegui montar o estudo agora. Tente de novo em instantes.');
+      } catch (err) {
+        H.toast(err.message);
+      } finally {
+        await load(true);
+      }
+      return;
+    }
     case 'star':
       return mark(id, { starred: !it.starred });
     case 'only-starred':

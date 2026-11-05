@@ -400,6 +400,7 @@
           <label class="field">
             <span class="label">Frequência do radar</span>
             <select id="setRadarFreq" class="select">
+              <option value="0">2 vezes por dia, às 9h e às 15h (cerca de US$ 0,25 por dia)</option>
               <option value="1">A cada 1 hora (cerca de US$ 0,70 por dia)</option>
               <option value="2">A cada 2 horas</option>
               <option value="3">A cada 3 horas</option>
@@ -410,7 +411,7 @@
           <label class="field">
             <span class="label">Organizações monitoradas (uma por linha)</span>
             <textarea id="setRadarOrgs" class="input" rows="6" placeholder="Deixe vazio para usar a lista padrão"></textarea>
-            <span class="hint">A cada rodada o radar olha 4 organizações, em rodízio. Vazio = lista padrão com 20 organizações do mundo e do Brasil.</span>
+            <span class="hint">Em rodízio: cada rodada olha 8 organizações (4 se for de hora em hora). Vazio = lista padrão com 20 organizações do mundo e do Brasil. Toda segunda sai um estudo de caso da semana.</span>
           </label>
           <label class="field">
             <span class="label">Seu contexto estratégico</span>
@@ -426,6 +427,13 @@
               <p>Entra nos lembretes: NFs vencidas, vencendo em até 3 dias sem agendamento e o fechamento do mês.</p>
             </div>
             <label class="switch"><input type="checkbox" id="setBills" aria-label="Cobrança de NFs ligada"><span></span></label>
+          </div>
+          <div class="setting-row">
+            <div>
+              <strong>Revisão da semana</strong>
+              <p>Sexta, às 17h: o que você entregou, o que ficou aberto, NFs da semana seguinte e o lembrete de definir as prioridades de segunda.</p>
+            </div>
+            <label class="switch"><input type="checkbox" id="setWeekly" aria-label="Revisão da semana ligada"><span></span></label>
           </div>
           <label class="field">
             <span class="label">Prazo para enviar as NFs e XMLs do mês anterior</span>

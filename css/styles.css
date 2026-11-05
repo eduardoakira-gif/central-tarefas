@@ -1210,3 +1210,6 @@ textarea.note-body { min-height: 46vh; }
   .nav { gap: 2px; }
   .nav a { padding: 6px 10px; }
 }
+.radar-lesson p, .radar-item.is-case .radar-summary { white-space: pre-line; }
+.radar-item.is-case { border-color: color-mix(in srgb, var(--focus) 40%, var(--border)); box-shadow: var(--shadow); }
+.radar-item.is-case .radar-cat { background: color-mix(in srgb, var(--focus) 14%, transparent); color: var(--focus); font-weight: 600; }

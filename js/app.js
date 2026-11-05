@@ -15,7 +15,7 @@ import { initB2C, renderPanel, renderFinance, renderOwnerCard, view as b2cView }
 import { initRadar, renderRadar, openRadar, leaveRadar, DEFAULT_CONTEXT } from './radar.js';
 import { initAssistant, renderAssistant, openAssistant } from './assistant.js';
 
-export const APP_VERSION = '4.0.0';
+export const APP_VERSION = '4.1.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1138,6 +1138,7 @@ async function renderSettings() {
   if (document.activeElement !== $('#setContext')) $('#setContext').value = s.context || '';
   $('#setBills').checked = s.billsReminder;
   $('#setCloseDay').value = String(s.monthCloseDay);
+  $('#setWeekly').checked = s.weeklyReview;
 
   $('#pinStatus').textContent = c.hasPin
     ? 'Ativo. Quem abrir o link em um aparelho novo precisa digitar o PIN.'
@@ -1511,6 +1512,7 @@ function bindEvents() {
   });
   $('#setBills').addEventListener('change', (e) => patchSettings({ billsReminder: e.target.checked }));
   $('#setCloseDay').addEventListener('change', (e) => patchSettings({ monthCloseDay: Number(e.target.value) }));
+  $('#setWeekly').addEventListener('change', (e) => patchSettings({ weeklyReview: e.target.checked }));
   $$('input[name="theme"]').forEach((r) => r.addEventListener('change', () => applyTheme(r.value)));
   $('#importFile').addEventListener('change', (e) => {
     const file = e.target.files[0];

@@ -52,11 +52,13 @@
     dailySummary: true,
     dailySummaryTime: '08:00',
     radarEnabled: false,
-    radarFrequencyHours: 1,
+    radarFrequencyHours: 0, // 0 = 2x por dia nos horários de radarTimes
+    radarTimes: ['09:00', '15:00'],
     radarOrgs: [],
     context: '',
     billsReminder: true,
     monthCloseDay: 5,
+    weeklyReview: true,
   };
 
   const RECURRENCES = [
