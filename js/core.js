@@ -612,6 +612,21 @@
     };
   }
 
+  function normalizeCrew(c) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    return {
+      id: str(c.id) || uid(),
+      coordinator: str(c.coordinator).trim().slice(0, 80),
+      volunteers: Math.max(0, Math.round(num(c.volunteers) ?? 0)),
+      goal: Math.max(0, Math.round(num(c.goal) ?? 0)),
+      status: ['montar', 'recrutando', 'ativo'].includes(c.status) ? c.status : 'montar',
+      notes: str(c.notes).slice(0, 2000),
+      createdAt: c.createdAt || now,
+      updatedAt: c.updatedAt || now,
+    };
+  }
+
   const BILL_STAGES = [
     { id: 'docs', name: 'Faltam documentos' },
     { id: 'ready', name: 'Pronta para enviar' },
@@ -699,7 +714,7 @@
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,
     FUNNEL, FUNNEL_MAP, PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,
-    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign, normalizePost,
+    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign, normalizePost, normalizeCrew,
     idb,
   };
 })(typeof self !== 'undefined' ? self : this);

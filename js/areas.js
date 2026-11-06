@@ -10,6 +10,7 @@ import * as UI from './ui.js';
 import { Metrics, metricCard, okrCard, defaultMonth, monthLabel, view as b2cView } from './b2c.js';
 import { CASES } from './references.js';
 import { R } from './radar.js';
+import { renderInfernoStructure } from './inferno.js';
 
 const C = window.Core;
 const esc = UI.esc;
@@ -151,7 +152,8 @@ export function renderArea() {
     special = `<section class="card report-card"><div class="closing-head"><h2>Newsletter</h2><a class="btn btn-sm" href="#/crm">Abrir CRM</a></div>
       <p>${c.length ? `Últimos ${c.length} envios: abertura ${d ? nf.format((c.reduce((x, y) => x + y.opens, 0) / d) * 100) : '–'}% e clique ${d ? nf.format((c.reduce((x, y) => x + y.clicks, 0) / d) * 100) : '–'}% (referência do setor: 22% e 3%).` : 'Registre os envios do RD Station para ver o diagnóstico.'}</p></section>`;
   }
-  if (a.id === 'inferno' || a.id === 'kings') {
+  if (a.id === 'inferno') special = renderInfernoStructure();
+  if (a.id === 'kings') {
     special = `<section class="card report-card"><h2>Planejamento estratégico</h2><p>O plano completo de Inferno Roxo e Kings League (referências, produto, receita, riscos e metas) está no documento que montamos. Use o plano de 90 dias abaixo para transformar em tarefas.</p></section>`;
   }
 

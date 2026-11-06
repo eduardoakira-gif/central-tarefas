@@ -22,8 +22,9 @@ import { initBoard, renderBoard, openBoard, renderTeamCard } from './board.js';
 import { initAreas, renderArea, renderAreasHub, view as areaView } from './areas.js';
 import { initBrand, renderBrand, renderBrandAlert } from './brand.js';
 import { initStudy, renderStudy, studyAlert } from './study.js';
+import { initInferno } from './inferno.js';
 
-export const APP_VERSION = '5.0.0';
+export const APP_VERSION = '5.1.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -372,7 +373,12 @@ function renderBrandView() {
   keepFocus($('#brandBody'), renderBrand());
 }
 function renderAreaView() {
+  const openSectors = $$('#areaBody details[data-sector][open]').map((d) => d.dataset.sector);
   keepFocus($('#areaBody'), state.route === 'areas' ? renderAreasHub() : renderArea());
+  openSectors.forEach((id) => {
+    const d = $(`#areaBody details[data-sector="${id}"]`);
+    if (d) d.open = true;
+  });
   const on = $('#areaBody .area-tabs [aria-pressed="true"]');
   if (on) on.scrollIntoView({ block: 'nearest', inline: 'center' });
 }
@@ -1354,7 +1360,7 @@ async function minuteTick() {
     console.warn('Lembrete:', err);
   }
   const active = document.activeElement;
-  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor, #panelBody, #financeBody, #chatForm, #radarBody, #crmBody, #boardBody, #brandBody');
+  const busyNow = active && active.closest && active.closest('#taskList, #historyList, #agendaList, dialog[open], [data-view="settings"], .note-editor, #panelBody, #financeBody, #chatForm, #radarBody, #crmBody, #boardBody, #brandBody, #areaBody');
   const dayChanged = state.lastDateKey !== C.toDateKey(new Date());
   state.lastDateKey = C.toDateKey(new Date());
   if (!busyNow || dayChanged) renderAll();
@@ -1708,6 +1714,7 @@ async function openCentral(id) {
   initAreas(Object.assign({ ask: askAssistant }, helpers));
   initBrand(Object.assign({ ask: askAssistant }, helpers));
   initStudy(Object.assign({ ask: askAssistant }, helpers));
+  initInferno(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);
