@@ -131,6 +131,15 @@
         <p class="today-date" id="todayDate"></p>
       </div>
 
+      <form class="quick-add" id="quickForm" novalidate>
+        <span class="quick-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+        </span>
+        <input id="quickInput" autocomplete="off" placeholder="Escreva uma tarefa: “Enviar proposta XPTO amanhã 16h urgente”" aria-label="Captura rápida de tarefa">
+        <button class="btn btn-primary" type="submit" id="quickBtn">Criar</button>
+      </form>
+      <button type="button" class="link-btn link-muted paste-link" data-action="paste-many">Colar mensagem com várias demandas (WhatsApp, e-mail, lista)</button>
+
       <div id="ownerCard"></div>
 
       <div class="overview">
@@ -140,14 +149,6 @@
 
       <div class="areas" id="areas" role="group" aria-label="Filtrar por área"></div>
 
-      <form class="quick-add" id="quickForm" novalidate>
-        <span class="quick-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
-        </span>
-        <input id="quickInput" autocomplete="off" placeholder="Escreva uma tarefa: “Enviar proposta XPTO amanhã 16h urgente”" aria-label="Captura rápida de tarefa">
-        <button class="btn btn-primary" type="submit" id="quickBtn">Criar</button>
-      </form>
-      <button type="button" class="link-btn link-muted paste-link" data-action="paste-many">Colar mensagem com várias demandas (WhatsApp, e-mail, lista)</button>
 
       <div class="toolbar">
         <label class="search">

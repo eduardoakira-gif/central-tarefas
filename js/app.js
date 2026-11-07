@@ -16,11 +16,11 @@ import { initRadar, renderRadar, openRadar, leaveRadar, DEFAULT_CONTEXT } from '
 import { initAssistant, renderAssistant, openAssistant } from './assistant.js';
 import { initCrm, renderCrm } from './crm.js';
 import { initReferences, renderReferences } from './references.js';
-import { initLearn, renderLearn, renderTermCard } from './learn.js';
+import { initLearn, renderLearn, renderTermCard, termOfDay } from './learn.js';
 import { askAssistant } from './assistant.js';
 import { initBoard, renderBoard, openBoard, renderTeamCard } from './board.js';
 import { initAreas, renderArea, renderAreasHub, view as areaView } from './areas.js';
-import { initBrand, renderBrand, renderBrandAlert } from './brand.js';
+import { initBrand, renderBrand, renderBrandAlert, brandAlert } from './brand.js';
 import { initStudy, renderStudy, studyAlert } from './study.js';
 import { initInferno } from './inferno.js';
 import { initMyDay, renderDayCard, openClose, planDay, captureShare, consumeShare } from './myday.js';
@@ -33,7 +33,7 @@ import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
 
-export const APP_VERSION = '6.3.0';
+export const APP_VERSION = '6.4.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -281,8 +281,14 @@ function renderTasks() {
   const now = new Date();
   renderOwnerFilter();
   const sa = studyAlert();
-  $('#ownerCard').innerHTML = renderDayCard() + renderOwnerCard() + renderProjectsCard() + renderTeamCard() + renderTriageCard() + renderBrandAlert() +
-    (sa ? `<a class="card term-card" href="#/estudos"><span class="label">Plano de estudo</span><strong>${esc(sa)}</strong></a>` : '') + renderTermCard();
+  const extras = [];
+  const ba = brandAlert();
+  if (ba) extras.push(`<a class="extra-chip" href="#/marca"><span>✍️</span>${esc(ba.text)}</a>`);
+  if (sa) extras.push(`<a class="extra-chip" href="#/estudos"><span>📚</span>${esc(sa)}</a>`);
+  const term = termOfDay();
+  extras.push(`<a class="extra-chip" href="#/aprender" title="${esc(term.what)}"><span>💡</span>Termo do dia: <strong>${esc(term.term)}</strong></a>`);
+  $('#ownerCard').innerHTML = renderDayCard() + renderOwnerCard() + renderProjectsCard() + renderTeamCard() + renderTriageCard() +
+    `<nav class="extras-strip" aria-label="Também hoje">${extras.join('')}</nav>`;
   const d = UI.renderDashboard(Tasks.all(), state.filter, now, areas());
   $('#summary').textContent = d.summary;
   const dateText = now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
