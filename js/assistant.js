@@ -8,6 +8,7 @@ import { Sync } from './sync.js';
 import { Tasks } from './tasks.js';
 import { esc } from './ui.js';
 import { micButton } from './myday.js';
+import { PLAYBOOKS, createProject } from './playbooks.js';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -136,6 +137,23 @@ const ACT_LABEL = {
   concluir: () => '✓ Marcar como concluída',
   delegar: (v) => '→ Delegar para ' + v,
 };
+function projectsBlock(msg, mi) {
+  if (!msg.projects || !msg.projects.length) return '';
+  return `<div class="chat-tasks chat-actions">
+    <div class="chat-tasks-head"><strong>Projeto pelo playbook</strong></div>
+    ${msg.projects.map((p, pi) => {
+      const pb = PLAYBOOKS.find((x) => x.id === p.playbook);
+      if (!pb) return '';
+      const today = C.toDateKey(new Date());
+      const n = pb.steps.filter((s) => C.addDays(p.dday, s.d) >= today).length;
+      return `<div class="chat-task${p.created ? ' is-done' : ''}">
+        <div><span>${esc(pb.name)}${p.name ? ': ' + esc(p.name) : ''}</span><span class="hint">Dia D ${C.fromDateKey(p.dday).toLocaleDateString('pt-BR')} · ${n} etapas com prazo${p.reason ? ' · ' + esc(p.reason) : ''}</span></div>
+        ${p.created ? '<a class="hint" href="#/projetos">Criado ›</a>' : `<button type="button" class="btn btn-sm btn-primary" data-chat="project" data-mi="${mi}" data-pi="${pi}">Criar projeto</button>`}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
 function actionsBlock(msg, mi) {
   if (!msg.actions || !msg.actions.length) return '';
   const pending = msg.actions.filter((a) => !a.applied).length;
@@ -212,7 +230,7 @@ export function renderAssistant() {
     .map((m, i) =>
       m.role === 'user'
         ? `<div class="msg msg-user"><p>${esc(m.content)}</p></div>`
-        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${TTS && !m.error ? `<button type="button" class="link-btn link-muted msg-speak" data-chat="speak" data-mi="${i}">${speakingIdx === i ? '■ Parar' : '🔊 Ouvir'}</button>` : ''}${actionsBlock(m, i)}${suggestions(m, i)}</div>`
+        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${projectsBlock(m, i)}${TTS && !m.error ? `<button type="button" class="link-btn link-muted msg-speak" data-chat="speak" data-mi="${i}">${speakingIdx === i ? '■ Parar' : '🔊 Ouvir'}</button>` : ''}${actionsBlock(m, i)}${suggestions(m, i)}</div>`
     )
     .join('');
   const intro = `<div class="chat-intro">
@@ -249,7 +267,7 @@ async function send(text) {
   try {
     const history = A.messages.filter((m) => !m.error).slice(-12).map((m) => ({ role: m.role, content: m.content }));
     const r = await Sync.call('assistantChat', { messages: history }, { timeout: 120000 });
-    A.messages.push({ role: 'assistant', content: r.reply, tasks: r.tasks || [], actions: r.actions || [], at: new Date().toISOString() });
+    A.messages.push({ role: 'assistant', content: r.reply, tasks: r.tasks || [], actions: r.actions || [], projects: r.projects || [], at: new Date().toISOString() });
     if (handsFree.get()) setTimeout(() => speak(r.reply, A.messages.length - 1), 200);
   } catch (err) {
     A.messages.push({ role: 'assistant', content: err.code === 'ai_not_configured' ? 'A IA ainda não foi configurada no servidor.' : err.message, error: true });
@@ -304,6 +322,15 @@ export function initAssistant(helpers) {
     if (a === 'create') {
       await createTask(Number(el.dataset.mi), Number(el.dataset.ti));
       H.toast('Tarefa criada');
+      return H.render();
+    }
+    if (a === 'project') {
+      const p = A.messages[Number(el.dataset.mi)].projects[Number(el.dataset.pi)];
+      if (!p || p.created) return;
+      const n = await createProject(p.playbook, p.dday, p.name);
+      p.created = true;
+      await saveChat();
+      H.toast(`Projeto criado com ${n} etapas`, { label: 'Ver', fn: () => (location.hash = '#/projetos') });
       return H.render();
     }
     if (a === 'apply') {

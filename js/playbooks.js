@@ -158,17 +158,15 @@ export function openPlaybook(id) {
   $('#pbDialog').showModal();
 }
 
-async function submit(e) {
-  e.preventDefault();
-  const pb = current;
-  const d = $('#pbDate').value;
-  if (!pb || !d) return;
+/** Cria o projeto de um playbook (usado pelo diálogo e pelo Assistente). */
+export async function createProject(id, d, name, idx) {
+  const pb = PLAYBOOKS.find((p) => p.id === id);
+  if (!pb || !d) return 0;
   const today = C.toDateKey(new Date());
-  const name = $('#pbName').value.trim();
   const tag = name ? `${pb.name}: ${name}` : pb.name;
   const area = areaFor(pb.area);
-  const idx = Array.from(document.querySelectorAll('[data-pb-step]')).filter((x) => x.checked).map((x) => Number(x.dataset.pbStep));
-  for (const i of idx) {
+  const list = idx || pb.steps.map((s, i) => i).filter((i) => C.addDays(d, pb.steps[i].d) >= today);
+  for (const i of list) {
     const s = pb.steps[i];
     const due = C.addDays(d, s.d);
     await Tasks.create({
@@ -181,6 +179,18 @@ async function submit(e) {
       projectDate: d,
     });
   }
+  return list.length;
+}
+
+async function submit(e) {
+  e.preventDefault();
+  const pb = current;
+  const d = $('#pbDate').value;
+  if (!pb || !d) return;
+  const name = $('#pbName').value.trim();
+  const tag = name ? `${pb.name}: ${name}` : pb.name;
+  const idx = Array.from(document.querySelectorAll('[data-pb-step]')).filter((x) => x.checked).map((x) => Number(x.dataset.pbStep));
+  await createProject(pb.id, d, name, idx);
   $('#pbDialog').close();
   H.toast(`Projeto "${tag}" criado com ${idx.length} etapas`);
   location.hash = '#/projetos';

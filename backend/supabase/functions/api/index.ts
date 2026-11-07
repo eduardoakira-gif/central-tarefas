@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "7.9.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "8.1.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -926,6 +926,30 @@ ${radarLines.join("\n") || "- nada ainda"}
 ${ideaLines.join("\n") || "- nenhum ainda"}`;
 }
 
+const PLAYBOOK_TOOL = {
+  name: "montar_projeto",
+  description: "Propõe criar um projeto completo a partir de um playbook padrão, quando o usuário pede para montar/planejar um drop, campanha, evento, newsletter, jogo da Kings League, fechamento do mês ou ativação de patrocinador. O usuário confirma com um toque.",
+  input_schema: {
+    type: "object",
+    properties: {
+      projetos: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            playbook: { type: "string", enum: ["drop", "socio", "evento", "newsletter", "kings", "fechamento", "patrocinio"] },
+            nome: { type: "string", description: "Nome curto do projeto, ex.: Camisa Inferno Roxo." },
+            diaD: { type: "string", description: "Data do dia D (AAAA-MM-DD): lançamento, início, evento, envio ou entrega." },
+            motivo: { type: "string" },
+          },
+          required: ["playbook", "nome", "diaD"],
+        },
+      },
+    },
+    required: ["projetos"],
+  },
+};
+
 const ACTIONS_TOOL = {
   name: "propor_acoes",
   description: "Propõe mudanças em tarefas que JÁ EXISTEM (use o id que aparece como [id:...]). O usuário revisa e aplica com um toque. Use para planejar o dia (hoje), reorganizar prazos (adiar), repriorizar, escolher o foco da semana, concluir o que ele disse que já fez ou delegar para alguém da equipe (a tarefa fica aguardando retorno dessa pessoa).",
@@ -996,7 +1020,7 @@ O usuário está desenvolvendo a visão de marketing e a comunicação executiva
 Estilo: português do Brasil, direto, frases curtas, listas curtas quando ajudar. Sem enrolação e sem bajulação. Se faltar dado, diga qual dado falta e como conseguir.
 Use apenas os dados abaixo sobre a central; não invente números. Conhecimento geral de mercado pode ser usado, deixando claro que é referência geral.
 Visão de marketing: classifique as ações pelo funil (atenção/awareness, consideração, conversão, retenção, indicação/advocacy) e aponte quando o esforço está desequilibrado, por exemplo muita operação e pouca conversão. Toda ação de topo de funil precisa levar a um cadastro no CRM.
-Para mudar tarefas existentes (planejar o dia, adiar, repriorizar, foco da semana, concluir, delegar para alguém da equipe), chame propor_acoes com os ids. Dono não executa tudo: se uma tarefa operacional cabe a alguém da equipe, proponha delegar. Ao planejar o dia, escolha de 3 a 5 tarefas, priorizando atrasadas, foco da semana e o que gera receita.
+Para mudar tarefas existentes (planejar o dia, adiar, repriorizar, foco da semana, concluir, delegar para alguém da equipe), chame propor_acoes com os ids. Dono não executa tudo: se uma tarefa operacional cabe a alguém da equipe, proponha delegar. Para montar um drop, campanha de sócio, evento, newsletter, jogo da Kings League, fechamento do mês ou ativação de patrocinador, chame montar_projeto com o playbook e o dia D (o projeto já vem com todas as etapas e prazos); não liste as etapas uma a uma. Ao planejar o dia, escolha de 3 a 5 tarefas, priorizando atrasadas, foco da semana e o que gera receita.
 Quando houver ações claras, chame sugerir_tarefas (o usuário revisa antes de criar).
 
 # Dados atuais da central
@@ -1507,6 +1531,7 @@ Cada ideia: título curto, hipótese no formato "Se fizermos X, esperamos Y porq
         error: !!m?.error,
         tasks: Array.isArray(m?.tasks) ? m.tasks.slice(0, 12) : [],
         actions: Array.isArray(m?.actions) ? m.actions.slice(0, 20) : [],
+        projects: Array.isArray(m?.projects) ? m.projects.slice(0, 3) : [],
       }));
       const chat = { updatedAt: new Date().toISOString(), messages: msgs };
       if (JSON.stringify(chat).length > 400000) throw new HttpError(413, "Conversa grande demais.");
@@ -1550,12 +1575,16 @@ Regras: de 3 a 8 passos, cada um começando com verbo no infinitivo, curto (até
       const out = await anthropic({
         max_tokens: 2500,
         system: assistantSystem(await assistantContext(central)),
-        tools: [SUGGEST_TOOL, ACTIONS_TOOL],
+        tools: [SUGGEST_TOOL, ACTIONS_TOOL, PLAYBOOK_TOOL],
         messages,
       }, [AI_ASSISTANT_MODEL, "claude-sonnet-4-5", AI_MODEL]);
       const text = (out.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n\n").trim();
       const call = (out.content ?? []).find((c: any) => c.type === "tool_use" && c.name === SUGGEST_TOOL.name);
       const actCall = (out.content ?? []).find((c: any) => c.type === "tool_use" && c.name === ACTIONS_TOOL.name);
+      const pbCall = (out.content ?? []).find((c: any) => c.type === "tool_use" && c.name === PLAYBOOK_TOOL.name);
+      const projects = (Array.isArray(pbCall?.input?.projetos) ? pbCall.input.projetos : []).slice(0, 3)
+        .filter((p: any) => ["drop", "socio", "evento", "newsletter", "kings", "fechamento", "patrocinio"].includes(p.playbook) && DATE_RE.test(p.diaD ?? ""))
+        .map((p: any) => ({ playbook: p.playbook, name: String(p.nome ?? "").trim().slice(0, 60), dday: p.diaD, reason: String(p.motivo ?? "").slice(0, 160) }));
       const liveTasks = new Map((await listItems("tasks", central.id)).filter((t: any) => t && !t.deletedAt).map((t: any) => [t.id, t]));
       const actions = (Array.isArray(actCall?.input?.acoes) ? actCall.input.acoes : []).slice(0, 20).map((a: any) => {
         const t: any = liveTasks.get(String(a.taskId ?? "").replace(/^id:/, ""));
@@ -1580,9 +1609,10 @@ Regras: de 3 a 8 passos, cada um começando com verbo no infinitivo, curto (até
         description: String(t.description ?? "").trim().slice(0, 2000),
       })).filter((t: any) => t.title);
       return {
-        reply: text || (actions.length ? "Preparei as mudanças abaixo. Revise e aplique." : tasks.length ? "Sugeri algumas tarefas abaixo. Revise e crie as que fizerem sentido." : "Não consegui responder agora."),
+        reply: text || (projects.length ? "Montei o projeto abaixo. Confira e crie com um toque." : actions.length ? "Preparei as mudanças abaixo. Revise e aplique." : tasks.length ? "Sugeri algumas tarefas abaixo. Revise e crie as que fizerem sentido." : "Não consegui responder agora."),
         tasks,
         actions,
+        projects,
       };
     }
 
