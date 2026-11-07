@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "5.5.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "5.8.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -1358,6 +1358,29 @@ async function handle(body: any, req: Request) {
       // Pode ser chamado pelo GitHub Actions; o agendador do Supabase ("send") também roda o radar sozinho.
       if (!CRON_SECRET || req.headers.get("x-cron-secret") !== CRON_SECRET) throw new HttpError(401, "Não autorizado.");
       return { ok: true, report: await runDueRadars(!!body.force) };
+    }
+
+    case "taskSteps": {
+      const central = await getCentral(body.centralId, body.pin);
+      if (!ANTHROPIC_API_KEY) throw new HttpError(503, "A IA ainda não foi configurada no servidor.", "ai_not_configured");
+      await countAiUse(central.id);
+      const title = String(body.title ?? "").trim().slice(0, 200);
+      if (!title) throw new HttpError(400, "Escreva o título da tarefa.");
+      const desc = String(body.description ?? "").slice(0, 2000);
+      const area = String(body.area ?? "").slice(0, 40);
+      const due = DATE_RE.test(body.dueDate ?? "") ? body.dueDate : "";
+      const existing = (Array.isArray(body.existing) ? body.existing : []).map((x: unknown) => String(x).slice(0, 200)).slice(0, 20);
+      const out = await anthropic({
+        max_tokens: 900,
+        system: `Você ajuda o Head de B2C do Fluxo W7M (organização de esports brasileira; pilares: Comunidade, Sócio-Torcedor, Merchan, CRM, Inferno Roxo e Kings League) a transformar uma tarefa em passos concretos. Contexto da central: ${cleanSettings(central.settings).context.slice(0, 1500)}
+Regras: de 3 a 8 passos, cada um começando com verbo no infinitivo, curto (até 12 palavras), na ordem de execução, que a pessoa consiga fazer sem pensar de novo. Inclua quem acionar quando fizer sentido (financeiro, criativo, fornecedor, jogador). Não repita passos que já existem. Português do Brasil.`,
+        tools: [{ name: "passos", description: "Lista de passos", input_schema: { type: "object", properties: { passos: { type: "array", items: { type: "string" } }, dica: { type: "string", description: "Uma dica de dono em até 25 palavras (risco, atalho ou referência de org de esports)." } }, required: ["passos"] } }],
+        tool_choice: { type: "tool", name: "passos" },
+        messages: [{ role: "user", content: `Tarefa: ${title}${area ? `\nÁrea: ${area}` : ""}${due ? `\nPrazo: ${due}` : ""}${desc ? `\nDescrição: ${desc}` : ""}${existing.length ? `\nPassos que já existem: ${existing.join("; ")}` : ""}` }],
+      }, [AI_MODEL]);
+      const call = (out.content ?? []).find((c: any) => c.type === "tool_use");
+      const steps = (Array.isArray(call?.input?.passos) ? call.input.passos : []).map((x: unknown) => String(x ?? "").trim().slice(0, 200)).filter(Boolean).slice(0, 8);
+      return { steps, tip: String(call?.input?.dica ?? "").slice(0, 300) };
     }
 
     case "assistantChat": {

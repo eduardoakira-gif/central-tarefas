@@ -30,7 +30,7 @@ import { initStatus, renderStatus } from './status.js';
 import { initSearch, openSearch } from './search.js';
 import { initKanban, renderKanban, layoutToggle, layout } from './kanban.js';
 
-export const APP_VERSION = '5.7.0';
+export const APP_VERSION = '5.8.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -569,6 +569,40 @@ function renderChecklistEditor() {
     .join('');
 }
 
+async function aiSteps() {
+  const form = $('#taskForm');
+  const title = form.taskTitle.value.trim();
+  if (!title) return toast('Escreva o título da tarefa primeiro.');
+  const btn = $('#aiSteps');
+  btn.disabled = true;
+  btn.textContent = 'Pensando…';
+  try {
+    const area = (areas().find((a) => a.id === form.area.value) || {}).name || '';
+    const r = await Sync.call('taskSteps', { title, description: form.description.value, area, dueDate: form.dueDate.value, existing: state.formChecklist.map((c) => c.text) }, { timeout: 60000 });
+    for (const text of r.steps || []) state.formChecklist.push({ id: C.uid(), text, done: false });
+    renderChecklistEditor();
+    const tip = $('#aiTip');
+    tip.hidden = !r.tip;
+    tip.textContent = r.tip ? '💡 ' + r.tip : '';
+    toast(`${(r.steps || []).length} passos adicionados. Revise e salve.`);
+  } catch (err) {
+    toast(err.code === 'ai_not_configured' ? 'A IA ainda não foi configurada no servidor.' : err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✨ Quebrar em passos';
+  }
+}
+
+function aiHelp() {
+  const form = $('#taskForm');
+  const title = form.taskTitle.value.trim();
+  if (!title) return toast('Escreva o título da tarefa primeiro.');
+  const area = (areas().find((a) => a.id === form.area.value) || {}).name || '';
+  const steps = state.formChecklist.map((c) => `${c.done ? '[x]' : '[ ]'} ${c.text}`).join('\n');
+  $('#taskDialog').close();
+  askAssistant(`Me ajude com esta tarefa como dono do B2C: como fazer bem feito, o que pode dar errado, quem envolver e uma referência de org de esports se houver. Se fizer sentido, escreva a mensagem ou o brief que eu preciso mandar.\n\nTarefa: ${title}${area ? `\nÁrea: ${area}` : ''}${form.dueDate.value ? `\nPrazo: ${form.dueDate.value}` : ''}${form.owner.value ? `\nResponsável: ${form.owner.value}` : ''}${form.description.value ? `\nDescrição: ${form.description.value}` : ''}${steps ? `\nChecklist:\n${steps}` : ''}`);
+}
+
 function addChecklistItem() {
   const input = $('#checklistInput');
   const text = input.value.trim();
@@ -600,6 +634,7 @@ async function openTaskDialog(id, prefill) {
   state.editingId = t ? t.id : null;
   form.reset();
   $('#titleError').hidden = true;
+  $('#aiTip').hidden = true;
   $('#taskDialogTitle').textContent = t ? 'Editar tarefa' : 'Nova tarefa';
   const device = await Local.loadDevice(state.centralId);
   const ids = areas().map((a) => a.id);
@@ -1524,6 +1559,8 @@ function bindEvents() {
   });
   taskForm.taskTitle.addEventListener('input', () => ($('#titleError').hidden = true));
   $('#checklistAdd').addEventListener('click', addChecklistItem);
+  $('#aiSteps').addEventListener('click', aiSteps);
+  $('#aiHelp').addEventListener('click', aiHelp);
   $('#checklistInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();

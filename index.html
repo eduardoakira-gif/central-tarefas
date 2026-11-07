@@ -715,8 +715,9 @@
         </div>
 
         <div class="field">
-          <span class="label">Checklist</span>
+          <div class="label-row"><span class="label">Checklist</span><span class="btn-row"><button type="button" class="link-btn" id="aiSteps">✨ Quebrar em passos</button><button type="button" class="link-btn" id="aiHelp">Pedir ajuda à IA</button></span></div>
           <div class="checklist" id="fChecklist"></div>
+          <p class="hint ai-tip" id="aiTip" hidden></p>
           <div class="inline-add">
             <input class="input" id="checklistInput" placeholder="Adicionar etapa" autocomplete="off" maxlength="200" aria-label="Nova etapa">
             <button class="btn" type="button" id="checklistAdd">Adicionar</button>
