@@ -33,7 +33,7 @@ import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
 
-export const APP_VERSION = '6.5.0';
+export const APP_VERSION = '6.6.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -472,6 +472,15 @@ const ROUTES = {
 function route() {
   const hash = location.hash.replace(/^#/, '');
   if (state.route === 'radar' && hash !== '/radar') leaveRadar();
+  const tm = hash.match(/^\/tarefa\/([\w-]+)$/);
+  if (tm) {
+    history.replaceState(null, '', location.pathname + location.search + '#/');
+    state.route = 'tasks';
+    showView();
+    if (Tasks.get(tm[1])) openTaskDialog(tm[1]);
+    else toast('Essa tarefa não existe mais.');
+    return;
+  }
   const dm = hash.match(/^\/dia\/(planejar|encerrar|semana)$/);
   if (dm) {
     history.replaceState(null, '', location.pathname + location.search + '#/');
@@ -1340,6 +1349,7 @@ async function renderSettings() {
   $('#setWeekly').checked = s.weeklyReview;
   $('#setDayClose').checked = s.dayClose !== false;
   $('#setDayCloseTime').value = s.dayCloseTime || '18:30';
+  $('#setTimeReminder').value = String(s.timeReminderMin ?? 30);
   $('#setBriefing').checked = s.aiBriefing;
 
   $('#pinStatus').textContent = c.hasPin
@@ -1748,6 +1758,7 @@ function bindEvents() {
   $('#setCloseDay').addEventListener('change', (e) => patchSettings({ monthCloseDay: Number(e.target.value) }));
   $('#setWeekly').addEventListener('change', (e) => patchSettings({ weeklyReview: e.target.checked }));
   $('#setDayClose').addEventListener('change', (e) => patchSettings({ dayClose: e.target.checked }));
+  $('#setTimeReminder').addEventListener('change', (e) => patchSettings({ timeReminderMin: Number(e.target.value) }));
   $('#setDayCloseTime').addEventListener('change', (e) => e.target.value && patchSettings({ dayCloseTime: e.target.value }));
   document.addEventListener('change', (e) => {
     const ph = e.target.closest && e.target.closest('[data-person-phone]');

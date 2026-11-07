@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "6.3.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "6.6.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -58,7 +58,7 @@ const DEFAULT_SETTINGS = {
   dailySummary: true, dailySummaryTime: "08:00",
   radarEnabled: false, radarFrequencyHours: 0, radarTimes: ["09:00", "15:00"], radarOrgs: [] as string[], context: "",
   billsReminder: true, monthCloseDay: 5, weeklyReview: true, aiBriefing: true,
-  dayClose: true, dayCloseTime: "18:30",
+  dayClose: true, dayCloseTime: "18:30", timeReminderMin: 30,
 };
 type Settings = typeof DEFAULT_SETTINGS;
 const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
@@ -130,6 +130,7 @@ function cleanSettings(v: any, base: Settings = DEFAULT_SETTINGS): Settings {
     if (typeof v.aiBriefing === "boolean") s.aiBriefing = v.aiBriefing;
     if (typeof v.dayClose === "boolean") s.dayClose = v.dayClose;
     if (TIME_RE.test(v.dayCloseTime ?? "")) s.dayCloseTime = v.dayCloseTime;
+    if ([0, 10, 15, 30, 60].includes(Number(v.timeReminderMin))) s.timeReminderMin = Number(v.timeReminderMin);
     if (Array.isArray(v.radarOrgs)) {
       s.radarOrgs = [...new Set(v.radarOrgs.map((o: unknown) => String(o ?? "").trim().slice(0, 40)).filter(Boolean))].slice(0, 40) as string[];
     }
@@ -1257,6 +1258,27 @@ async function handle(body: any, req: Request) {
         if (!s.notificationsEnabled) continue;
         const { today, minutes } = localNow(d.timezone);
         const now = new Date().toISOString();
+
+        // Lembrete de horário: tarefas de hoje com hora marcada, X minutos antes (uma vez por tarefa e horário)
+        if (s.timeReminderMin > 0) {
+          let keys: string[] = [];
+          try { keys = JSON.parse(d.due_keys || "[]"); } catch { keys = []; }
+          const lead = s.timeReminderMin;
+          const due = (await tasksOf(c.id)).filter((t: any) => t.dueDate === today && t.dueTime && TIME_RE.test(t.dueTime) && t.status !== "done")
+            .filter((t: any) => { const m = toMin(t.dueTime) ?? 0; return minutes >= m - lead && minutes <= m + 10; })
+            .filter((t: any) => !keys.includes(`${t.id}@${today}T${t.dueTime}`));
+          for (const t of due.slice(0, 3)) {
+            const m = toMin(t.dueTime) ?? 0;
+            const left = m - minutes;
+            const body = [left > 0 ? `Em ${left} min.` : "É agora.", t.waitingFor ? `Com ${t.waitingFor}.` : t.owner ? `Responsável: ${t.owner}.` : "", t.link ? "Toque para abrir o link na tarefa." : ""].filter(Boolean).join(" ");
+            if (await sendPush(d, { title: `⏰ ${t.dueTime} · ${t.title}`.slice(0, 120), body, route: "#/tarefa/" + t.id, tag: "due" + String(t.id).slice(0, 12), centralId: c.id })) sent++;
+            keys.push(`${t.id}@${today}T${t.dueTime}`);
+          }
+          if (due.length) {
+            keys = keys.slice(-60);
+            await db.from("devices").update({ due_keys: JSON.stringify(keys) }).eq("central_id", d.central_id).eq("endpoint", d.endpoint);
+          }
+        }
 
         // Resumo do dia: uma vez por dia, a partir do horário escolhido (até 3h depois)
         const summaryAt = toMin(s.dailySummaryTime) ?? 480;

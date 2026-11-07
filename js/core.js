@@ -62,6 +62,7 @@
     aiBriefing: true,
     dayClose: true,
     dayCloseTime: '18:30',
+    timeReminderMin: 30,
   };
 
   // Etapa do funil de marketing de cada demanda (visão de marketing da central)
