@@ -28,6 +28,19 @@ Sim. O app guarda uma cópia no dispositivo. Sem internet, você continua usando
 
 ## Funcionalidades
 
+**Rotina do dono (versões 5.2 a 7.5)**
+- **Meu dia:** plano de hoje com 3 a 5 tarefas (☀ Hoje), "Planejar com IA", o que ficou para trás, "Encerrar o dia" (pendências vão para amanhã e o aprendizado vira ideia de post) e sequência de dias cumprindo o plano.
+- **Assistente que age:** além de sugerir tarefas, propõe ações sobre as existentes (hoje, adiar, prioridade, foco, concluir, delegar) com Aplicar/Aplicar todas. Conversa sincronizada entre aparelhos, ditado por voz, 🔊 ouvir respostas e modo mãos livres.
+- **Captura:** captura rápida com IA no topo, ditado por voz, "Colar mensagem com várias demandas" (a IA separa as tarefas) e **compartilhar do Android** (texto, link ou XML de NF-e) direto para a Central.
+- **Equipe:** WhatsApp de cada pessoa em Configurações › Equipe; **Cobrar** e **→ Delegar** abrem a conversa com a mensagem pronta e marcam a próxima cobrança; página **Equipe e 1:1** com pauta pronta.
+- **Playbooks e Projetos:** drop de merch, campanha de sócio, evento, newsletter, jogo da Kings League, fechamento do mês e ativação de patrocinador viram projetos com dia D, progresso, próxima etapa e revisão com IA.
+- **Growth:** backlog de experimentos com nota ICE, ideias da IA (também a partir do Radar), teste com prazo e registro do aprendizado.
+- **Status semanal e Scorecard do dono:** entregas, andamento, aguardando, riscos, próxima semana, experimentos e KPIs, com nota de execução 0–100; versão executiva pela IA.
+- **Financeiro do Merchan:** importar XML de NF-e (parcelas e vencimentos automáticos) e programação de pagamentos dos próximos 14 dias para o financeiro.
+- **Tarefas:** lista ou **Quadro Kanban**, busca global (Ctrl+K), triagem de tarefas paradas, IA dentro da tarefa (✨ Quebrar em passos, Pedir ajuda).
+- **Notificações:** briefing da manhã (avisa se o dia ou a semana não foram planejados), lembrete antes do horário da tarefa, encerrar o dia (18h30), revisão de sexta com a nota da semana, radar 2x por dia.
+- **Novidades e guia:** depois de cada atualização a Central mostra o que mudou; Mais › Novidades e guia tem a rotina recomendada.
+
 **Novidades da versão 4 (assistente B2C com visão de dono)**
 - **Cobrança do dono:** no topo das Tarefas e nas notificações, aparecem NFs vencidas ou vencendo sem agendamento, o fechamento do mês (NFs e XMLs do mês anterior), demandas paradas há mais de 3 dias e indicadores do mês sem valor.
 - **Painel B2C:** 31 indicadores recomendados (métrica-norte, Comunidade, Sócio-Torcedor, Merchan e CRM), carregados em 1 clique, com meta, evolução mês a mês, saúde por pilar e OKRs do trimestre com ritmo esperado.
@@ -94,14 +107,28 @@ Para o radar, a busca na web precisa estar liberada no Console da Anthropic (Set
 │   ├── tasks.js               Operações com tarefas, lixeira, recorrência, filtros e indicadores
 │   ├── notes.js               Notas de reunião e chamadas de IA
 │   ├── notifications.js       Ativação de notificações por dispositivo (push e reserva local)
-│   ├── ui.js                  Geração do HTML
-│   └── app.js                 Inicialização, página inicial, rotas, eventos e configurações
+│   ├── ui.js                  Geração do HTML (cards de tarefa, painel)
+│   ├── app.js                 Inicialização, rotas, eventos, diálogos e configurações
+│   ├── b2c.js                 Painel B2C, OKRs, Financeiro do Merchan e cobrança do dono
+│   ├── radar.js / references.js / learn.js / study.js / brand.js / crm.js / board.js
+│   ├── areas.js / inferno.js  Áreas do B2C e estrutura do Inferno Roxo
+│   ├── assistant.js           Chat com a IA, ações sugeridas, voz e sincronização da conversa
+│   ├── myday.js               Meu dia, encerrar o dia, voz e compartilhar do Android
+│   ├── team.js / team-view.js WhatsApp da equipe, cobrança e página de 1:1
+│   ├── playbooks.js / projects.js  Processos padrão e acompanhamento de projetos
+│   ├── growth.js              Backlog de experimentos (ICE)
+│   ├── status.js              Status semanal e scorecard do dono
+│   ├── kanban.js / search.js  Quadro e busca global
+│   ├── nfe.js                 Leitura de XML de NF-e
+│   └── whatsnew.js            Novidades e guia
 ├── assets/                    Ícones
 └── backend/supabase/
     ├── schema.sql             Tabelas
     ├── cron.sql               Agendador dos lembretes
-    └── functions/api/index.ts Função única do servidor
+    └── functions/api/index.ts Função única do servidor (SERVER_BUILD sobe a cada mudança)
 ```
+
+**Como publicar uma versão:** mude o código, aumente `APP_VERSION` (js/app.js) e `CACHE_VERSION` (service-worker.js) e, se mexeu no servidor, `SERVER_BUILD` (index.ts). Arquivo JS novo entra em `APP_SHELL` no service worker. Um push na `main` publica o site (GitHub Pages) e o servidor (GitHub Actions aplica o schema.sql e faz o deploy da função). Os aparelhos baixam a versão nova sozinhos.
 
 ---
 
