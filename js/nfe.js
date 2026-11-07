@@ -43,7 +43,7 @@ export function parseNfe(xmlText) {
   return { number, serie, issue: /^\d{4}-\d{2}-\d{2}$/.test(issue) ? issue : null, supplier, cnpj, amount, key, items, dups };
 }
 
-async function importFiles(files) {
+export async function importFiles(files) {
   if (!Sync.v4()) return H.toast('O servidor ainda está atualizando. Tente em instantes.');
   const existing = Bills.all();
   let created = 0;

@@ -23,7 +23,7 @@ import { initAreas, renderArea, renderAreasHub, view as areaView } from './areas
 import { initBrand, renderBrand, renderBrandAlert, brandAlert } from './brand.js';
 import { initStudy, renderStudy, studyAlert } from './study.js';
 import { initInferno } from './inferno.js';
-import { initMyDay, renderDayCard, openClose, planDay, captureShare, consumeShare } from './myday.js';
+import { initMyDay, renderDayCard, openClose, planDay, captureShare, captureSharePost, consumeShare } from './myday.js';
 import { waUrl, nudgeText, logNudge, personOf } from './team.js';
 import { initPlaybooks, renderPlaybooks, renderTriageCard } from './playbooks.js';
 import { initStatus, renderStatus } from './status.js';
@@ -32,9 +32,9 @@ import { initKanban, renderKanban, layoutToggle, layout } from './kanban.js';
 import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
-import { initNfe } from './nfe.js';
+import { initNfe, importFiles as importXml } from './nfe.js';
 
-export const APP_VERSION = '7.0.0';
+export const APP_VERSION = '7.1.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1891,6 +1891,7 @@ async function openCentral(id) {
     openTaskDialog: (prefill) => openTaskDialog(null, prefill),
     openTask: (id) => openTaskDialog(id),
     extract: (text, from) => extractFromText(text, from),
+    importXml: (files) => importXml(files),
   };
   initB2C(helpers);
   initRadar(helpers);
@@ -1949,7 +1950,7 @@ async function boot() {
     if (copy && state.centralId) copyText(centralUrl(state.centralId));
   });
   // o diálogo de link aparece com a central aberta; o botão copiar também precisa funcionar ali
-  const sharedIn = captureShare(); // algo compartilhado de outro app (Android)
+  const sharedIn = (await captureSharePost()) || captureShare(); // algo compartilhado de outro app (Android)
   const id = new URLSearchParams(location.search).get('c');
   if (!id) {
     const last = Prefs.lastCentral();

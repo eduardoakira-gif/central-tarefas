@@ -153,6 +153,28 @@ export const planDay = () => H.ask(PLAN_PROMPT);
 // ideia de post ou pergunta para a IA.
 // -----------------------------------------------------------------------------
 const SHARE_KEY = 'ct-share';
+/** Compartilhamento por POST: o service worker guardou no aparelho; passa para a sessão. */
+export async function captureSharePost() {
+  const sp = new URLSearchParams(location.search);
+  if (sp.get('shared') !== '1') return false;
+  sp.delete('shared');
+  const q = sp.toString();
+  history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  try {
+    const box = await C.idb.get('kv', 'share-inbox');
+    await C.idb.del('kv', 'share-inbox');
+    if (!box || Date.now() - (box.at || 0) > 10 * 60000) return false;
+    let { title = '', text = '', url = '' } = box;
+    if (!url) {
+      const m = text.match(/https?:\/\/\S+/);
+      if (m) ((url = m[0]), (text = text.replace(m[0], '').trim()));
+    }
+    sessionStorage.setItem(SHARE_KEY, JSON.stringify({ title, text, url, files: box.files || [] }));
+    return true;
+  } catch {
+    return false;
+  }
+}
 export function captureShare() {
   const sp = new URLSearchParams(location.search);
   const data = { title: sp.get('title') || '', text: sp.get('text') || '', url: sp.get('url') || '' };
@@ -182,6 +204,15 @@ export function consumeShare() {
     shared = null;
   }
   if (!shared) return;
+  const files = shared.files || [];
+  if (files.length) {
+    const xmls = files.filter((f) => /\.xml$/i.test(f.name) || /xml/.test(f.type) || /<infNFe/.test(f.text || ''));
+    if (xmls.length) {
+      location.hash = '#/financeiro';
+      H.importXml(xmls.map((f) => ({ name: f.name, text: () => Promise.resolve(f.text || '') })));
+    } else H.toast('Por enquanto a Central recebe arquivos XML de NF-e. Para outros arquivos, compartilhe o link ou o texto.');
+    if (!shared.text && !shared.url) return;
+  }
   const title = shared.title || shared.text.split('\n')[0].slice(0, 140) || shared.url;
   $('#shareBody').innerHTML = `<p class="share-preview"><strong>${esc(title)}</strong>${shared.text && shared.text !== title ? `<span>${esc(shared.text.slice(0, 280))}</span>` : ''}${shared.url ? `<a href="${esc(shared.url)}" target="_blank" rel="noopener">${esc(shared.url.slice(0, 80))}</a>` : ''}</p>
     <div class="share-options">

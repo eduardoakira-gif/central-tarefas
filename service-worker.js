@@ -10,7 +10,7 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v7.0.0';
+const CACHE_VERSION = 'v7.1.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -70,8 +70,27 @@ self.addEventListener('activate', (event) => {
 // Rede primeiro para os arquivos do app (pega atualizações), cache como reserva offline.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // Compartilhar do Android (texto, link ou arquivos, ex.: XML de NF-e do Gmail)
+  if (req.method === 'POST' && url.searchParams.has('share-target')) {
+    event.respondWith(
+      (async () => {
+        try {
+          const fd = await req.formData();
+          const files = [];
+          for (const f of fd.getAll('files')) {
+            if (f && typeof f.text === 'function' && f.size < 3000000) files.push({ name: f.name || 'arquivo', type: f.type || '', text: await f.text() });
+          }
+          await self.Core.idb.put('kv', { title: String(fd.get('title') || ''), text: String(fd.get('text') || ''), url: String(fd.get('url') || ''), files, at: Date.now() }, 'share-inbox');
+        } catch (e) {
+          // segue para o app mesmo assim
+        }
+        return Response.redirect(new URL('./index.html?shared=1', self.registration.scope).href, 303);
+      })()
+    );
+    return;
+  }
+  if (req.method !== 'GET') return;
   const sameOrigin = url.origin === self.location.origin;
   const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if (!sameOrigin && !isFont) return;
