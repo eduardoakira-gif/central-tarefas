@@ -8,6 +8,8 @@ import { Sync } from './sync.js';
 import { esc } from './ui.js';
 import { fmt, monthLabel } from './b2c.js';
 import { waUrl, logNudge, personOf } from './team.js';
+import { projects } from './projects.js';
+import { scorecard } from './status.js';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -57,6 +59,27 @@ function data(ym) {
   return { metrics, done, areas, okrs, bills, camps, q };
 }
 
+/** Projetos, experimentos e scorecard do mês (para o relatório da diretoria). */
+function extras(ym) {
+  const inMonth = (iso) => iso && iso.slice(0, 7) === ym;
+  const all = projects();
+  const delivered = all.filter((p) => p.finished && (inMonth(p.lastDone) || inMonth(p.dday)));
+  const running = all.filter((p) => !p.finished);
+  const ideas = (Sync.ideas || []).filter((i) => !i.deletedAt);
+  const learned = ideas.filter((i) => ['validada', 'descartada'].includes(i.status) && inMonth(i.updatedAt));
+  const tests = ideas.filter((i) => i.status === 'testando');
+  // média das semanas que começam no mês, até a atual
+  const now = C.weekStart(new Date());
+  const scores = [];
+  for (let k = 0; k < 6; k++) {
+    const w = C.addDays(now, -7 * k);
+    if (w.slice(0, 7) !== ym) continue;
+    const sc = scorecard(-k);
+    if (!sc.empty) scores.push(sc.score);
+  }
+  return { delivered, running, learned, tests, score: scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : null };
+}
+
 export function boardText(ym) {
   const d = data(ym);
   const lines = [`RELATÓRIO B2C · ${monthLabel(ym).toUpperCase()}`, ''];
@@ -86,6 +109,18 @@ export function boardText(ym) {
     const del = d.camps.reduce((a, c) => a + c.delivered, 0);
     lines.push(`CRM · ${d.camps.length} envios, abertura ${del ? nf.format((d.camps.reduce((a, c) => a + c.opens, 0) / del) * 100) : '–'}%, clique ${del ? nf.format((d.camps.reduce((a, c) => a + c.clicks, 0) / del) * 100) : '–'}%`);
   }
+  const x = extras(ym);
+  if (x.delivered.length || x.running.length) {
+    lines.push('', 'PROJETOS');
+    for (const p of x.delivered) lines.push(`- Entregue: ${p.name}${p.dday ? ' (dia D ' + C.fromDateKey(p.dday).toLocaleDateString('pt-BR') + ')' : ''}`);
+    for (const p of x.running) lines.push(`- Em andamento: ${p.name} – ${p.pct}%${p.late.length ? `, ${p.late.length} etapa(s) atrasada(s)` : ''}${p.dday ? ', dia D ' + C.fromDateKey(p.dday).toLocaleDateString('pt-BR') : ''}`);
+  }
+  if (x.tests.length || x.learned.length) {
+    lines.push('', 'EXPERIMENTOS DE GROWTH');
+    for (const i of x.learned) lines.push(`- ${i.status === 'validada' ? 'Validado' : 'Não validou'}: ${i.title}${i.result ? ' – ' + i.result : ''}`);
+    for (const i of x.tests) lines.push(`- Em teste: ${i.title}${i.metric ? ' (métrica: ' + i.metric + ')' : ''}`);
+  }
+  if (x.score != null) lines.push('', `EXECUÇÃO: média do scorecard do dono no mês ${x.score}/100`);
   if (view.decisions.trim()) lines.push('', 'DECISÕES E PEDIDOS PARA A DIRETORIA', view.decisions.trim());
   return lines.join('\n');
 }
@@ -134,6 +169,15 @@ export function renderBoard() {
       <h2>Entregas do mês: ${d.done.length} demandas concluídas</h2>
       ${byArea.length ? `<ul class="owner-list">${byArea.map((x) => `<li><span>${esc(x.a.name)}</span><strong>${x.n}</strong></li>`).join('')}</ul>` : '<p class="hint">Nenhuma demanda concluída neste mês.</p>'}
     </section>
+    ${(() => {
+      const x = extras(ym);
+      if (!x.delivered.length && !x.running.length && !x.tests.length && !x.learned.length && x.score == null) return '';
+      return `<section class="card report-card"><h2>Projetos, experimentos e execução</h2>
+        ${x.delivered.length || x.running.length ? `<ul class="owner-list">${x.delivered.map((p) => `<li><span>✓ ${esc(p.name)}</span><strong>entregue</strong></li>`).join('')}${x.running.map((p) => `<li><span>${esc(p.name)}${p.late.length ? ' <b class="is-bad">· atraso</b>' : ''}</span><strong>${p.pct}%</strong></li>`).join('')}</ul>` : ''}
+        ${x.learned.length || x.tests.length ? `<ul class="owner-list">${x.learned.map((i) => `<li><span>${i.status === 'validada' ? '🧪 Validado' : '🧪 Não validou'}: ${esc(i.title)}</span></li>`).join('')}${x.tests.map((i) => `<li><span>🧪 Em teste: ${esc(i.title)}</span></li>`).join('')}</ul>` : ''}
+        ${x.score != null ? `<p>Média do scorecard do dono no mês: <strong>${x.score}/100</strong></p>` : ''}
+      </section>`;
+    })()}
     <section class="card report-card">
       <h2>Decisões e pedidos para a diretoria</h2>
       <textarea class="input" id="boardDecisions" rows="5" placeholder="Ex.: aprovar orçamento da caravana de dezembro; validar preço do plano Inferno no sócio; definir responsável pelo XML das NFs.">${esc(view.decisions)}</textarea>

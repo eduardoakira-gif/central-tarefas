@@ -9,6 +9,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['8.4', 'Diretoria mais completa', ['Relatório mensal com projetos, experimentos de Growth e média do scorecard.']],
   ['8.3', 'Linha do tempo', ['Projetos: próximas 8 semanas com dias D e carga de tarefas, avisando choques e semanas pesadas.']],
   ['8.2', 'Seus playbooks', ['Projetos › Salvar como playbook: o processo vira modelo reaplicável, inclusive pelo Assistente.']],
   ['8.1', 'Assistente monta projetos', ['Peça "monta o drop da camisa para 12/12": o Assistente escolhe o playbook e cria o projeto com um toque.']],
