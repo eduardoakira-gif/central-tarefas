@@ -1520,3 +1520,4 @@ a.btn { text-decoration: none; }
 /* v6.0.1: espaço entre os cards do topo */
 .day-card, .triage-card { margin-bottom: 12px; }
 .triage-card { padding: 12px 16px; border-left: 3px solid var(--muted); }
+.paste-link { display: block; margin: -4px 0 14px 4px; font-size: .85rem; }

@@ -183,6 +183,7 @@ export function consumeShare() {
   $('#shareBody').innerHTML = `<p class="share-preview"><strong>${esc(title)}</strong>${shared.text && shared.text !== title ? `<span>${esc(shared.text.slice(0, 280))}</span>` : ''}${shared.url ? `<a href="${esc(shared.url)}" target="_blank" rel="noopener">${esc(shared.url.slice(0, 80))}</a>` : ''}</p>
     <div class="share-options">
       <button type="button" class="btn" data-share="task"><strong>Virar tarefa</strong><span>com o link anexado</span></button>
+      ${(shared.text || '').length > 60 ? '<button type="button" class="btn" data-share="many"><strong>Separar várias tarefas</strong><span>a IA lê a mensagem e lista as demandas</span></button>' : ''}
       <button type="button" class="btn" data-share="ai"><strong>Analisar com a IA</strong><span>o que isso muda para o B2C</span></button>
       <button type="button" class="btn" data-share="post"><strong>Ideia de post</strong><span>vai para a Marca pessoal</span></button>
     </div>`;
@@ -193,6 +194,7 @@ async function onShare(kind) {
   if (!s) return;
   $('#shareDialog').close();
   const title = (s.title || s.text.split('\n')[0] || 'Link compartilhado').slice(0, 200);
+  if (kind === 'many') return H.extract([s.title, s.text, s.url].filter(Boolean).join('\n'), 'Mensagem compartilhada');
   if (kind === 'task') return H.openTaskDialog({ title, link: s.url, description: s.text && s.text !== title ? s.text : '' });
   if (kind === 'ai') return H.ask(`Compartilhei isto com você: "${title}"${s.text && s.text !== title ? `\n\n${s.text.slice(0, 1500)}` : ''}${s.url ? `\n\nLink: ${s.url}` : ''}\n\nComo dono do B2C do Fluxo W7M: o que isso significa, o que eu copio ou testo, e qual a próxima ação concreta? Se valer uma tarefa, sugira.`);
   if (kind === 'post') {

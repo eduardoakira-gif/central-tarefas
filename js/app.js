@@ -32,7 +32,7 @@ import { initKanban, renderKanban, layoutToggle, layout } from './kanban.js';
 import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 
-export const APP_VERSION = '6.1.0';
+export const APP_VERSION = '6.2.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -828,6 +828,26 @@ async function extractTasks() {
   }
 }
 
+/** Separa várias tarefas de um texto solto (mensagem, e-mail, lista) e abre a revisão. */
+async function extractFromText(text, from, btn) {
+  text = String(text || '').trim();
+  if (text.length < 10) return toast('Cole um texto um pouco maior.');
+  if (btn) busy(btn, true, 'Separando as tarefas…');
+  try {
+    const r = await Sync.call('aiExtract', { title: from || 'Mensagem recebida', text, date: C.toDateKey(new Date()) }, { timeout: 90000 });
+    const list = r.tasks || [];
+    if (!list.length) return toast('A IA não encontrou tarefas neste texto.');
+    state.review = { noteId: null, items: list.map((s) => Object.assign({ include: true }, s)) };
+    if ($('#pasteDialog').open) $('#pasteDialog').close();
+    renderReview();
+    $('#reviewDialog').showModal();
+  } catch (err) {
+    toast(err.code === 'ai_not_configured' ? 'A IA ainda não foi configurada no servidor.' : err.message);
+  } finally {
+    if (btn) busy(btn, false);
+  }
+}
+
 function renderReview() {
   const r = state.review;
   const areaOpts = (s) => {
@@ -943,6 +963,10 @@ async function handleAction(action, id, el) {
   switch (action) {
     case 'new':
       return openTaskDialog();
+    case 'paste-many':
+      $('#pasteForm').reset();
+      $('#pasteDialog').showModal();
+      return setTimeout(() => $('#pasteText').focus(), 50);
     case 'edit':
       return openTaskDialog(id);
     case 'wait':
@@ -1563,6 +1587,10 @@ function bindEvents() {
   });
   taskForm.taskTitle.addEventListener('input', () => ($('#titleError').hidden = true));
   $('#checklistAdd').addEventListener('click', addChecklistItem);
+  $('#pasteForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    extractFromText($('#pasteText').value, $('#pasteFrom').value.trim(), $('#pasteSubmit'));
+  });
   $('#aiSteps').addEventListener('click', aiSteps);
   $('#aiHelp').addEventListener('click', aiHelp);
   $('#checklistInput').addEventListener('keydown', (e) => {
@@ -1805,6 +1833,7 @@ async function openCentral(id) {
     },
     openTaskDialog: (prefill) => openTaskDialog(null, prefill),
     openTask: (id) => openTaskDialog(id),
+    extract: (text, from) => extractFromText(text, from),
   };
   initB2C(helpers);
   initRadar(helpers);
