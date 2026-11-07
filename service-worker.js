@@ -10,7 +10,7 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v7.2.0';
+const CACHE_VERSION = 'v7.3.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -43,6 +43,7 @@ const APP_SHELL = [
   './js/team-view.js',
   './js/projects.js',
   './js/nfe.js',
+  './js/whatsnew.js',
   './js/tasks.js',
   './js/notifications.js',
   './js/ui.js',

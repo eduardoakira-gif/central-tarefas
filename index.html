@@ -336,6 +336,12 @@
       <div id="studyBody"></div>
     </section>
 
+    <!-- NOVIDADES E GUIA ------------------------------------------------------- -->
+    <section class="view" data-view="guide" hidden>
+      <div class="page-head"><div><h1>Novidades e guia</h1><p class="summary">Como tirar o máximo da Central e o que mudou em cada atualização.</p></div></div>
+      <div id="guideBody"></div>
+    </section>
+
     <!-- PROJETOS -------------------------------------------------------------- -->
     <section class="view" data-view="projects" hidden>
       <div class="page-head"><div><h1>Projetos</h1><p class="summary">Progresso, dia D, próxima etapa e atrasos de cada projeto.</p></div><a class="btn btn-primary" href="#/playbooks">Novo pelo playbook</a></div>
@@ -414,6 +420,7 @@
     <section class="view" data-view="more" hidden>
       <div class="page-head"><div><h1>Mais</h1></div></div>
       <div class="hub">
+        <a class="card hub-item hub-guide" href="#/guia"><strong>Novidades e guia</strong><span>Rotina recomendada de uso e tudo o que mudou em cada atualização</span></a>
         <a class="card hub-item" href="#/projetos"><strong>Projetos</strong><span>Drops, campanhas e eventos com progresso, contagem para o dia D, próxima etapa e atrasos</span></a>
         <a class="card hub-item" href="#/equipe"><strong>Equipe e 1:1</strong><span>Demandas, atrasos e entregas de cada pessoa, pauta da 1:1 pronta e registro da conversa</span></a>
         <a class="card hub-item" href="#/growth"><strong>Growth</strong><span>Backlog de experimentos com nota ICE, ideias da IA inspiradas nas maiores orgs e aprendizados dos testes</span></a>
@@ -1092,6 +1099,16 @@
         </div>
       </div>
     </form>
+  </dialog>
+
+  <!-- DIÁLOGO: NOVIDADES ------------------------------------------------ -->
+  <dialog id="wnDialog" class="dialog dialog-sm" aria-labelledby="wnTitle">
+    <div class="dialog-head">
+      <h2 id="wnTitle">Novidades na Central</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="dialog-body" id="wnBody"></div>
+    <div class="dialog-foot"><a class="btn" href="#/guia" data-close>Ver guia</a><button type="button" class="btn btn-primary" data-close>Entendi</button></div>
   </dialog>
 
   <!-- DIÁLOGO: DELEGAR -------------------------------------------------- -->

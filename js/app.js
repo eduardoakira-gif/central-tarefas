@@ -33,8 +33,9 @@ import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
 import { initNfe, importFiles as importXml } from './nfe.js';
+import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 
-export const APP_VERSION = '7.2.0';
+export const APP_VERSION = '7.3.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -444,6 +445,7 @@ function renderAll() {
   if (r === 'growth') keepFocus($('#growthBody'), renderGrowth());
   if (r === 'team') $('#teamBody').innerHTML = renderTeam();
   if (r === 'projects') $('#projectsBody').innerHTML = renderProjects();
+  if (r === 'guide') $('#guideBody').innerHTML = renderGuide();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -467,7 +469,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study', '/playbooks': 'playbooks', '/status': 'status', '/growth': 'growth', '/equipe': 'team', '/projetos': 'projects',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study', '/playbooks': 'playbooks', '/status': 'status', '/growth': 'growth', '/equipe': 'team', '/projetos': 'projects', '/guia': 'guide',
 };
 
 function route() {
@@ -519,7 +521,7 @@ function showView() {
   const viewName = state.route === 'areas' ? 'area' : state.route;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== viewName));
   const r = state.route === 'note' ? 'notes' : state.route === 'area' ? 'areas' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study', 'playbooks', 'status', 'growth', 'team', 'projects'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study', 'playbooks', 'status', 'growth', 'team', 'projects'] };
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study', 'playbooks', 'status', 'growth', 'team', 'projects', 'guide'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study', 'playbooks', 'status', 'growth', 'team', 'projects', 'guide'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
@@ -1913,6 +1915,7 @@ async function openCentral(id) {
   initTeamView(Object.assign({ ask: askAssistant }, helpers));
   initProjects(Object.assign({ ask: askAssistant }, helpers));
   initNfe(helpers);
+  maybeShowWhatsNew(APP_VERSION);
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);
