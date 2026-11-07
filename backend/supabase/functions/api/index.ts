@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "6.8.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "7.4.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -491,6 +491,32 @@ function billStage(b: any) {
 }
 
 /** Alertas de "dono": o que está travando dinheiro, prazo ou rotina. */
+/** Scorecard do dono (mesma conta do site): nota 0–100 da semana até hoje. */
+function ownerScore(all: any[], today: string) {
+  const mon = weekStartKey(today);
+  const inWeek = (k: string | null) => !!k && k >= mon && k <= today;
+  const dayOf = (iso: string | null) => (iso ? localNow("America/Sao_Paulo", new Date(iso)).today : null);
+  const dueWeek = all.filter((t) => inWeek(t.dueDate));
+  const onTime = dueWeek.filter((t) => t.status === "done" && (dayOf(t.completedAt) ?? "9999") <= t.dueDate).length;
+  const focus = all.filter((t) => t.focusWeek === mon);
+  const focusDone = focus.filter((t) => t.status === "done").length;
+  const planned = all.filter((t) => inWeek(t.plannedFor));
+  const plannedDone = planned.filter((t) => t.status === "done" && dayOf(t.completedAt) === t.plannedFor).length;
+  const staleWait = all.filter((t) => t.status === "waiting" && t.waitingSince && t.waitingSince <= addDaysKey(today, -5)).length;
+  const lateOpen = all.filter((t) => t.status !== "done" && t.dueDate && t.dueDate < today).length;
+  const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : null);
+  const items = [
+    { name: "entregas no prazo", s: pct(onTime, dueWeek.length) ?? 50, w: 35, tip: "renegocie prazos na segunda em vez de deixar vencer" },
+    { name: "foco da semana", s: focus.length ? pct(focusDone, focus.length)! : 30, w: 25, tip: "defina as 3 prioridades na segunda e feche pelo menos 2" },
+    { name: "plano do dia", s: planned.length ? pct(plannedDone, planned.length)! : 30, w: 20, tip: "planeje o dia com 3 a 5 tarefas e encerre o dia" },
+    { name: "retornos parados", s: Math.max(0, 100 - staleWait * 20), w: 10, tip: "cobre hoje quem está devendo retorno" },
+    { name: "atrasadas", s: Math.max(0, 100 - lateOpen * 20), w: 10, tip: "faça a triagem das atrasadas" },
+  ];
+  const score = Math.round(items.reduce((a, x) => a + (x.s * x.w) / 100, 0));
+  const worst = items.slice().sort((a, b) => a.s - b.s)[0];
+  return { score, grade: score >= 85 ? "A" : score >= 70 ? "B" : score >= 55 ? "C" : "D", worst };
+}
+
 function ownerAlerts(tasks: any[], bills: any[], metrics: any[], s: Settings, today: string) {
   const lines: string[] = [];
   let urgent = 0;
@@ -1241,7 +1267,9 @@ async function handle(body: any, req: Request) {
         const late = open.filter((t: any) => t.dueDate && t.dueDate < today).length;
         const ex = await extrasOf(c.id);
         const nextWeek = ex.bills.filter((b: any) => b && !b.paidAt && b.dueDate && b.dueDate > today && b.dueDate <= addDaysKey(today, 7));
+        const sc = ownerScore(all, today);
         const lines = [
+          `Nota da semana: ${sc.score}/100 (${sc.grade}). Ponto fraco: ${sc.worst.name}. Dica: ${sc.worst.tip}.`,
           `Semana: ${plural(done, "demanda concluída", "demandas concluídas")} e ${plural(created, "criada", "criadas")}.`,
           `Em aberto: ${open.length}` + (late ? `, ${plural(late, "atrasada", "atrasadas")}.` : "."),
         ];
