@@ -33,7 +33,7 @@ import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
 
-export const APP_VERSION = '6.4.0';
+export const APP_VERSION = '6.5.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -975,6 +975,22 @@ async function handleAction(action, id, el) {
   switch (action) {
     case 'new':
       return openTaskDialog();
+    case 'delegate': {
+      if (!t) return;
+      state.delegateId = id;
+      $('#delegateForm').reset();
+      $('#delegateTask').textContent = t.title;
+      $('#delegateDue').value = t.dueDate || C.addDays(C.toDateKey(new Date()), 3);
+      $('#delegateCtx').value = t.description || '';
+      $('#delegateDialog').showModal();
+      return setTimeout(() => $('#delegateWho').focus(), 50);
+    }
+    case 'minutes': {
+      await saveNoteNow();
+      const n = Notes.get(state.noteId);
+      if (!n || n.body.trim().length < 20) return toast('Escreva as anotações da reunião primeiro.');
+      return askAssistant(`Transforme minhas anotações em uma ata curta para mandar aos participantes por e-mail ou WhatsApp. Estrutura: título com data; participantes; decisões (bullets); próximos passos no formato "Responsável – ação – prazo"; pontos em aberto. Tom profissional e direto, sem inventar nada que não esteja nas anotações.\n\nReunião: ${n.title || 'sem título'}\nData: ${n.date}\nParticipantes: ${n.participants || 'não informado'}\n\nAnotações:\n${n.body}`);
+    }
     case 'paste-many':
       $('#pasteForm').reset();
       $('#pasteDialog').showModal();
@@ -1599,6 +1615,23 @@ function bindEvents() {
   });
   taskForm.taskTitle.addEventListener('input', () => ($('#titleError').hidden = true));
   $('#checklistAdd').addEventListener('click', addChecklistItem);
+  $('#delegateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const t = Tasks.get(state.delegateId);
+    const who = $('#delegateWho').value.trim();
+    if (!t || !who) return $('#delegateWho').focus();
+    const due = $('#delegateDue').value || null;
+    const ctx = $('#delegateCtx').value.trim();
+    const today = C.toDateKey(new Date());
+    const follow = due ? (C.addDays(due, -1) < today ? today : C.addDays(due, -1)) : C.addDays(today, 2);
+    const steps = (t.checklist || []).filter((c) => !c.done).map((c) => '• ' + c.text).join('\n');
+    const first = who.split(' ')[0];
+    const msg = `Fala, ${first}! Preciso da sua ajuda com uma demanda:\n\n*${t.title}*${due ? `\nPrazo: ${C.fromDateKey(due).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}` : ''}${ctx ? `\n\nContexto: ${ctx}` : ''}${steps ? `\n\nPassos:\n${steps}` : ''}${t.link ? `\n\nLink: ${t.link}` : ''}\n\nConsegue? Se tiver alguma dúvida ou não der no prazo, me avisa hoje.`;
+    window.open(waUrl(who, msg), '_blank');
+    await Tasks.update(t.id, { owner: who, status: 'waiting', waitingFor: who, waitingSince: today, followUpDate: follow, dueDate: due, description: ctx || t.description, comments: (t.comments || []).concat({ id: C.uid(), text: `Delegado para ${who} no WhatsApp.`, at: new Date().toISOString() }) });
+    $('#delegateDialog').close();
+    toast(`Delegada para ${first}. Cobrança marcada para ${C.fromDateKey(follow).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}.`);
+  });
   $('#pasteForm').addEventListener('submit', (e) => {
     e.preventDefault();
     extractFromText($('#pasteText').value, $('#pasteFrom').value.trim(), $('#pasteSubmit'));

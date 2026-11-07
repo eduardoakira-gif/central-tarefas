@@ -204,7 +204,8 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
             Finalizei: gerar tarefas
           </button>
-          <span class="hint">A IA sugere as tarefas; nada é criado antes de você revisar.</span>
+          <button class="btn btn-lg" type="button" data-action="minutes">Gerar ata com IA</button>
+          <span class="hint">A IA sugere as tarefas; nada é criado antes de você revisar. A ata sai pronta para mandar aos participantes.</span>
         </div>
         <div id="noteTasks"></div>
       </div>
@@ -1080,6 +1081,24 @@
           <button type="submit" class="btn btn-primary">Salvar</button>
         </div>
       </div>
+    </form>
+  </dialog>
+
+  <!-- DIÁLOGO: DELEGAR -------------------------------------------------- -->
+  <dialog id="delegateDialog" class="dialog dialog-sm" aria-labelledby="delegateTitle">
+    <form id="delegateForm" novalidate>
+      <div class="dialog-head">
+        <h2 id="delegateTitle">Delegar</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <p class="hint" id="delegateTask"></p>
+        <label class="field"><span class="label">Para quem</span><input id="delegateWho" class="input" list="ownersList" autocomplete="off" placeholder="Nome da pessoa"></label>
+        <label class="field"><span class="label">Prazo</span><input id="delegateDue" type="date" class="input"></label>
+        <label class="field"><span class="label">Contexto (opcional)</span><textarea id="delegateCtx" class="input" rows="3" placeholder="Por que importa, o que é sucesso, links"></textarea></label>
+        <p class="hint">A tarefa vai para a pessoa como "aguardando retorno", com cobrança marcada para 1 dia antes do prazo. O WhatsApp abre com o pedido pronto.</p>
+      </div>
+      <div class="dialog-foot"><span></span><div class="btn-row"><button type="button" class="btn" data-close>Cancelar</button><button type="submit" class="btn btn-primary">Delegar e abrir WhatsApp</button></div></div>
     </form>
   </dialog>
 
