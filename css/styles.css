@@ -1611,3 +1611,10 @@ a.btn { text-decoration: none; }
 .applicant { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; border-top: 1px solid var(--border); padding-top: 10px; flex-wrap: wrap; }
 .ap-main { display: grid; gap: 2px; min-width: 0; flex: 1 1 220px; }
 .ap-main p { margin: 4px 0 0; font-size: .9rem; }
+/* v8.0: menu de reagendar */
+.pill-date { cursor: pointer; }
+.pill-date input { pointer-events: none; }
+.sched-menu { position: fixed; z-index: 60; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-lg, 0 12px 32px rgba(0,0,0,.18)); padding: 6px; display: grid; gap: 2px; animation: dialog-in .12s ease-out; }
+.sched-menu button { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 10px 10px; border: 0; background: none; border-radius: 8px; font: inherit; color: var(--text); cursor: pointer; text-align: left; }
+.sched-menu button:hover, .sched-menu button:focus-visible { background: color-mix(in srgb, var(--focus) 10%, transparent); outline: 0; }
+.sched-menu button[data-sched="none"] { color: var(--muted); border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; }

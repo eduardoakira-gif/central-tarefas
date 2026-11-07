@@ -35,7 +35,7 @@ import { initProjects, renderProjects, renderProjectsCard, projectNames } from '
 import { initNfe, importFiles as importXml } from './nfe.js';
 import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 
-export const APP_VERSION = '7.9.0';
+export const APP_VERSION = '8.0.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -982,6 +982,66 @@ async function submitReview(e) {
 // -----------------------------------------------------------------------------
 // Ações
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Reagendar com um toque (menu do prazo)
+// -----------------------------------------------------------------------------
+let schedFor = null;
+function schedOptions() {
+  const today = C.toDateKey(new Date());
+  const wd = new Date().getDay();
+  const fri = C.addDays(today, wd === 6 ? 6 : wd === 0 ? 5 : 5 - wd);
+  const mon = C.addDays(today, wd === 0 ? 1 : 8 - wd);
+  const fmt = (k) => C.fromDateKey(k).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+  return [
+    ['Hoje', today], ['Amanhã', C.addDays(today, 1)], ['Sexta', fri], ['Próxima segunda', mon], ['Daqui a 1 semana', C.addDays(today, 7)],
+  ]
+    .filter(([, d], i, arr) => arr.findIndex((x) => x[1] === d) === i) // sem datas repetidas (ex.: sexta = hoje)
+    .sort((a, b) => a[1].localeCompare(b[1]))
+    .map(([label, d]) => ({ label, d, sub: fmt(d) }));
+}
+function openSchedMenu(pill, id) {
+  closeSchedMenu();
+  schedFor = { id, input: pill.querySelector('input[data-quick="dueDate"]') };
+  const m = document.createElement('div');
+  m.id = 'schedMenu';
+  m.className = 'sched-menu';
+  m.setAttribute('role', 'menu');
+  m.innerHTML = schedOptions().map((o) => `<button type="button" role="menuitem" data-sched="${o.d}"><span>${o.label}</span><span class="hint">${o.sub}</span></button>`).join('') +
+    `<button type="button" role="menuitem" data-sched="pick"><span>Escolher data…</span></button><button type="button" role="menuitem" data-sched="none"><span>Sem prazo</span></button>`;
+  document.body.appendChild(m);
+  schedOpenedAt = Date.now();
+  const r = pill.getBoundingClientRect();
+  const w = Math.min(240, innerWidth - 16);
+  m.style.width = w + 'px';
+  m.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
+  const h = m.offsetHeight;
+  m.style.top = (r.bottom + h + 8 > innerHeight ? Math.max(8, r.top - h - 6) : r.bottom + 6) + 'px';
+}
+function closeSchedMenu() {
+  const m = document.getElementById('schedMenu');
+  if (m) m.remove();
+}
+async function applySched(v) {
+  const s = schedFor;
+  closeSchedMenu();
+  if (!s) return;
+  if (v === 'pick') {
+    if (s.input && s.input.showPicker) {
+      try {
+        return s.input.showPicker();
+      } catch {}
+    }
+    return openTaskDialog(s.id);
+  }
+  const t = Tasks.get(s.id);
+  if (!t) return;
+  const prev = t.dueDate;
+  await Tasks.update(s.id, { dueDate: v === 'none' ? null : v, dueTime: v === 'none' ? null : t.dueTime });
+  toast(v === 'none' ? 'Prazo removido' : 'Prazo: ' + C.fromDateKey(v).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }), { label: 'Desfazer', fn: () => Tasks.update(s.id, { dueDate: prev }) });
+}
+let schedOpenedAt = 0;
+addEventListener('scroll', () => Date.now() - schedOpenedAt > 500 && closeSchedMenu(), { passive: true });
+
 async function handleAction(action, id, el) {
   const t = id ? Tasks.get(id) : null;
   switch (action) {
@@ -1551,12 +1611,11 @@ function bindEvents() {
       state.history.tab = ht.dataset.historyTab;
       return renderHistory();
     }
-    const dateInput = e.target.closest('input[data-quick="dueDate"]');
-    if (dateInput && dateInput.showPicker) {
-      try {
-        dateInput.showPicker();
-      } catch {}
-    }
+    const sm = e.target.closest('[data-sched]');
+    if (sm) return applySched(sm.dataset.sched);
+    const pill = e.target.closest('.pill-date');
+    if (pill && pill.closest('[data-id]')) return openSchedMenu(pill, pill.closest('[data-id]').dataset.id);
+    if (!e.target.closest('#schedMenu')) closeSchedMenu();
   });
 
   document.addEventListener('change', (e) => {
