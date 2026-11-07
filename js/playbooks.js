@@ -14,7 +14,7 @@ let H = null;
 const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
 // d = dias em relação ao dia D (negativo = antes). p = prioridade.
-export const PLAYBOOKS = [
+export const BUILTIN = [
   {
     id: 'drop', name: 'Drop de merch', area: 'merchan', dLabel: 'Dia do lançamento',
     desc: 'Do fornecedor à NF: lançamento com acesso antecipado para sócio, conteúdo com jogador e fechamento financeiro.',
@@ -111,6 +111,46 @@ export const PLAYBOOKS = [
   },
 ];
 
+/** Playbooks padrão + os seus (salvos nas configurações da central). */
+export const PLAYBOOKS = {
+  find: (fn) => allPlaybooks().find(fn),
+  filter: (fn) => allPlaybooks().filter(fn),
+  map: (fn) => allPlaybooks().map(fn),
+};
+export function customPlaybooks() {
+  const s = C.mergeSettings(Sync.central && Sync.central.settings);
+  return Array.isArray(s.customPlaybooks) ? s.customPlaybooks.map((p) => Object.assign({ custom: true }, p)) : [];
+}
+export function allPlaybooks() {
+  return BUILTIN.concat(customPlaybooks());
+}
+
+/** Salva um projeto como playbook próprio: etapas relativas ao dia D. */
+export async function saveAsPlaybook(project, name) {
+  const dday = project.dday;
+  if (!dday) return false;
+  const short = project.name.split(': ').pop();
+  const areas = (Sync.central && Sync.central.areas) || [];
+  const areaName = (areas.find((a) => a.id === (project.list[0] || {}).area) || {}).name || '';
+  const steps = project.list
+    .filter((t) => t.dueDate)
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .map((t) => ({ d: Math.round((C.fromDateKey(t.dueDate) - C.fromDateKey(dday)) / 86400000), t: t.title.replace(' (' + short + ')', ''), p: t.priority }));
+  if (!steps.length) return false;
+  // tira o sufixo "(nome)" quando todas as etapas têm o mesmo
+  const suf = (t) => (t.match(/ \(([^)]+)\)$/) || [])[0];
+  const common = suf(steps[0].t);
+  if (common && steps.every((x) => suf(x.t) === common)) steps.forEach((x) => (x.t = x.t.slice(0, -common.length)));
+  const id = 'meu-' + fold(name).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 22) + '-' + Math.random().toString(36).slice(2, 5);
+  const list = customPlaybooks().map(({ custom, ...p }) => p).concat({ id, name, area: areaName, dLabel: 'Dia D', desc: `Seu processo, salvo a partir de "${project.name}".`, steps });
+  await Sync.patchCentral({ settings: Object.assign({}, C.mergeSettings(Sync.central.settings), { customPlaybooks: list.slice(-20) }) });
+  return true;
+}
+export async function deletePlaybook(id) {
+  const list = customPlaybooks().filter((p) => p.id !== id).map(({ custom, ...p }) => p);
+  await Sync.patchCentral({ settings: Object.assign({}, C.mergeSettings(Sync.central.settings), { customPlaybooks: list }) });
+}
+
 const AREA_HINTS = {
   merchan: ['merchan', 'e-commerce', 'ecommerce', 'loja'],
   socio: ['socio', 'sócio'],
@@ -121,6 +161,8 @@ const AREA_HINTS = {
 };
 function areaFor(key) {
   const areas = (Sync.central && Sync.central.areas) || [];
+  const exact = areas.find((x) => fold(x.name) === fold(key));
+  if (exact) return exact.id;
   const hints = AREA_HINTS[key] || [];
   const a = areas.find((x) => hints.some((h) => fold(x.name).includes(fold(h))));
   return (a || areas[0] || {}).id || null;
@@ -154,6 +196,7 @@ export function openPlaybook(id) {
   const max = Math.max(...current.steps.map((s) => -s.d), 0);
   $('#pbDate').value = C.addDays(C.toDateKey(new Date()), max);
   $('#pbName').value = '';
+  $('#pbDelete').hidden = !current.custom;
   preview();
   $('#pbDialog').showModal();
 }
@@ -198,8 +241,9 @@ async function submit(e) {
 
 export function renderPlaybooks() {
   return `<p class="summary">Escolha um processo e a data do dia D. A Central cria as tarefas com os prazos certos, na área certa.</p>
-    <div class="pb-grid">${PLAYBOOKS.map((p) => `<button type="button" class="card pb-card" data-pb="${p.id}">
-      <strong>${esc(p.name)}</strong><span>${esc(p.desc)}</span><span class="hint">${p.steps.length} etapas · ${Math.max(...p.steps.map((s) => -s.d))} dias antes até ${Math.max(...p.steps.map((s) => s.d))} depois</span></button>`).join('')}</div>`;
+    <div class="pb-grid">${PLAYBOOKS.map((p) => `<button type="button" class="card pb-card${p.custom ? ' is-custom' : ''}" data-pb="${p.id}">
+      <strong>${esc(p.name)}${p.custom ? ' <span class="badge badge-focus">Seu</span>' : ''}</strong><span>${esc(p.desc)}</span><span class="hint">${p.steps.length} etapas · ${Math.max(0, ...p.steps.map((s) => -s.d))} dias antes até ${Math.max(0, ...p.steps.map((s) => s.d))} depois</span></button>`).join('')}</div>
+    ${customPlaybooks().length ? '<p class="hint">Para apagar um playbook seu, abra e toque em Excluir.</p>' : '<p class="hint">Dica: em Projetos, um projeto que deu certo pode virar playbook seu (botão "Salvar como playbook").</p>'}`;
 }
 
 // -----------------------------------------------------------------------------
@@ -248,4 +292,12 @@ export function initPlaybooks(helpers) {
   });
   $('#pbDate').addEventListener('change', preview);
   $('#pbForm').addEventListener('submit', submit);
+  $('#pbDelete').addEventListener('click', async () => {
+    if (!current || !current.custom) return;
+    $('#pbDialog').close();
+    if (await H.confirmDialog({ title: 'Excluir este playbook?', message: current.name, confirmLabel: 'Excluir' })) {
+      await deletePlaybook(current.id);
+      H.toast('Playbook excluído');
+    }
+  });
 }

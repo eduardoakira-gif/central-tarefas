@@ -5,6 +5,7 @@
  */
 import { Tasks } from './tasks.js';
 import { esc } from './ui.js';
+import { saveAsPlaybook } from './playbooks.js';
 
 const C = window.Core;
 let H = null;
@@ -53,7 +54,7 @@ function card(p) {
     <span class="kpi-bar"><i style="width:${p.pct}%"></i></span>
     ${!p.finished && !isOpen && p.open[0] ? `<p class="proj-next"><span class="label">Próxima etapa</span> ${esc(p.open[0].title)}${p.open[0].dueDate ? ` <span class="hint">· ${dm(p.open[0].dueDate)}</span>` : ''}</p>` : ''}
     ${isOpen ? `<ul class="proj-steps">${p.list.slice().sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')).map(li).join('')}</ul>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button></div>` : ''}
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button>${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
   </article>`;
 }
 
@@ -94,6 +95,15 @@ export function initProjects(helpers) {
       const p = projects().find((x) => x.name === add.dataset.projAdd);
       const area = p && p.list[0] ? p.list[0].area : undefined;
       return H.openTaskDialog({ project: add.dataset.projAdd, projectDate: p && p.dday, area });
+    }
+    const sv = e.target.closest('[data-proj-save]');
+    if (sv) {
+      const p = projects().find((x) => x.name === sv.dataset.projSave);
+      if (!p) return;
+      const name = prompt('Nome do playbook (ex.: Summit no office, Live com patrocinador):', p.name.split(': ').pop());
+      if (!name || !name.trim()) return;
+      saveAsPlaybook(p, name.trim().slice(0, 60)).then((ok) => H.toast(ok ? 'Playbook salvo. Ele aparece em Playbooks e o Assistente já pode usar.' : 'Só dá para salvar projetos com dia D e etapas com prazo.'));
+      return;
     }
     const ai = e.target.closest('[data-proj-ai]');
     if (ai) {

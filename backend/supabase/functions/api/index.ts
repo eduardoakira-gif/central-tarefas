@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "8.1.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "8.2.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -59,6 +59,7 @@ const DEFAULT_SETTINGS = {
   radarEnabled: false, radarFrequencyHours: 0, radarTimes: ["09:00", "15:00"], radarOrgs: [] as string[], context: "",
   billsReminder: true, monthCloseDay: 5, weeklyReview: true, aiBriefing: true,
   dayClose: true, dayCloseTime: "18:30", timeReminderMin: 30,
+  customPlaybooks: [] as any[],
 };
 type Settings = typeof DEFAULT_SETTINGS;
 const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
@@ -132,6 +133,17 @@ function cleanSettings(v: any, base: Settings = DEFAULT_SETTINGS): Settings {
     if (typeof v.dayClose === "boolean") s.dayClose = v.dayClose;
     if (TIME_RE.test(v.dayCloseTime ?? "")) s.dayCloseTime = v.dayCloseTime;
     if ([0, 10, 15, 30, 60].includes(Number(v.timeReminderMin))) s.timeReminderMin = Number(v.timeReminderMin);
+    if (Array.isArray(v.customPlaybooks)) {
+      const prio = ["urgent", "high", "normal", "low"];
+      s.customPlaybooks = v.customPlaybooks.slice(0, 20).map((p: any) => ({
+        id: String(p?.id ?? "").replace(/[^\w-]/g, "").slice(0, 30),
+        name: String(p?.name ?? "").trim().slice(0, 60),
+        area: String(p?.area ?? "").slice(0, 40),
+        dLabel: String(p?.dLabel ?? "Dia D").slice(0, 40),
+        desc: String(p?.desc ?? "").slice(0, 300),
+        steps: (Array.isArray(p?.steps) ? p.steps : []).slice(0, 40).map((x: any) => ({ d: Math.max(-365, Math.min(365, Math.round(Number(x?.d) || 0))), t: String(x?.t ?? "").trim().slice(0, 200), p: prio.includes(x?.p) ? x.p : "normal" })).filter((x: any) => x.t),
+      })).filter((p: any) => p.id && p.name && p.steps.length);
+    }
     if (Array.isArray(v.radarOrgs)) {
       s.radarOrgs = [...new Set(v.radarOrgs.map((o: unknown) => String(o ?? "").trim().slice(0, 40)).filter(Boolean))].slice(0, 40) as string[];
     }
@@ -950,6 +962,15 @@ const PLAYBOOK_TOOL = {
   },
 };
 
+const BUILTIN_PB = ["drop", "socio", "evento", "newsletter", "kings", "fechamento", "patrocinio"];
+function playbookTool(custom: any[]) {
+  const ids = [...BUILTIN_PB, ...custom.map((p) => p.id)];
+  const t = structuredClone(PLAYBOOK_TOOL) as any;
+  t.input_schema.properties.projetos.items.properties.playbook.enum = ids;
+  if (custom.length) t.description += " Playbooks próprios do usuário: " + custom.map((p) => `${p.id} = ${p.name}`).join("; ") + ".";
+  return t;
+}
+
 const ACTIONS_TOOL = {
   name: "propor_acoes",
   description: "Propõe mudanças em tarefas que JÁ EXISTEM (use o id que aparece como [id:...]). O usuário revisa e aplica com um toque. Use para planejar o dia (hoje), reorganizar prazos (adiar), repriorizar, escolher o foco da semana, concluir o que ele disse que já fez ou delegar para alguém da equipe (a tarefa fica aguardando retorno dessa pessoa).",
@@ -1575,7 +1596,7 @@ Regras: de 3 a 8 passos, cada um começando com verbo no infinitivo, curto (até
       const out = await anthropic({
         max_tokens: 2500,
         system: assistantSystem(await assistantContext(central)),
-        tools: [SUGGEST_TOOL, ACTIONS_TOOL, PLAYBOOK_TOOL],
+        tools: [SUGGEST_TOOL, ACTIONS_TOOL, playbookTool(cleanSettings(central.settings).customPlaybooks)],
         messages,
       }, [AI_ASSISTANT_MODEL, "claude-sonnet-4-5", AI_MODEL]);
       const text = (out.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n\n").trim();
@@ -1583,7 +1604,7 @@ Regras: de 3 a 8 passos, cada um começando com verbo no infinitivo, curto (até
       const actCall = (out.content ?? []).find((c: any) => c.type === "tool_use" && c.name === ACTIONS_TOOL.name);
       const pbCall = (out.content ?? []).find((c: any) => c.type === "tool_use" && c.name === PLAYBOOK_TOOL.name);
       const projects = (Array.isArray(pbCall?.input?.projetos) ? pbCall.input.projetos : []).slice(0, 3)
-        .filter((p: any) => ["drop", "socio", "evento", "newsletter", "kings", "fechamento", "patrocinio"].includes(p.playbook) && DATE_RE.test(p.diaD ?? ""))
+        .filter((p: any) => [...BUILTIN_PB, ...cleanSettings(central.settings).customPlaybooks.map((c: any) => c.id)].includes(p.playbook) && DATE_RE.test(p.diaD ?? ""))
         .map((p: any) => ({ playbook: p.playbook, name: String(p.nome ?? "").trim().slice(0, 60), dday: p.diaD, reason: String(p.motivo ?? "").slice(0, 160) }));
       const liveTasks = new Map((await listItems("tasks", central.id)).filter((t: any) => t && !t.deletedAt).map((t: any) => [t.id, t]));
       const actions = (Array.isArray(actCall?.input?.acoes) ? actCall.input.acoes : []).slice(0, 20).map((a: any) => {

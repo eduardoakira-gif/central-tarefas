@@ -9,6 +9,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['8.2', 'Seus playbooks', ['Projetos › Salvar como playbook: o processo vira modelo reaplicável, inclusive pelo Assistente.']],
   ['8.1', 'Assistente monta projetos', ['Peça "monta o drop da camisa para 12/12": o Assistente escolhe o playbook e cria o projeto com um toque.']],
   ['8.0', 'Reagendar com um toque', ['Toque no prazo de qualquer tarefa: Hoje, Amanhã, Sexta, Próxima segunda, 1 semana ou Sem prazo.']],
   ['7.9', 'Voluntários do Inferno Roxo', ['Área Inferno Roxo › Link de inscrição: página pública para divulgar; cada inscrição chega com notificação, WhatsApp e aprovação por setor.']],

@@ -1618,3 +1618,4 @@ a.btn { text-decoration: none; }
 .sched-menu button { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 10px 10px; border: 0; background: none; border-radius: 8px; font: inherit; color: var(--text); cursor: pointer; text-align: left; }
 .sched-menu button:hover, .sched-menu button:focus-visible { background: color-mix(in srgb, var(--focus) 10%, transparent); outline: 0; }
 .sched-menu button[data-sched="none"] { color: var(--muted); border-top: 1px solid var(--border); border-radius: 0 0 8px 8px; }
+.pb-card.is-custom { border-color: color-mix(in srgb, var(--focus) 40%, var(--border)); }
