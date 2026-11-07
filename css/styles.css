@@ -1554,3 +1554,17 @@ a.btn { text-decoration: none; }
 .hands-free { display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; color: var(--muted); }
 .hands-free input { accent-color: var(--focus); }
 .xml-import { cursor: pointer; }
+
+/* ---- v7.0: scorecard do dono ------------------------------------------------ */
+.scorecard { padding: 16px; display: grid; gap: 12px; margin-bottom: 12px; border-left: 4px solid var(--success, #1F9D55); }
+.scorecard.g-B { border-left-color: #3B82F6; } .scorecard.g-C { border-left-color: #E5843A; } .scorecard.g-D { border-left-color: var(--danger, #D93036); }
+.sc-head { display: flex; gap: 12px; align-items: center; }
+.sc-head > div { display: grid; gap: 2px; }
+.sc-grade { width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center; font-size: 1.5rem; font-weight: 800; background: color-mix(in srgb, var(--text) 7%, transparent); }
+.sc-rows { display: grid; gap: 8px; }
+.sc-row { display: grid; grid-template-columns: minmax(130px, 1.4fr) 1fr auto; gap: 4px 10px; align-items: center; font-size: .88rem; }
+.sc-row .hint { grid-column: 1 / -1; margin-top: -4px; font-size: .78rem; }
+.sc-row .hint:empty { display: none; }
+.sc-bar { height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--text) 8%, transparent); overflow: hidden; }
+.sc-bar i { display: block; height: 100%; background: var(--focus); border-radius: 99px; }
+.sc-tip { margin: 0; font-size: .9rem; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--focus) 8%, transparent); }

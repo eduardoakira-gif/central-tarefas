@@ -34,7 +34,7 @@ import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
 import { initNfe } from './nfe.js';
 
-export const APP_VERSION = '6.9.0';
+export const APP_VERSION = '7.0.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
