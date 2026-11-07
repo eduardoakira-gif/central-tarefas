@@ -615,6 +615,29 @@
     };
   }
 
+  const IDEA_STATUS = ['ideia', 'testando', 'validada', 'descartada'];
+  function normalizeIdea(x) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    const score = (v) => Math.max(1, Math.min(10, Math.round(num(v) ?? 5)));
+    return {
+      id: str(x.id) || uid(),
+      title: str(x.title).trim().slice(0, 200) || 'Ideia',
+      hypothesis: str(x.hypothesis).slice(0, 1500),
+      pillar: PILLAR_MAP[x.pillar] ? x.pillar : 'geral',
+      metric: str(x.metric).slice(0, 120),
+      impact: score(x.impact),
+      confidence: score(x.confidence),
+      ease: score(x.ease),
+      status: IDEA_STATUS.includes(x.status) ? x.status : 'ideia',
+      result: str(x.result).slice(0, 2000),
+      taskId: x.taskId ? str(x.taskId) : null,
+      createdAt: x.createdAt || now,
+      updatedAt: x.updatedAt || now,
+    };
+  }
+  const iceScore = (x) => Math.round(((x.impact + x.confidence + x.ease) / 3) * 10) / 10;
+
   function normalizeCrew(c) {
     const now = new Date().toISOString();
     const str = (v) => (v == null ? '' : String(v));
@@ -717,7 +740,7 @@
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,
     FUNNEL, FUNNEL_MAP, PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,
-    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign, normalizePost, normalizeCrew,
+    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign, normalizePost, normalizeCrew, normalizeIdea, iceScore, IDEA_STATUS,
     idb,
   };
 })(typeof self !== 'undefined' ? self : this);

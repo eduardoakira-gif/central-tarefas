@@ -14,7 +14,7 @@ import { Local } from './storage.js';
 
 const C = window.Core;
 const BASE = ['tasks', 'notes'];
-const V4 = ['metrics', 'okrs', 'bills', 'campaigns', 'posts', 'crew']; // só são enviadas quando o servidor já foi atualizado
+const V4 = ['metrics', 'okrs', 'bills', 'campaigns', 'posts', 'crew', 'ideas']; // só são enviadas quando o servidor já foi atualizado
 const COLLECTIONS = BASE.concat(V4);
 const NORMALIZE = {
   notes: (x) => C.normalizeNote(x),
@@ -24,6 +24,7 @@ const NORMALIZE = {
   campaigns: (x) => C.normalizeCampaign(x),
   posts: (x) => C.normalizePost(x),
   crew: (x) => C.normalizeCrew(x),
+  ideas: (x) => C.normalizeIdea(x),
 };
 const changeListeners = new Set();
 const statusListeners = new Set();
@@ -41,6 +42,8 @@ export const Sync = {
   campaigns: [],
   posts: [],
   crew: [],
+  ideas: [],
+  serverIdeas: false, // servidor 5.9+ guarda ideias
   serverVersion: 0, // 4 = servidor com Painel B2C, Financeiro, Radar e Assistente
   status: 'idle', // saved | saving | offline | error
   lastError: null,
@@ -81,7 +84,7 @@ export const Sync = {
   /** Há algo que o servidor atual consegue receber agora. */
   hasSendable() {
     const ob = this.outbox;
-    const active = this.v4() ? COLLECTIONS : BASE;
+    const active = this.activeColls();
     return !!ob.centralPatch || active.some((c) => Object.keys(ob[c].upserts).length > 0 || ob[c].deletes.length > 0);
   },
 
@@ -91,8 +94,12 @@ export const Sync = {
   v4() {
     return this.serverVersion >= 4;
   },
+  activeColls() {
+    if (!this.v4()) return BASE;
+    return this.serverIdeas ? COLLECTIONS : COLLECTIONS.filter((c) => c !== 'ideas');
+  },
   extra() {
-    return { metrics: this.metrics, okrs: this.okrs, bills: this.bills, campaigns: this.campaigns, posts: this.posts, crew: this.crew, serverVersion: this.serverVersion };
+    return { metrics: this.metrics, okrs: this.okrs, bills: this.bills, campaigns: this.campaigns, posts: this.posts, crew: this.crew, ideas: this.ideas, serverIdeas: this.serverIdeas, serverVersion: this.serverVersion };
   },
 
   /** Abre a central: mostra o cache na hora e depois atualiza pelo servidor. */
@@ -107,6 +114,7 @@ export const Sync = {
       this.notes = (cache.notes || []).map((n) => this.normalize('notes', n));
       for (const c of V4) this[c] = (cache[c] || []).map((x) => this.normalize(c, x));
       this.serverVersion = cache.serverVersion || 0;
+      this.serverIdeas = !!cache.serverIdeas;
     }
     try {
       await this.pull();
@@ -198,7 +206,7 @@ export const Sync = {
       const patch = ob.centralPatch;
       const sent = {};
       let any = false;
-      const active = this.v4() ? COLLECTIONS : BASE;
+      const active = this.activeColls();
       for (const c of active) {
         sent[c] = { upserts: Object.values(ob[c].upserts), deletes: ob[c].deletes.slice() };
         if (sent[c].upserts.length || sent[c].deletes.length) any = true;
@@ -257,6 +265,9 @@ export const Sync = {
     this.notes = (r.notes || []).map((n) => C.normalizeNote(n)).sort(byId);
     const wasV4 = this.v4();
     this.serverVersion = Number(r.version) || 0;
+    const hadIdeas = this.serverIdeas;
+    this.serverIdeas = Array.isArray(r.ideas);
+    if (this.serverIdeas && !hadIdeas && Object.keys(this.outbox.ideas.upserts).length) this.scheduleFlush(0);
     if (this.v4()) {
       for (const c of V4) {
         // mantém o que ainda está na fila deste aparelho (ex.: criado antes de o servidor ser atualizado)

@@ -1482,3 +1482,23 @@ a.btn { text-decoration: none; }
 .label-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .label-row .btn-row { gap: 12px; }
 .ai-tip { margin: 6px 0 0; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--focus) 8%, transparent); color: var(--text); }
+
+/* ---- v5.9: growth ------------------------------------------------------------ */
+.growth-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.idea-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; margin-top: 12px; }
+.idea-card { padding: 14px 16px; display: grid; gap: 10px; }
+.idea-card.st-testando { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.idea-card.st-descartada { opacity: .75; }
+.idea-top { display: flex; gap: 12px; align-items: flex-start; }
+.ice { flex: none; width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: 1.05rem; background: color-mix(in srgb, var(--focus) 12%, transparent); color: var(--focus); }
+.idea-main { display: grid; gap: 2px; min-width: 0; }
+.idea-hyp { margin: 0; font-size: .92rem; color: var(--muted); }
+.idea-result { margin: 0; font-size: .9rem; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--text) 5%, transparent); }
+.ice-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ice-row label { display: grid; grid-template-columns: 1fr auto; gap: 2px 6px; font-size: .78rem; color: var(--muted); align-items: center; }
+.ice-row input { grid-column: 1 / -1; width: 100%; accent-color: var(--focus); grid-row: 2; }
+.ice-row b { color: var(--text); grid-row: 1; grid-column: 2; }
+.idea-sugg { display: grid; gap: 10px; margin-top: 12px; padding: 14px 16px; border-color: color-mix(in srgb, var(--focus) 35%, var(--border)); }
+.sugg-row { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 10px; }
+.sugg-row > div { display: grid; gap: 2px; }
+.sugg-row p { margin: 4px 0 0; font-size: .9rem; color: var(--muted); }

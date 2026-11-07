@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "5.8.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "5.9.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -70,8 +70,9 @@ const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
   campaigns: { table: "campaigns", maxSize: 30000 },
   posts: { table: "posts", maxSize: 30000 },
   crew: { table: "crew", maxSize: 20000 },
+  ideas: { table: "ideas", maxSize: 20000 },
 };
-const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "posts", "crew", "radar", "devices", "ai_usage"];
+const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "posts", "crew", "ideas", "radar", "devices", "ai_usage"];
 
 function newId(len = 24) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -1047,6 +1048,7 @@ async function handle(body: any, req: Request) {
         campaigns: await listItems("campaigns", central.id),
         posts: await listItems("posts", central.id),
         crew: await listItems("crew", central.id),
+        ideas: await listItems("ideas", central.id),
         version: SERVER_VERSION,
       };
     }
@@ -1358,6 +1360,31 @@ async function handle(body: any, req: Request) {
       // Pode ser chamado pelo GitHub Actions; o agendador do Supabase ("send") também roda o radar sozinho.
       if (!CRON_SECRET || req.headers.get("x-cron-secret") !== CRON_SECRET) throw new HttpError(401, "Não autorizado.");
       return { ok: true, report: await runDueRadars(!!body.force) };
+    }
+
+    case "ideasSuggest": {
+      const central = await getCentral(body.centralId, body.pin);
+      if (!ANTHROPIC_API_KEY) throw new HttpError(503, "A IA ainda não foi configurada no servidor.", "ai_not_configured");
+      await countAiUse(central.id);
+      const pillar = String(body.pillar ?? "").slice(0, 40);
+      const have = (await listItems("ideas", central.id)).filter(Boolean).map((x: any) => "- " + x.title).slice(0, 60).join("\n");
+      const radar = (await radarRecent(central.id, 15)).map((r: any) => `- ${r.org}: ${r.title}${r.lesson ? " → " + r.lesson : ""}`).join("\n");
+      const out = await anthropic({
+        max_tokens: 2000,
+        system: `Você é um head de growth de organização de esports. Proponha experimentos de crescimento de receita com o torcedor para o Fluxo W7M (pilares: Comunidade, Sócio-Torcedor, Merchan/E-commerce, CRM, Inferno Roxo, Kings League). Inspire-se no que T1, Karmine Corp, Team Liquid, 100 Thieves, FURIA, LOUD e MIBR fazem. Contexto: ${cleanSettings(central.settings).context.slice(0, 1500)}
+Cada ideia: título curto, hipótese no formato "Se fizermos X, esperamos Y porque Z", métrica de sucesso e notas ICE de 1 a 10 (impacto em receita/torcedor, confiança baseada em evidência, facilidade com time pequeno). Seja realista nas notas. Ideias baratas e testáveis em até 2 semanas. Não repita ideias que já existem. Português do Brasil.`,
+        tools: [{ name: "ideias", description: "Ideias de experimentos", input_schema: { type: "object", properties: { ideias: { type: "array", items: { type: "object", properties: { title: { type: "string" }, hypothesis: { type: "string" }, metric: { type: "string" }, pillar: { type: "string", enum: ["geral", "comunidade", "socio", "merchan", "crm", "inferno", "kings", "marca"] }, impact: { type: "integer" }, confidence: { type: "integer" }, ease: { type: "integer" } }, required: ["title", "hypothesis", "metric", "pillar", "impact", "confidence", "ease"] } } }, required: ["ideias"] } }],
+        tool_choice: { type: "tool", name: "ideias" },
+        messages: [{ role: "user", content: `Proponha 5 experimentos${pillar && pillar !== "todos" ? ` focados no pilar ${pillar}` : ""}.${have ? `\n\nJá existem no backlog:\n${have}` : ""}${radar ? `\n\nNotícias recentes do radar:\n${radar}` : ""}` }],
+      }, [AI_MODEL]);
+      const call = (out.content ?? []).find((c: any) => c.type === "tool_use");
+      const n = (v: unknown) => Math.max(1, Math.min(10, Math.round(Number(v) || 5)));
+      const ideas = (Array.isArray(call?.input?.ideias) ? call.input.ideias : []).slice(0, 8).map((x: any) => ({
+        title: String(x.title ?? "").trim().slice(0, 200), hypothesis: String(x.hypothesis ?? "").slice(0, 1500), metric: String(x.metric ?? "").slice(0, 120),
+        pillar: ["geral", "comunidade", "socio", "merchan", "crm", "inferno", "kings", "marca"].includes(x.pillar) ? x.pillar : "geral",
+        impact: n(x.impact), confidence: n(x.confidence), ease: n(x.ease),
+      })).filter((x: any) => x.title);
+      return { ideas };
     }
 
     case "taskSteps": {
