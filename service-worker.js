@@ -10,7 +10,7 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v7.3.0';
+const CACHE_VERSION = 'v7.5.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -56,7 +56,8 @@ const APP_SHELL = [
 ];
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+  // cache: 'reload' garante que a versão nova venha da rede, não do cache HTTP do navegador
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(APP_SHELL.map((u) => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
@@ -68,7 +69,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Rede primeiro para os arquivos do app (pega atualizações), cache como reserva offline.
+// Arquivos do app pelo cache da versão (abre na hora); fontes pela rede.
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const url = new URL(req.url);
@@ -96,9 +97,30 @@ self.addEventListener('fetch', (event) => {
   const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if (!sameOrigin && !isFont) return;
 
+  // Arquivos do app: abre na hora pelo cache desta versão e confere a rede em segundo plano.
+  // Cada versão nova troca o CACHE_VERSION: o app baixa tudo de novo e recarrega sozinho.
+  if (sameOrigin) {
+    const key = req.mode === 'navigate' ? './index.html' : req;
+    event.respondWith(
+      caches.open(CACHE).then(async (cache) => {
+        const hit = await cache.match(key, { ignoreSearch: req.mode === 'navigate' });
+        const network = fetch(req.mode === 'navigate' ? req : new Request(req, { cache: 'no-cache' }))
+          .then((res) => {
+            if (res && res.ok && res.type === 'basic') cache.put(key, res.clone());
+            return res;
+          });
+        if (hit) {
+          event.waitUntil(network.catch(() => {}));
+          return hit;
+        }
+        return network.catch(() => cache.match('./index.html'));
+      })
+    );
+    return;
+  }
+  // Fontes do Google: rede primeiro, cache como reserva
   event.respondWith(
-    // no-cache: sempre confere com o GitHub Pages se há versão nova (resposta 304 é rápida)
-    fetch(sameOrigin && req.mode !== 'navigate' ? new Request(req, { cache: 'no-cache' }) : req)
+    fetch(req)
       .then((res) => {
         if (res && (res.ok || res.type === 'opaque')) {
           const copy = res.clone();
@@ -106,9 +128,7 @@ self.addEventListener('fetch', (event) => {
         }
         return res;
       })
-      .catch(() =>
-        caches.match(req, { ignoreSearch: true }).then((hit) => hit || (req.mode === 'navigate' ? caches.match('./index.html') : undefined))
-      )
+      .catch(() => caches.match(req))
   );
 });
 
