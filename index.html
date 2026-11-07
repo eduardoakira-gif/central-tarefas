@@ -525,6 +525,14 @@
             </div>
             <label class="switch"><input type="checkbox" id="setWeekly" aria-label="Revisão da semana ligada"><span></span></label>
           </div>
+          <div class="setting-row">
+            <div>
+              <strong>Encerrar o dia</strong>
+              <p>No fim do expediente: quanto do plano de hoje você cumpriu e o que falta. Um toque abre o encerramento.</p>
+              <label class="inline-time">Horário <input type="time" id="setDayCloseTime" class="input" value="18:30"></label>
+            </div>
+            <label class="switch"><input type="checkbox" id="setDayClose" aria-label="Lembrete de encerrar o dia ligado"><span></span></label>
+          </div>
           <label class="field">
             <span class="label">Prazo para enviar as NFs e XMLs do mês anterior</span>
             <select id="setCloseDay" class="select">
@@ -538,8 +546,8 @@
 
         <section class="card settings-group">
           <h2>Equipe</h2>
-          <p class="hint">Pessoas que aparecem como sugestão de responsável nas tarefas e no filtro.</p>
-          <div class="area-chips" id="peopleList"></div>
+          <p class="hint">Responsáveis das tarefas. Com o WhatsApp cadastrado, o botão Cobrar abre a conversa direto com a pessoa e a IA pode propor delegar demandas para ela.</p>
+          <div class="people-list" id="peopleList"></div>
           <div class="inline-add">
             <input class="input" id="newPersonInput" maxlength="60" placeholder="Nome da pessoa" autocomplete="off">
             <button class="btn" type="button" data-action="person-add">Adicionar</button>
@@ -1031,6 +1039,15 @@
         </div>
       </div>
     </form>
+  </dialog>
+
+  <!-- DIÁLOGO: COMPARTILHADO DE OUTRO APP ------------------------------ -->
+  <dialog id="shareDialog" class="dialog" aria-labelledby="shareDialogTitle">
+    <div class="dialog-head">
+      <h2 id="shareDialogTitle">Recebido</h2>
+      <button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+    </div>
+    <div class="dialog-body" id="shareBody"></div>
   </dialog>
 
   <!-- DIÁLOGO: ENCERRAR O DIA ------------------------------------------ -->

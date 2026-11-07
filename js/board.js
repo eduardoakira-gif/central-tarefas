@@ -7,6 +7,7 @@
 import { Sync } from './sync.js';
 import { esc } from './ui.js';
 import { fmt, monthLabel } from './b2c.js';
+import { waUrl, logNudge, personOf } from './team.js';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -177,6 +178,7 @@ export function renderTeamCard() {
     <div class="owner-head"><strong>Cobrar a equipe</strong><span class="hint">prazos vencidos, próximos 2 dias e urgentes</span></div>
     ${list.map(({ owner, items }) => `<div class="team-row"><span><strong>${esc(owner)}</strong> · ${items.length} ${items.length === 1 ? 'demanda' : 'demandas'}${items.some((x) => x.late) ? ' <span class="badge badge-overdue">atrasada</span>' : ''}</span>
       <button type="button" class="btn btn-sm" data-team-wa="${esc(owner)}">Cobrar no WhatsApp</button></div>`).join('')}
+    ${list.some(({ owner }) => !(personOf(owner) || {}).phone) ? '<p class="hint">Cadastre o WhatsApp da equipe em Configurações › Pessoas para abrir a conversa direto com a pessoa.</p>' : ''}
   </section>`;
 }
 
@@ -207,7 +209,13 @@ export function initBoard(helpers) {
         return H.ask(`Prepare minha apresentação da reunião mensal de diretoria de ${monthLabel(view.month)} com visão de dono e de marketing. Estrutura: 1) resumo executivo em 3 frases; 2) o que foi bem e o que foi mal por pilar, com os números (mês x mês anterior x meta); 3) causas e o que vou fazer; 4) decisões e pedidos para a diretoria. Linguagem de diretoria, curta e direta. Use estes dados:\n\n${boardText(view.month)}`);
     }
     const w = e.target.closest('[data-team-wa]');
-    if (w) window.open('https://wa.me/?text=' + encodeURIComponent(waText(w.dataset.teamWa)), '_blank');
+    if (w) {
+      const owner = w.dataset.teamWa;
+      const items = (teamFollowUps().find((x) => x.owner === owner) || { items: [] }).items;
+      window.open(waUrl(owner, waText(owner)), '_blank');
+      await logNudge(items.map((x) => x.t.id));
+      H.toast(`Cobrança registrada em ${items.length === 1 ? '1 tarefa' : items.length + ' tarefas'}. Próxima cobrança em 2 dias úteis.`);
+    }
   });
   document.addEventListener('input', (e) => {
     if (e.target.id !== 'boardDecisions') return;

@@ -24,6 +24,20 @@ function leftovers() {
 }
 const doneToday = () => live().filter((t) => t.status === 'done' && t.completedAt && C.toDateKey(new Date(t.completedAt)) === today());
 
+/** Dias seguidos (úteis) em que alguma tarefa do plano foi concluída no próprio dia. */
+export function streak() {
+  const days = new Set(Tasks.all().filter((t) => t.status === 'done' && t.plannedFor && t.completedAt && C.toDateKey(new Date(t.completedAt)) === t.plannedFor).map((t) => t.plannedFor));
+  let d = today();
+  if (!days.has(d)) d = C.addDays(d, -1);
+  let n = 0;
+  for (let i = 0; i < 120; i++) {
+    if (days.has(d)) n++;
+    else if (![0, 6].includes(C.fromDateKey(d).getDay())) break;
+    d = C.addDays(d, -1);
+  }
+  return n;
+}
+
 export function renderDayCard() {
   const plan = plannedToday();
   const left = leftovers();
@@ -48,17 +62,19 @@ export function renderDayCard() {
     </section>`;
   }
   const pct = Math.round((done / plan.length) * 100);
+  const st = streak();
   return `<section class="card day-card">
     <div class="day-head"><div><span class="label">${greet}, Edu · plano de hoje</span><strong>${done === plan.length ? 'Plano cumprido 👏' : `${done} de ${plan.length} feitas`}</strong></div>
       <div class="btn-row"><button type="button" class="btn btn-sm" data-day="plan-ai">Replanejar com IA</button><button type="button" class="btn btn-sm btn-primary" data-day="close">Encerrar o dia</button></div></div>
     <span class="kpi-bar day-bar"><i style="width:${pct}%"></i></span>
+    ${st >= 2 ? `<span class="day-streak">🔥 ${st} dias úteis seguidos cumprindo o plano</span>` : ''}
     <div class="day-list">${plan.sort((a, b) => (a.status === 'done') - (b.status === 'done')).map(row).join('')}</div>
     ${plan.length > 5 ? '<p class="hint">Mais de 5 tarefas no dia costuma virar lista de desejos. Tire o que não é para hoje.</p>' : ''}
     ${leftHtml}
   </section>`;
 }
 
-function openClose() {
+export function openClose() {
   const plan = plannedToday();
   const pending = plan.filter((t) => t.status !== 'done');
   const done = doneToday();
@@ -126,6 +142,66 @@ function listen(btn) {
   rec.start();
 }
 
+const PLAN_PROMPT = 'Planeje meu dia: escolha de 3 a 5 tarefas para hoje (use propor_acoes com a ação "hoje"), em ordem, com o motivo de cada uma. Priorize atrasadas, foco da semana e o que gera receita. Se algo deveria ser adiado, delegado para alguém da equipe ou já está concluído, proponha também.';
+export const planDay = () => H.ask(PLAN_PROMPT);
+
+// -----------------------------------------------------------------------------
+// Compartilhar de outro app (Android): link, texto ou notícia vira tarefa,
+// ideia de post ou pergunta para a IA.
+// -----------------------------------------------------------------------------
+const SHARE_KEY = 'ct-share';
+export function captureShare() {
+  const sp = new URLSearchParams(location.search);
+  const data = { title: sp.get('title') || '', text: sp.get('text') || '', url: sp.get('url') || '' };
+  if (!data.title && !data.text && !data.url) return false;
+  // alguns apps mandam o link dentro do texto
+  if (!data.url) {
+    const m = data.text.match(/https?:\/\/\S+/);
+    if (m) {
+      data.url = m[0];
+      data.text = data.text.replace(m[0], '').trim();
+    }
+  }
+  try {
+    sessionStorage.setItem(SHARE_KEY, JSON.stringify(data));
+  } catch {}
+  ['title', 'text', 'url'].forEach((k) => sp.delete(k));
+  const q = sp.toString();
+  history.replaceState(null, '', location.pathname + (q ? '?' + q : '') + location.hash);
+  return true;
+}
+let shared = null;
+export function consumeShare() {
+  try {
+    shared = JSON.parse(sessionStorage.getItem(SHARE_KEY) || 'null');
+    sessionStorage.removeItem(SHARE_KEY);
+  } catch {
+    shared = null;
+  }
+  if (!shared) return;
+  const title = shared.title || shared.text.split('\n')[0].slice(0, 140) || shared.url;
+  $('#shareBody').innerHTML = `<p class="share-preview"><strong>${esc(title)}</strong>${shared.text && shared.text !== title ? `<span>${esc(shared.text.slice(0, 280))}</span>` : ''}${shared.url ? `<a href="${esc(shared.url)}" target="_blank" rel="noopener">${esc(shared.url.slice(0, 80))}</a>` : ''}</p>
+    <div class="share-options">
+      <button type="button" class="btn" data-share="task"><strong>Virar tarefa</strong><span>com o link anexado</span></button>
+      <button type="button" class="btn" data-share="ai"><strong>Analisar com a IA</strong><span>o que isso muda para o B2C</span></button>
+      <button type="button" class="btn" data-share="post"><strong>Ideia de post</strong><span>vai para a Marca pessoal</span></button>
+    </div>`;
+  $('#shareDialog').showModal();
+}
+async function onShare(kind) {
+  const s = shared;
+  if (!s) return;
+  $('#shareDialog').close();
+  const title = (s.title || s.text.split('\n')[0] || 'Link compartilhado').slice(0, 200);
+  if (kind === 'task') return H.openTaskDialog({ title, link: s.url, description: s.text && s.text !== title ? s.text : '' });
+  if (kind === 'ai') return H.ask(`Compartilhei isto com você: "${title}"${s.text && s.text !== title ? `\n\n${s.text.slice(0, 1500)}` : ''}${s.url ? `\n\nLink: ${s.url}` : ''}\n\nComo dono do B2C do Fluxo W7M: o que isso significa, o que eu copio ou testo, e qual a próxima ação concreta? Se valer uma tarefa, sugira.`);
+  if (kind === 'post') {
+    if (!Sync.v4()) return H.toast('O servidor ainda está atualizando. Tente de novo em instantes.');
+    await Sync.upsert('posts', C.normalizePost({ title: 'Ideia: ' + title.slice(0, 180), text: [s.text, s.url].filter(Boolean).join('\n\n'), network: 'linkedin', pillar: 'caso', status: 'ideia', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }));
+    return H.toast('Ideia salva na Marca pessoal');
+  }
+}
+
 export function initMyDay(helpers) {
   H = helpers;
   // microfone na captura rápida
@@ -144,7 +220,11 @@ export function initMyDay(helpers) {
       for (const t of list) await Tasks.update(t.id, { plannedFor: today() });
       return H.toast(`${list.length} ${list.length === 1 ? 'tarefa trazida' : 'tarefas trazidas'} para hoje`);
     }
-    if (a === 'plan-ai') return H.ask('Planeje meu dia: escolha de 3 a 5 tarefas para hoje (use propor_acoes com a ação "hoje"), em ordem, com o motivo de cada uma. Priorize atrasadas, foco da semana e o que gera receita. Se algo deveria ser adiado ou delegado, proponha também.');
+    if (a === 'plan-ai') return planDay();
+  });
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-share]');
+    if (b) onShare(b.dataset.share);
   });
   $('#dayForm').addEventListener('submit', submitClose);
 }

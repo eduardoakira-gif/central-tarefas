@@ -1,7 +1,7 @@
 {
   "name": "Central de Tarefas",
   "short_name": "Tarefas",
-  "description": "Central de tarefas profissionais: Sócio Torcedor, Comunidade, Merchan, CRM e Propostas.",
+  "description": "Central de Tarefas do B2C do Fluxo W7M: plano do dia, cobrança, KPIs, radar e assistente com IA.",
   "lang": "pt-BR",
   "id": "./",
   "start_url": "./",
@@ -11,12 +11,84 @@
   "background_color": "#F6F7F9",
   "theme_color": "#F6F7F9",
   "icons": [
-    { "src": "assets/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "assets/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
-    { "src": "assets/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+    {
+      "src": "assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
   ],
   "shortcuts": [
-    { "name": "Nova tarefa", "short_name": "Nova", "url": "./#/nova", "icons": [{ "src": "assets/icon-192.png", "sizes": "192x192" }] }
-  ]
+    {
+      "name": "Planejar meu dia",
+      "short_name": "Meu dia",
+      "url": "./#/dia/planejar",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Nova tarefa",
+      "short_name": "Nova",
+      "url": "./#/nova",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Assistente",
+      "short_name": "Assistente",
+      "url": "./#/assistente",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Radar",
+      "short_name": "Radar",
+      "url": "./#/radar",
+      "icons": [
+        {
+          "src": "assets/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "./index.html",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

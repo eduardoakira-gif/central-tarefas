@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "5.2.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "5.3.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -58,6 +58,7 @@ const DEFAULT_SETTINGS = {
   dailySummary: true, dailySummaryTime: "08:00",
   radarEnabled: false, radarFrequencyHours: 0, radarTimes: ["09:00", "15:00"], radarOrgs: [] as string[], context: "",
   billsReminder: true, monthCloseDay: 5, weeklyReview: true, aiBriefing: true,
+  dayClose: true, dayCloseTime: "18:30",
 };
 type Settings = typeof DEFAULT_SETTINGS;
 const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
@@ -101,7 +102,10 @@ function cleanPeople(v: unknown) {
   if (!Array.isArray(v)) throw new HttpError(400, "Lista de pessoas inválida.");
   if (v.length > 50) throw new HttpError(400, "Use no máximo 50 pessoas.");
   return v
-    .map((p: any) => ({ id: String(p?.id ?? "").slice(0, 40), name: String(p?.name ?? "").trim().slice(0, 60) }))
+    .map((p: any) => {
+      const phone = String(p?.phone ?? "").replace(/\D/g, "").slice(0, 15);
+      return { id: String(p?.id ?? "").slice(0, 40), name: String(p?.name ?? "").trim().slice(0, 60), ...(phone.length >= 10 ? { phone } : {}) };
+    })
     .filter((p) => p.id && p.name);
 }
 
@@ -123,6 +127,8 @@ function cleanSettings(v: any, base: Settings = DEFAULT_SETTINGS): Settings {
     }
     if (typeof v.weeklyReview === "boolean") s.weeklyReview = v.weeklyReview;
     if (typeof v.aiBriefing === "boolean") s.aiBriefing = v.aiBriefing;
+    if (typeof v.dayClose === "boolean") s.dayClose = v.dayClose;
+    if (TIME_RE.test(v.dayCloseTime ?? "")) s.dayCloseTime = v.dayCloseTime;
     if (Array.isArray(v.radarOrgs)) {
       s.radarOrgs = [...new Set(v.radarOrgs.map((o: unknown) => String(o ?? "").trim().slice(0, 40)).filter(Boolean))].slice(0, 40) as string[];
     }
@@ -882,7 +888,7 @@ ${radarLines.join("\n") || "- nada ainda"}`;
 
 const ACTIONS_TOOL = {
   name: "propor_acoes",
-  description: "Propõe mudanças em tarefas que JÁ EXISTEM (use o id que aparece como [id:...]). O usuário revisa e aplica com um toque. Use para planejar o dia (hoje), reorganizar prazos (adiar), repriorizar, escolher o foco da semana ou concluir o que ele disse que já fez.",
+  description: "Propõe mudanças em tarefas que JÁ EXISTEM (use o id que aparece como [id:...]). O usuário revisa e aplica com um toque. Use para planejar o dia (hoje), reorganizar prazos (adiar), repriorizar, escolher o foco da semana, concluir o que ele disse que já fez ou delegar para alguém da equipe (a tarefa fica aguardando retorno dessa pessoa).",
   input_schema: {
     type: "object",
     properties: {
@@ -892,8 +898,8 @@ const ACTIONS_TOOL = {
           type: "object",
           properties: {
             taskId: { type: "string", description: "Id exato da tarefa, sem o prefixo id:." },
-            acao: { type: "string", enum: ["hoje", "adiar", "prioridade", "foco", "concluir"] },
-            valor: { type: "string", description: "adiar: nova data AAAA-MM-DD; prioridade: urgent|high|normal|low; nos outros casos vazio." },
+            acao: { type: "string", enum: ["hoje", "adiar", "prioridade", "foco", "concluir", "delegar"] },
+            valor: { type: "string", description: "adiar: nova data AAAA-MM-DD; prioridade: urgent|high|normal|low; delegar: nome exato de uma pessoa da equipe; nos outros casos vazio." },
             motivo: { type: "string", description: "Por que, em até 12 palavras." },
           },
           required: ["taskId", "acao", "motivo"],
@@ -950,7 +956,7 @@ O usuário está desenvolvendo a visão de marketing e a comunicação executiva
 Estilo: português do Brasil, direto, frases curtas, listas curtas quando ajudar. Sem enrolação e sem bajulação. Se faltar dado, diga qual dado falta e como conseguir.
 Use apenas os dados abaixo sobre a central; não invente números. Conhecimento geral de mercado pode ser usado, deixando claro que é referência geral.
 Visão de marketing: classifique as ações pelo funil (atenção/awareness, consideração, conversão, retenção, indicação/advocacy) e aponte quando o esforço está desequilibrado, por exemplo muita operação e pouca conversão. Toda ação de topo de funil precisa levar a um cadastro no CRM.
-Para mudar tarefas existentes (planejar o dia, adiar, repriorizar, foco da semana, concluir), chame propor_acoes com os ids. Ao planejar o dia, escolha de 3 a 5 tarefas, priorizando atrasadas, foco da semana e o que gera receita.
+Para mudar tarefas existentes (planejar o dia, adiar, repriorizar, foco da semana, concluir, delegar para alguém da equipe), chame propor_acoes com os ids. Dono não executa tudo: se uma tarefa operacional cabe a alguém da equipe, proponha delegar. Ao planejar o dia, escolha de 3 a 5 tarefas, priorizando atrasadas, foco da semana e o que gera receita.
 Quando houver ações claras, chame sugerir_tarefas (o usuário revisa antes de criar).
 
 # Dados atuais da central
@@ -1248,6 +1254,11 @@ async function handle(body: any, req: Request) {
             const text = briefings.get(c.id);
             if (text) summary = { title: `${c.name}: briefing do dono`, body: text, route: "#/assistente" };
           }
+          const planned = (await tasksOf(c.id)).some((t: any) => t.plannedFor === today);
+          if (!planned && (await tasksOf(c.id)).length) {
+            const nudge = "☀ Você ainda não planejou o dia. Toque para a IA montar seu plano de hoje.";
+            summary = summary ? { ...summary, body: summary.body + "\n\n" + nudge, route: "#/dia/planejar" } : { title: `${c.name}: planeje o seu dia`, body: nudge, route: "#/dia/planejar" };
+          }
           if (summary && (await sendPush(d, { ...summary, centralId: c.id }))) sent++;
           await db.from("devices").update({ last_summary_on: today, last_sent_at: now })
             .eq("central_id", d.central_id).eq("endpoint", d.endpoint);
@@ -1260,6 +1271,22 @@ async function handle(body: any, req: Request) {
           if (review && (await sendPush(d, { ...review, centralId: c.id }))) sent++;
           await db.from("devices").update({ last_review_on: today, last_sent_at: now }).eq("central_id", d.central_id).eq("endpoint", d.endpoint);
           continue;
+        }
+
+        // Fim do dia: uma vez, a partir do horário escolhido (até 2h depois), se havia plano de hoje
+        const closeAt = toMin(s.dayCloseTime) ?? 1110;
+        if (s.dayClose && d.last_dayclose_on !== today && minutes >= closeAt && minutes < closeAt + 120) {
+          const all = (await listItems("tasks", c.id)).filter((t: any) => t && !t.deletedAt && t.plannedFor === today);
+          await db.from("devices").update({ last_dayclose_on: today }).eq("central_id", d.central_id).eq("endpoint", d.endpoint);
+          if (all.length) {
+            const done = all.filter((t: any) => t.status === "done").length;
+            const left = all.filter((t: any) => t.status !== "done").slice(0, 3).map((t: any) => "• " + t.title);
+            const body = done === all.length
+              ? `Plano de hoje cumprido: ${done} de ${all.length}. Registre o aprendizado do dia e descanse.`
+              : [`${done} de ${all.length} do plano de hoje feitas. Falta:`, ...left, "", "Encerre o dia: o que ficou vai para amanhã."].join("\n");
+            if (await sendPush(d, { title: `${c.name}: encerrar o dia`, body, route: "#/dia/encerrar", tag: "dayclose", centralId: c.id })) sent++;
+            continue;
+          }
         }
 
         if (!inWindow(s, minutes)) continue;
@@ -1349,11 +1376,16 @@ async function handle(body: any, req: Request) {
       const liveTasks = new Map((await listItems("tasks", central.id)).filter((t: any) => t && !t.deletedAt).map((t: any) => [t.id, t]));
       const actions = (Array.isArray(actCall?.input?.acoes) ? actCall.input.acoes : []).slice(0, 20).map((a: any) => {
         const t: any = liveTasks.get(String(a.taskId ?? "").replace(/^id:/, ""));
-        if (!t || !["hoje", "adiar", "prioridade", "foco", "concluir"].includes(a.acao)) return null;
+        if (!t || !["hoje", "adiar", "prioridade", "foco", "concluir", "delegar"].includes(a.acao)) return null;
         let valor = String(a.valor ?? "");
         if (a.acao === "adiar" && !DATE_RE.test(valor)) return null;
         if (a.acao === "prioridade" && !["urgent", "high", "normal", "low"].includes(valor)) return null;
-        if (!["adiar", "prioridade"].includes(a.acao)) valor = "";
+        if (a.acao === "delegar") {
+          const p = (central.people ?? []).find((x: any) => fold(x.name) === fold(valor)) ?? (central.people ?? []).find((x: any) => fold(x.name).split(" ")[0] === fold(valor).split(" ")[0]);
+          if (!p) return null;
+          valor = p.name;
+        }
+        if (!["adiar", "prioridade", "delegar"].includes(a.acao)) valor = "";
         return { taskId: t.id, title: t.title, acao: a.acao, valor, motivo: String(a.motivo ?? "").slice(0, 160) };
       }).filter(Boolean);
       const byName = new Map(central.areas.map((a: any) => [fold(a.name), a.id]));

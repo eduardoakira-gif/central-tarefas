@@ -1390,3 +1390,19 @@ a.btn { text-decoration: none; }
 @keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, .45); } 50% { box-shadow: 0 0 0 8px rgba(229, 72, 77, 0); } }
 .chat-form .mic-btn { height: 44px; width: 44px; }
 .chat-actions { border-color: color-mix(in srgb, var(--focus) 30%, var(--border)); }
+
+/* ---- v5.3: equipe, compartilhar, sequência -------------------------------- */
+.people-list { display: grid; gap: 8px; margin-bottom: 10px; }
+.person-row { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(140px, 1.4fr) auto; gap: 8px; align-items: center; }
+.person-row strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.person-row .input { height: 38px; }
+.inline-time { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; font-size: .85rem; color: var(--muted); }
+.inline-time .input { width: auto; height: 34px; padding: 0 8px; }
+.day-streak { font-size: .85rem; font-weight: 600; color: #C26A00; }
+.act-wa:hover { color: #1FAF5A; }
+.share-preview { display: grid; gap: 4px; margin: 0 0 14px; padding: 12px; border-radius: 10px; background: var(--surface-2, color-mix(in srgb, var(--text) 5%, transparent)); word-break: break-word; }
+.share-preview span { color: var(--muted); font-size: .9rem; }
+.share-preview a { font-size: .85rem; }
+.share-options { display: grid; gap: 8px; }
+.share-options .btn { height: auto; padding: 12px 14px; display: grid; justify-items: start; justify-content: start; gap: 2px; text-align: left; width: 100%; }
+.share-options .btn span { font-size: .82rem; color: var(--muted); font-weight: 400; }

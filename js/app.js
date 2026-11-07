@@ -23,9 +23,10 @@ import { initAreas, renderArea, renderAreasHub, view as areaView } from './areas
 import { initBrand, renderBrand, renderBrandAlert } from './brand.js';
 import { initStudy, renderStudy, studyAlert } from './study.js';
 import { initInferno } from './inferno.js';
-import { initMyDay, renderDayCard } from './myday.js';
+import { initMyDay, renderDayCard, openClose, planDay, captureShare, consumeShare } from './myday.js';
+import { waUrl, nudgeText, logNudge, personOf } from './team.js';
 
-export const APP_VERSION = '5.2.0';
+export const APP_VERSION = '5.3.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -450,6 +451,15 @@ const ROUTES = {
 function route() {
   const hash = location.hash.replace(/^#/, '');
   if (state.route === 'radar' && hash !== '/radar') leaveRadar();
+  const dm = hash.match(/^\/dia\/(planejar|encerrar)$/);
+  if (dm) {
+    history.replaceState(null, '', location.pathname + location.search + '#/');
+    state.route = 'tasks';
+    showView();
+    if (dm[1] === 'encerrar') openClose();
+    else planDay();
+    return;
+  }
   if (hash === '/nova') {
     history.replaceState(null, '', location.pathname + location.search + '#/');
     state.route = 'tasks';
@@ -898,6 +908,12 @@ async function handleAction(action, id, el) {
       await Tasks.update(id, { plannedFor: day });
       return toast(n >= 5 ? `Plano de hoje: ${n + 1} tarefas. Acima de 5 vira lista de desejos.` : `No plano de hoje: ${n + 1}`);
     }
+    case 'nudge': {
+      if (!t || !t.owner) return;
+      window.open(waUrl(t.owner, nudgeText(t)), '_blank');
+      const next = await logNudge([id]);
+      return toast(`Cobrança registrada. Próxima: ${C.fromDateKey(next).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric' })}`, (personOf(t.owner) || {}).phone ? null : { label: 'Cadastrar WhatsApp', fn: () => (location.hash = '#/config') });
+    }
     case 'focus': {
       const week = C.weekStart(new Date());
       if (t.focusWeek === week) {
@@ -1204,7 +1220,7 @@ async function renderSettings() {
 
   $('#peopleList').innerHTML = people().length
     ? people()
-        .map((p) => `<span class="area-chip person-chip">${esc(p.name)}<button type="button" data-action="person-remove" data-person-id="${esc(p.id)}" aria-label="Remover ${esc(p.name)}">×</button></span>`)
+        .map((p) => `<div class="person-row"><strong>${esc(p.name)}</strong><input class="input" type="tel" inputmode="tel" data-person-phone="${esc(p.id)}" value="${esc(p.phone || '')}" placeholder="WhatsApp (11) 9…" aria-label="WhatsApp de ${esc(p.name)}"><button type="button" class="icon-btn" data-action="person-remove" data-person-id="${esc(p.id)}" aria-label="Remover ${esc(p.name)}">×</button></div>`)
         .join('')
     : '<span class="hint">Ninguém cadastrado.</span>';
 
@@ -1221,6 +1237,8 @@ async function renderSettings() {
   $('#setBills').checked = s.billsReminder;
   $('#setCloseDay').value = String(s.monthCloseDay);
   $('#setWeekly').checked = s.weeklyReview;
+  $('#setDayClose').checked = s.dayClose !== false;
+  $('#setDayCloseTime').value = s.dayCloseTime || '18:30';
   $('#setBriefing').checked = s.aiBriefing;
 
   $('#pinStatus').textContent = c.hasPin
@@ -1596,6 +1614,15 @@ function bindEvents() {
   $('#setBills').addEventListener('change', (e) => patchSettings({ billsReminder: e.target.checked }));
   $('#setCloseDay').addEventListener('change', (e) => patchSettings({ monthCloseDay: Number(e.target.value) }));
   $('#setWeekly').addEventListener('change', (e) => patchSettings({ weeklyReview: e.target.checked }));
+  $('#setDayClose').addEventListener('change', (e) => patchSettings({ dayClose: e.target.checked }));
+  $('#setDayCloseTime').addEventListener('change', (e) => e.target.value && patchSettings({ dayCloseTime: e.target.value }));
+  document.addEventListener('change', (e) => {
+    const ph = e.target.closest && e.target.closest('[data-person-phone]');
+    if (!ph) return;
+    const digits = ph.value.replace(/\D/g, '');
+    if (digits && digits.length < 10) return toast('Número incompleto: use DDD + número.');
+    Sync.patchCentral({ people: people().map((p) => (p.id === ph.dataset.personPhone ? Object.assign({}, p, { phone: digits || undefined }) : p)) }).then(() => toast(digits ? 'WhatsApp salvo' : 'WhatsApp removido'));
+  });
   $('#setBriefing').addEventListener('change', (e) => patchSettings({ aiBriefing: e.target.checked }));
   $$('input[name="theme"]').forEach((r) => r.addEventListener('change', () => applyTheme(r.value)));
   $('#importFile').addEventListener('change', (e) => {
@@ -1692,7 +1719,10 @@ async function openCentral(id) {
   if (!device.lastNotifiedAt) await Local.patchDevice(id, { lastNotifiedAt: new Date().toISOString() });
 
   showScreen('app');
-  if (started) return renderAll();
+  if (started) {
+    renderAll();
+    return consumeShare();
+  }
   started = true;
   buildStaticControls();
   bindEvents();
@@ -1731,6 +1761,7 @@ async function openCentral(id) {
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);
   route();
+  consumeShare();
   Sync.startPolling((err) => {
     if (err.status === 401) showPinScreen('O PIN desta central foi alterado. Digite o novo PIN.', false);
     else if (err.status === 404) showMessage('Central não encontrada', 'Este link não funciona mais. Peça o link atualizado.', `<a class="btn btn-primary" href="${esc(baseUrl())}">Ir para a página inicial</a>`);
@@ -1763,10 +1794,11 @@ async function boot() {
     if (copy && state.centralId) copyText(centralUrl(state.centralId));
   });
   // o diálogo de link aparece com a central aberta; o botão copiar também precisa funcionar ali
+  const sharedIn = captureShare(); // algo compartilhado de outro app (Android)
   const id = new URLSearchParams(location.search).get('c');
   if (!id) {
     const last = Prefs.lastCentral();
-    if (Notifier.isStandalone() && last) {
+    if ((Notifier.isStandalone() || sharedIn) && last) {
       location.replace(centralUrl(last) + location.hash);
       return;
     }

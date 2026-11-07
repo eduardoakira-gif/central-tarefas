@@ -127,6 +127,7 @@ alter table public.centrals add column if not exists radar_last_error text;
 alter table public.centrals add column if not exists radar_cursor     integer not null default 0;
 alter table public.devices  add column if not exists last_radar_push_at timestamptz;
 alter table public.devices  add column if not exists last_review_on text; -- dia da última revisão semanal
+alter table public.devices  add column if not exists last_dayclose_on text; -- v5.3: dia do último lembrete de encerrar o dia
 
 alter table public.metrics enable row level security;
 alter table public.okrs    enable row level security;
