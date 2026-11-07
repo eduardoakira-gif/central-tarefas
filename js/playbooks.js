@@ -177,11 +177,13 @@ async function submit(e) {
       priority: s.p || 'normal',
       dueDate: due < today ? today : due,
       description: `Playbook ${tag}. Dia D: ${C.fromDateKey(d).toLocaleDateString('pt-BR')}.`,
+      project: tag,
+      projectDate: d,
     });
   }
   $('#pbDialog').close();
-  H.toast(`${idx.length} tarefas criadas para ${tag}`);
-  location.hash = '#/';
+  H.toast(`Projeto "${tag}" criado com ${idx.length} etapas`);
+  location.hash = '#/projetos';
 }
 
 export function renderPlaybooks() {

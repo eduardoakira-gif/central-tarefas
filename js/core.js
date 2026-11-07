@@ -175,6 +175,8 @@
       noteId: t.noteId ? str(t.noteId) : null,
       focusWeek: validDate(t.focusWeek),
       plannedFor: validDate(t.plannedFor),
+      project: str(t.project).trim().slice(0, 80) || null,
+      projectDate: validDate(t.projectDate),
       funnel: FUNNEL_MAP[t.funnel] ? t.funnel : null,
       deletedAt: t.deletedAt || null,
     };

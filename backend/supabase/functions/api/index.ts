@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "6.1.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "6.3.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -837,6 +837,7 @@ async function assistantContext(central: any) {
     if (t.owner) bits.push("resp. " + t.owner);
     if (t.focusWeek === weekStartKey(today)) bits.push("★ FOCO DA SEMANA");
     if (t.plannedFor === today) bits.push("☀ PLANEJADA PARA HOJE");
+    if (t.project) bits.push(`projeto: ${String(t.project).slice(0, 80)}`);
     if (t.funnel) bits.push("funil: " + t.funnel);
     const upd = Math.floor((Date.now() - Date.parse(t.updatedAt || t.createdAt)) / 86400000);
     if (upd >= 3) bits.push(`sem atualização há ${upd} dias`);

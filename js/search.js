@@ -23,6 +23,7 @@ const PAGES = [
   ['Plano de estudo', '#/estudos', 'cursos aprender'], ['Aprender marketing', '#/aprender', 'glossario termos awareness cac ltv'],
   ['Notas de reunião', '#/notas', 'ata reuniao'], ['Agenda', '#/agenda', 'prazos calendario'], ['Relatório', '#/relatorio', 'produtividade entregas'],
   ['Histórico', '#/historico', 'concluidas lixeira'], ['Configurações', '#/config', 'notificacoes equipe whatsapp pin areas radar'],
+  ['Projetos', '#/projetos', 'projeto drop campanha evento dia d etapas cronograma'],
   ['Equipe e 1:1', '#/equipe', 'pessoas time one on one reuniao gestao xarpi yokota du'],
   ['Growth', '#/growth', 'experimentos ideias ice testes hipotese backlog'],
   ['Inferno Roxo', '#/area/inferno', 'torcida organizada setores voluntarios'],
@@ -41,7 +42,7 @@ function results(q) {
   const areas = (Sync.central && Sync.central.areas) || [];
   const areaName = (id) => (areas.find((a) => a.id === id) || { name: '' }).name;
   const tasks = Tasks.all()
-    .filter((t) => match([t.title, t.description, t.notes, t.owner, t.waitingFor, areaName(t.area), (t.comments || []).map((c) => c.text).join(' ')].join(' '), terms))
+    .filter((t) => match([t.title, t.project, t.description, t.notes, t.owner, t.waitingFor, areaName(t.area), (t.comments || []).map((c) => c.text).join(' ')].join(' '), terms))
     .sort((a, b) => (a.status === 'done') - (b.status === 'done') || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
     .slice(0, 12);
   for (const t of tasks)

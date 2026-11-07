@@ -331,6 +331,12 @@
       <div id="studyBody"></div>
     </section>
 
+    <!-- PROJETOS -------------------------------------------------------------- -->
+    <section class="view" data-view="projects" hidden>
+      <div class="page-head"><div><h1>Projetos</h1><p class="summary">Progresso, dia D, próxima etapa e atrasos de cada projeto.</p></div><a class="btn btn-primary" href="#/playbooks">Novo pelo playbook</a></div>
+      <div id="projectsBody"></div>
+    </section>
+
     <!-- EQUIPE E 1:1 ----------------------------------------------------------- -->
     <section class="view" data-view="team" hidden>
       <div class="page-head"><div><h1>Equipe e 1:1</h1><p class="summary">O que está com cada pessoa, atrasos, entregas e a pauta da 1:1 pronta.</p></div></div>
@@ -403,6 +409,7 @@
     <section class="view" data-view="more" hidden>
       <div class="page-head"><div><h1>Mais</h1></div></div>
       <div class="hub">
+        <a class="card hub-item" href="#/projetos"><strong>Projetos</strong><span>Drops, campanhas e eventos com progresso, contagem para o dia D, próxima etapa e atrasos</span></a>
         <a class="card hub-item" href="#/equipe"><strong>Equipe e 1:1</strong><span>Demandas, atrasos e entregas de cada pessoa, pauta da 1:1 pronta e registro da conversa</span></a>
         <a class="card hub-item" href="#/growth"><strong>Growth</strong><span>Backlog de experimentos com nota ICE, ideias da IA inspiradas nas maiores orgs e aprendizados dos testes</span></a>
         <a class="card hub-item" href="#/status"><strong>Status semanal</strong><span>Entregas, andamento, aguardando, riscos e próxima semana prontos para o gestor, com versão executiva pela IA</span></a>
@@ -765,6 +772,7 @@
           </label>
           <div class="two">
             <label class="field"><span class="label">Responsável</span><input name="owner" class="input" autocomplete="off" list="ownersList"></label>
+            <label class="field"><span class="label">Projeto</span><input name="project" class="input" autocomplete="off" list="projectsList" maxlength="80" placeholder="Opcional"></label>
             <label class="field"><span class="label">Link relacionado</span><input name="link" type="url" class="input" placeholder="https://" autocomplete="off"></label>
           </div>
           <label class="field">
@@ -773,6 +781,7 @@
           </label>
         </details>
         <datalist id="ownersList"></datalist>
+        <datalist id="projectsList"></datalist>
 
         <div class="comments" id="commentsBox" hidden>
           <span class="label">Comentários</span>

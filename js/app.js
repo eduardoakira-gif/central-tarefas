@@ -31,8 +31,9 @@ import { initSearch, openSearch } from './search.js';
 import { initKanban, renderKanban, layoutToggle, layout } from './kanban.js';
 import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
+import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
 
-export const APP_VERSION = '6.2.0';
+export const APP_VERSION = '6.3.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -280,7 +281,7 @@ function renderTasks() {
   const now = new Date();
   renderOwnerFilter();
   const sa = studyAlert();
-  $('#ownerCard').innerHTML = renderDayCard() + renderOwnerCard() + renderTeamCard() + renderTriageCard() + renderBrandAlert() +
+  $('#ownerCard').innerHTML = renderDayCard() + renderOwnerCard() + renderProjectsCard() + renderTeamCard() + renderTriageCard() + renderBrandAlert() +
     (sa ? `<a class="card term-card" href="#/estudos"><span class="label">Plano de estudo</span><strong>${esc(sa)}</strong></a>` : '') + renderTermCard();
   const d = UI.renderDashboard(Tasks.all(), state.filter, now, areas());
   $('#summary').textContent = d.summary;
@@ -435,6 +436,7 @@ function renderAll() {
   if (r === 'status') $('#statusBody').innerHTML = renderStatus();
   if (r === 'growth') keepFocus($('#growthBody'), renderGrowth());
   if (r === 'team') $('#teamBody').innerHTML = renderTeam();
+  if (r === 'projects') $('#projectsBody').innerHTML = renderProjects();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -458,7 +460,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study', '/playbooks': 'playbooks', '/status': 'status', '/growth': 'growth', '/equipe': 'team',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study', '/playbooks': 'playbooks', '/status': 'status', '/growth': 'growth', '/equipe': 'team', '/projetos': 'projects',
 };
 
 function route() {
@@ -501,7 +503,7 @@ function showView() {
   const viewName = state.route === 'areas' ? 'area' : state.route;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== viewName));
   const r = state.route === 'note' ? 'notes' : state.route === 'area' ? 'areas' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study', 'playbooks', 'status', 'growth', 'team'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study', 'playbooks', 'status', 'growth', 'team'] };
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study', 'playbooks', 'status', 'growth', 'team', 'projects'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study', 'playbooks', 'status', 'growth', 'team', 'projects'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
@@ -662,7 +664,9 @@ async function openTaskDialog(id, prefill) {
   form.recurrence.value = v.recurrence || '';
   form.funnel.value = v.funnel || '';
   $('#fFunnelHint').textContent = v.funnel && C.FUNNEL_MAP[v.funnel] ? C.FUNNEL_MAP[v.funnel].hint : '';
-  ['description', 'owner', 'waitingFor', 'link', 'notes'].forEach((k) => (form[k].value = v[k] || ''));
+  ['description', 'owner', 'waitingFor', 'link', 'notes', 'project'].forEach((k) => (form[k].value = v[k] || ''));
+  state.formProjectDate = v.projectDate || null;
+  $('#projectsList').innerHTML = projectNames().map((n) => `<option value="${esc(n)}"></option>`).join('');
   form.waitingSince.value = v.waitingSince || '';
   form.followUpDate.value = v.followUpDate || '';
   state.formChecklist = (v.checklist || []).map((c) => (typeof c === 'string' ? { id: C.uid(), text: c, done: false } : Object.assign({}, c)));
@@ -708,6 +712,8 @@ async function submitTaskForm(e) {
     followUpDate: form.followUpDate.value || null,
     link: form.link.value.trim(),
     notes: form.notes.value.trim(),
+    project: form.project.value.trim() || null,
+    projectDate: form.project.value.trim() ? state.formProjectDate || (Tasks.all().find((x) => x.project === form.project.value.trim() && x.projectDate) || {}).projectDate || null : null,
   };
   if (data.status !== 'waiting' && !state.editingId) Object.assign(data, { waitingFor: '', waitingSince: null, followUpDate: null });
   if (state.editingId) {
@@ -1853,6 +1859,7 @@ async function openCentral(id) {
   initKanban(helpers);
   initGrowth(helpers);
   initTeamView(Object.assign({ ask: askAssistant }, helpers));
+  initProjects(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

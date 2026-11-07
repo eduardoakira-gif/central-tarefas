@@ -10,7 +10,7 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v6.2.0';
+const CACHE_VERSION = 'v6.3.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -41,6 +41,7 @@ const APP_SHELL = [
   './js/kanban.js',
   './js/growth.js',
   './js/team-view.js',
+  './js/projects.js',
   './js/tasks.js',
   './js/notifications.js',
   './js/ui.js',
