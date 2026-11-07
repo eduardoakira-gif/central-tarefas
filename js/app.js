@@ -23,8 +23,9 @@ import { initAreas, renderArea, renderAreasHub, view as areaView } from './areas
 import { initBrand, renderBrand, renderBrandAlert } from './brand.js';
 import { initStudy, renderStudy, studyAlert } from './study.js';
 import { initInferno } from './inferno.js';
+import { initMyDay, renderDayCard } from './myday.js';
 
-export const APP_VERSION = '5.1.0';
+export const APP_VERSION = '5.2.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -272,7 +273,7 @@ function renderTasks() {
   const now = new Date();
   renderOwnerFilter();
   const sa = studyAlert();
-  $('#ownerCard').innerHTML = renderOwnerCard() + renderTeamCard() + renderBrandAlert() +
+  $('#ownerCard').innerHTML = renderDayCard() + renderOwnerCard() + renderTeamCard() + renderBrandAlert() +
     (sa ? `<a class="card term-card" href="#/estudos"><span class="label">Plano de estudo</span><strong>${esc(sa)}</strong></a>` : '') + renderTermCard();
   const d = UI.renderDashboard(Tasks.all(), state.filter, now, areas());
   $('#summary').textContent = d.summary;
@@ -887,6 +888,16 @@ async function handleAction(action, id, el) {
       return openTaskDialog(id);
     case 'wait':
       return openWaitDialog(id);
+    case 'today': {
+      const day = C.toDateKey(new Date());
+      if (t.plannedFor === day) {
+        await Tasks.update(id, { plannedFor: null });
+        return toast('Saiu do plano de hoje');
+      }
+      const n = Tasks.all().filter((x) => x.status !== 'done' && x.plannedFor === day).length;
+      await Tasks.update(id, { plannedFor: day });
+      return toast(n >= 5 ? `Plano de hoje: ${n + 1} tarefas. Acima de 5 vira lista de desejos.` : `No plano de hoje: ${n + 1}`);
+    }
     case 'focus': {
       const week = C.weekStart(new Date());
       if (t.focusWeek === week) {
@@ -1715,6 +1726,7 @@ async function openCentral(id) {
   initBrand(Object.assign({ ask: askAssistant }, helpers));
   initStudy(Object.assign({ ask: askAssistant }, helpers));
   initInferno(Object.assign({ ask: askAssistant }, helpers));
+  initMyDay(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

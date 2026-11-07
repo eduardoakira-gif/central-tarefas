@@ -1362,3 +1362,31 @@ a.btn { text-decoration: none; }
 .sector-edit { display: grid; grid-template-columns: 2fr 1fr 1fr 1.4fr; gap: 8px; }
 .sector-edit label { display: flex; flex-direction: column; gap: 3px; font-size: 11.5px; color: var(--muted); }
 @media (max-width: 720px) { .sector-edit { grid-template-columns: 1fr 1fr; } }
+
+/* ---- v5.2: Meu dia, voz e ações do assistente ---------------------------- */
+.day-card { display: grid; gap: 10px; padding: 16px 18px; border-radius: var(--radius, 14px); border-color: color-mix(in srgb, #F2A900 35%, var(--border)); background: linear-gradient(180deg, color-mix(in srgb, #F2A900 7%, var(--surface)), var(--surface)); }
+.day-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.day-head > div:first-child { display: grid; gap: 2px; }
+.day-head strong { font-size: 1.05rem; }
+.day-bar i { background: #F2A900; }
+.day-list { display: grid; gap: 2px; }
+.day-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid var(--border); }
+.day-row:first-child { border-top: 0; }
+.day-check { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border-strong, var(--muted)); background: transparent; color: #fff; font-size: 13px; display: grid; place-items: center; cursor: pointer; }
+.day-row.is-done .day-check { background: var(--success, #1F9D55); border-color: transparent; }
+.day-title { flex: 1; min-width: 0; text-align: left; background: none; border: 0; padding: 4px 0; color: var(--text); font: inherit; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.day-row.is-done .day-title { color: var(--muted); text-decoration: line-through; }
+.day-x { width: 30px; height: 30px; font-size: 18px; color: var(--muted); }
+.day-left { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: .88rem; color: var(--muted); padding-top: 4px; border-top: 1px dashed var(--border); }
+.badge-today { background: color-mix(in srgb, #F2A900 16%, transparent); color: #B07800; }
+[data-theme="dark"] .badge-today { color: #FFC940; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .badge-today { color: #FFC940; } }
+.act-today.is-on { color: #D89400; }
+.check-row { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; }
+.check-row input { margin-top: 3px; }
+.checklist-static { margin: 0 0 8px; padding-left: 18px; color: var(--muted); }
+.mic-btn { flex: none; width: 40px; height: 40px; border-radius: 50%; color: var(--muted); }
+.mic-btn.is-on { color: #fff; background: #E5484D; animation: micPulse 1.2s ease-in-out infinite; }
+@keyframes micPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(229, 72, 77, .45); } 50% { box-shadow: 0 0 0 8px rgba(229, 72, 77, 0); } }
+.chat-form .mic-btn { height: 44px; width: 44px; }
+.chat-actions { border-color: color-mix(in srgb, var(--focus) 30%, var(--border)); }

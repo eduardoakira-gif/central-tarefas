@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "5.1.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "5.2.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -822,11 +822,12 @@ async function assistantContext(central: any) {
     if (t.waitingFor) bits.push("aguardando " + t.waitingFor + (t.followUpDate ? " (cobrar em " + t.followUpDate + ")" : ""));
     if (t.owner) bits.push("resp. " + t.owner);
     if (t.focusWeek === weekStartKey(today)) bits.push("★ FOCO DA SEMANA");
+    if (t.plannedFor === today) bits.push("☀ PLANEJADA PARA HOJE");
     if (t.funnel) bits.push("funil: " + t.funnel);
     const upd = Math.floor((Date.now() - Date.parse(t.updatedAt || t.createdAt)) / 86400000);
     if (upd >= 3) bits.push(`sem atualização há ${upd} dias`);
     const ck = Array.isArray(t.checklist) && t.checklist.length ? ` [checklist ${t.checklist.filter((x: any) => x.done).length}/${t.checklist.length}]` : "";
-    return `- ${t.title}${ck} (${bits.filter(Boolean).join(", ")})`;
+    return `- [id:${t.id}] ${t.title}${ck} (${bits.filter(Boolean).join(", ")})`;
   };
   const done7 = live.filter((t: any) => t.status === "done" && t.completedAt && Date.parse(t.completedAt) > Date.now() - 7 * 86400000);
 
@@ -879,6 +880,30 @@ Referência do setor esportivo: cerca de 22% de abertura e 3% de clique.
 ${radarLines.join("\n") || "- nada ainda"}`;
 }
 
+const ACTIONS_TOOL = {
+  name: "propor_acoes",
+  description: "Propõe mudanças em tarefas que JÁ EXISTEM (use o id que aparece como [id:...]). O usuário revisa e aplica com um toque. Use para planejar o dia (hoje), reorganizar prazos (adiar), repriorizar, escolher o foco da semana ou concluir o que ele disse que já fez.",
+  input_schema: {
+    type: "object",
+    properties: {
+      acoes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            taskId: { type: "string", description: "Id exato da tarefa, sem o prefixo id:." },
+            acao: { type: "string", enum: ["hoje", "adiar", "prioridade", "foco", "concluir"] },
+            valor: { type: "string", description: "adiar: nova data AAAA-MM-DD; prioridade: urgent|high|normal|low; nos outros casos vazio." },
+            motivo: { type: "string", description: "Por que, em até 12 palavras." },
+          },
+          required: ["taskId", "acao", "motivo"],
+        },
+      },
+    },
+    required: ["acoes"],
+  },
+};
+
 const SUGGEST_TOOL = {
   name: "sugerir_tarefas",
   description: "Sugere tarefas concretas para o usuário adicionar à central. Use só quando o usuário pedir um plano, próximos passos ou quando houver ações claras a registrar.",
@@ -925,6 +950,7 @@ O usuário está desenvolvendo a visão de marketing e a comunicação executiva
 Estilo: português do Brasil, direto, frases curtas, listas curtas quando ajudar. Sem enrolação e sem bajulação. Se faltar dado, diga qual dado falta e como conseguir.
 Use apenas os dados abaixo sobre a central; não invente números. Conhecimento geral de mercado pode ser usado, deixando claro que é referência geral.
 Visão de marketing: classifique as ações pelo funil (atenção/awareness, consideração, conversão, retenção, indicação/advocacy) e aponte quando o esforço está desequilibrado, por exemplo muita operação e pouca conversão. Toda ação de topo de funil precisa levar a um cadastro no CRM.
+Para mudar tarefas existentes (planejar o dia, adiar, repriorizar, foco da semana, concluir), chame propor_acoes com os ids. Ao planejar o dia, escolha de 3 a 5 tarefas, priorizando atrasadas, foco da semana e o que gera receita.
 Quando houver ações claras, chame sugerir_tarefas (o usuário revisa antes de criar).
 
 # Dados atuais da central
@@ -1314,11 +1340,22 @@ async function handle(body: any, req: Request) {
       const out = await anthropic({
         max_tokens: 2500,
         system: assistantSystem(await assistantContext(central)),
-        tools: [SUGGEST_TOOL],
+        tools: [SUGGEST_TOOL, ACTIONS_TOOL],
         messages,
       }, [AI_ASSISTANT_MODEL, "claude-sonnet-4-5", AI_MODEL]);
       const text = (out.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("\n\n").trim();
       const call = (out.content ?? []).find((c: any) => c.type === "tool_use" && c.name === SUGGEST_TOOL.name);
+      const actCall = (out.content ?? []).find((c: any) => c.type === "tool_use" && c.name === ACTIONS_TOOL.name);
+      const liveTasks = new Map((await listItems("tasks", central.id)).filter((t: any) => t && !t.deletedAt).map((t: any) => [t.id, t]));
+      const actions = (Array.isArray(actCall?.input?.acoes) ? actCall.input.acoes : []).slice(0, 20).map((a: any) => {
+        const t: any = liveTasks.get(String(a.taskId ?? "").replace(/^id:/, ""));
+        if (!t || !["hoje", "adiar", "prioridade", "foco", "concluir"].includes(a.acao)) return null;
+        let valor = String(a.valor ?? "");
+        if (a.acao === "adiar" && !DATE_RE.test(valor)) return null;
+        if (a.acao === "prioridade" && !["urgent", "high", "normal", "low"].includes(valor)) return null;
+        if (!["adiar", "prioridade"].includes(a.acao)) valor = "";
+        return { taskId: t.id, title: t.title, acao: a.acao, valor, motivo: String(a.motivo ?? "").slice(0, 160) };
+      }).filter(Boolean);
       const byName = new Map(central.areas.map((a: any) => [fold(a.name), a.id]));
       const tasks = (Array.isArray(call?.input?.tasks) ? call.input.tasks : []).slice(0, 12).map((t: any) => ({
         title: String(t.title ?? "").trim().slice(0, 200),
@@ -1328,8 +1365,9 @@ async function handle(body: any, req: Request) {
         description: String(t.description ?? "").trim().slice(0, 2000),
       })).filter((t: any) => t.title);
       return {
-        reply: text || (tasks.length ? "Sugeri algumas tarefas abaixo. Revise e crie as que fizerem sentido." : "Não consegui responder agora."),
+        reply: text || (actions.length ? "Preparei as mudanças abaixo. Revise e aplique." : tasks.length ? "Sugeri algumas tarefas abaixo. Revise e crie as que fizerem sentido." : "Não consegui responder agora."),
         tasks,
+        actions,
       };
     }
 

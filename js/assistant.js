@@ -7,12 +7,14 @@
 import { Sync } from './sync.js';
 import { Tasks } from './tasks.js';
 import { esc } from './ui.js';
+import { micButton } from './myday.js';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
 const kv = { get: (k) => C.idb.get('kv', k), set: (k, v) => C.idb.put('kv', v, k) };
 
 const PROMPTS = [
+  ['Planejar meu dia', 'Planeje meu dia: escolha de 3 a 5 tarefas para hoje (use propor_acoes com a ação "hoje"), em ordem, com o motivo de cada uma. Priorize atrasadas, foco da semana e o que gera receita. Se algo deveria ser adiado, repriorizado ou já está concluído, proponha também.'],
   ['Briefing do dia', 'Me dá o briefing do dia como dono: o que está atrasado, o que travou, as 3 prioridades de hoje em ordem e o que eu devo cobrar de quem.'],
   ['O que faço primeiro?', 'Olhando minhas demandas agora, o que eu faço primeiro e por quê? Seja direto.'],
   ['Como estão meus KPIs?', 'Analise meus indicadores e OKRs do Painel B2C: onde estou bem, onde estou mal e quais 3 ações movem mais o resultado este mês.'],
@@ -99,13 +101,55 @@ function suggestions(msg, mi) {
   </div>`;
 }
 
+const ACT_LABEL = {
+  hoje: () => '☀ Plano de hoje',
+  adiar: (v) => 'Adiar para ' + (v ? C.fromDateKey(v).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' }) : 'depois'),
+  prioridade: (v) => 'Prioridade: ' + ((C.PRIORITY_MAP[v] || {}).name || v),
+  foco: () => '★ Foco da semana',
+  concluir: () => '✓ Marcar como concluída',
+};
+function actionsBlock(msg, mi) {
+  if (!msg.actions || !msg.actions.length) return '';
+  const pending = msg.actions.filter((a) => !a.applied).length;
+  return `<div class="chat-tasks chat-actions">
+    <div class="chat-tasks-head"><strong>Ações sugeridas</strong>${pending > 1 ? `<button type="button" class="link-btn" data-chat="apply-all" data-mi="${mi}">Aplicar todas</button>` : ''}</div>
+    ${msg.actions
+      .map(
+        (a, ai) => `<div class="chat-task${a.applied ? ' is-done' : ''}">
+          <div><span>${esc(a.title)}</span><span class="hint">${esc((ACT_LABEL[a.acao] || (() => a.acao))(a.valor))}${a.motivo ? ' · ' + esc(a.motivo) : ''}</span></div>
+          ${a.applied ? '<span class="hint">Feito</span>' : `<button type="button" class="btn btn-sm" data-chat="apply" data-mi="${mi}" data-ai="${ai}">Aplicar</button>`}
+        </div>`
+      )
+      .join('')}
+  </div>`;
+}
+
+async function applyAction(mi, ai) {
+  const a = A.messages[mi].actions[ai];
+  if (a.applied) return false;
+  const t = Tasks.get(a.taskId);
+  if (!t || t.deletedAt) {
+    a.applied = true;
+    await saveChat();
+    return false;
+  }
+  if (a.acao === 'hoje') await Tasks.update(t.id, { plannedFor: C.toDateKey(new Date()) });
+  else if (a.acao === 'adiar') await Tasks.update(t.id, { dueDate: /^\d{4}-\d{2}-\d{2}$/.test(a.valor || '') ? a.valor : C.addDays(C.toDateKey(new Date()), 1), plannedFor: null });
+  else if (a.acao === 'prioridade' && C.PRIORITY_MAP[a.valor]) await Tasks.update(t.id, { priority: a.valor });
+  else if (a.acao === 'foco') await Tasks.update(t.id, { focusWeek: C.weekStart(new Date()) });
+  else if (a.acao === 'concluir' && t.status !== 'done') await Tasks.complete(t.id);
+  a.applied = true;
+  await saveChat();
+  return true;
+}
+
 export function renderAssistant() {
   if (!Sync.v4()) return `<p class="notice">O servidor ainda está sendo atualizado. O assistente começa a funcionar assim que a atualização terminar.</p>`;
   const msgs = A.messages
     .map((m, i) =>
       m.role === 'user'
         ? `<div class="msg msg-user"><p>${esc(m.content)}</p></div>`
-        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${suggestions(m, i)}</div>`
+        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${actionsBlock(m, i)}${suggestions(m, i)}</div>`
     )
     .join('');
   const intro = `<div class="chat-intro">
@@ -117,6 +161,7 @@ export function renderAssistant() {
     <div class="chat-prompts">${PROMPTS.map(([label], i) => `<button type="button" class="chip" data-chat="prompt" data-i="${i}">${label}</button>`).join('')}</div>
     <form class="chat-form" id="chatForm" novalidate>
       <textarea class="input" id="chatInput" rows="1" placeholder="Pergunte ao assistente…" aria-label="Mensagem"></textarea>
+      ${micButton('chatInput', 'Ditar mensagem')}
       <button type="submit" class="btn btn-primary" ${A.sending ? 'disabled' : ''}>Enviar</button>
     </form>
     ${A.messages.length ? '<button type="button" class="link-btn link-muted chat-clear" data-chat="clear">Nova conversa</button>' : ''}
@@ -140,7 +185,7 @@ async function send(text) {
   try {
     const history = A.messages.filter((m) => !m.error).slice(-12).map((m) => ({ role: m.role, content: m.content }));
     const r = await Sync.call('assistantChat', { messages: history }, { timeout: 120000 });
-    A.messages.push({ role: 'assistant', content: r.reply, tasks: r.tasks || [], at: new Date().toISOString() });
+    A.messages.push({ role: 'assistant', content: r.reply, tasks: r.tasks || [], actions: r.actions || [], at: new Date().toISOString() });
   } catch (err) {
     A.messages.push({ role: 'assistant', content: err.code === 'ai_not_configured' ? 'A IA ainda não foi configurada no servidor.' : err.message, error: true });
   } finally {
@@ -190,6 +235,18 @@ export function initAssistant(helpers) {
     if (a === 'create') {
       await createTask(Number(el.dataset.mi), Number(el.dataset.ti));
       H.toast('Tarefa criada');
+      return H.render();
+    }
+    if (a === 'apply') {
+      const ok = await applyAction(Number(el.dataset.mi), Number(el.dataset.ai));
+      H.toast(ok ? 'Ação aplicada' : 'Essa tarefa não existe mais');
+      return H.render();
+    }
+    if (a === 'apply-all') {
+      const mi = Number(el.dataset.mi);
+      let n = 0;
+      for (let i = 0; i < A.messages[mi].actions.length; i++) if (await applyAction(mi, i)) n++;
+      H.toast(n === 1 ? '1 ação aplicada' : `${n} ações aplicadas`);
       return H.render();
     }
     if (a === 'create-all') {

@@ -172,6 +172,7 @@
       recurrence: RECURRENCE_MAP[t.recurrence] ? t.recurrence : null,
       noteId: t.noteId ? str(t.noteId) : null,
       focusWeek: validDate(t.focusWeek),
+      plannedFor: validDate(t.plannedFor),
       funnel: FUNNEL_MAP[t.funnel] ? t.funnel : null,
       deletedAt: t.deletedAt || null,
     };
