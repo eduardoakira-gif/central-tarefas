@@ -1568,3 +1568,16 @@ a.btn { text-decoration: none; }
 .sc-bar { height: 6px; border-radius: 99px; background: color-mix(in srgb, var(--text) 8%, transparent); overflow: hidden; }
 .sc-bar i { display: block; height: 100%; background: var(--focus); border-radius: 99px; }
 .sc-tip { margin: 0; font-size: .9rem; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--focus) 8%, transparent); }
+
+/* ---- v7.2: programação de pagamentos ----------------------------------------- */
+.payplan { display: grid; gap: 12px; }
+.payplan-days { display: grid; gap: 10px; }
+.payplan-day { display: grid; gap: 4px; padding-left: 10px; border-left: 3px solid var(--border); }
+.payplan-day.is-late { border-left-color: var(--danger, #D93036); }
+.payplan-day.is-late .label { color: var(--danger, #D93036); }
+.payplan-row { display: flex; justify-content: space-between; gap: 10px; font-size: .92rem; }
+.payplan { min-width: 0; overflow: hidden; }
+.payplan .closing-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px; }
+.payplan .btn-row { flex-wrap: wrap; }
+.payplan .btn { white-space: normal; height: auto; min-height: 38px; text-align: center; }
+.payplan-row > span { min-width: 0; }

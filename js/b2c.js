@@ -454,6 +454,24 @@ export function closingText(comp) {
   };
 }
 
+/** Programação de pagamentos: contas em aberto até 14 dias à frente (e vencidas), agrupadas por data. */
+function payPlan() {
+  const today = C.toDateKey(new Date());
+  const lim = C.addDays(today, 14);
+  const list = Bills.all().filter((b) => !b.paidAt && b.dueDate && b.dueDate <= lim).sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+  const byDay = {};
+  for (const b of list) (byDay[b.dueDate] = byDay[b.dueDate] || []).push(b);
+  const total = list.reduce((a, b) => a + (Number(b.amount) || 0), 0);
+  const lines = [`Programação de pagamentos – Merchan (até ${C.fromDateKey(lim).toLocaleDateString('pt-BR')})`, ''];
+  for (const [d, l] of Object.entries(byDay)) {
+    lines.push(`${C.fromDateKey(d).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}${d < today ? ' (VENCIDA)' : ''}`);
+    for (const b of l) lines.push(`• ${b.supplier || 'Fornecedor'} – NF ${b.number || 's/n'} – ${money(b.amount)}${b.nfOk && b.xmlOk ? '' : ' (falta ' + [!b.nfOk && 'NF', !b.xmlOk && 'XML'].filter(Boolean).join(' e ') + ')'}${b.scheduledFor ? ' – já agendada' : ''}`);
+    lines.push('');
+  }
+  lines.push(`Total: ${money(total)}`, '', 'Podem confirmar o agendamento? Obrigado!');
+  return { list, byDay, total, text: lines.join('\n'), today };
+}
+
 export function renderFinance() {
   const now = new Date();
   const today = C.toDateKey(now);
@@ -515,6 +533,21 @@ export function renderFinance() {
       ${kpi('Sem NF ou XML', missing.length, 'documentos pendentes', missing.length > 0)}
       ${kpi('Pagas neste mês', money(sum(paidMonth)), paidMonth.length === 1 ? '1 nota' : paidMonth.length + ' notas')}
     </div>
+    ${(() => {
+      const p = payPlan();
+      if (!p.list.length) return '';
+      const pending = p.list.filter((b) => !b.scheduledFor).length;
+      return `<section class="card report-card payplan">
+        <div class="closing-head"><h2>Pagamentos dos próximos 14 dias</h2><strong>${money(p.total)}</strong></div>
+        <div class="payplan-days">${Object.entries(p.byDay).map(([d, l]) => `<div class="payplan-day${d < p.today ? ' is-late' : ''}"><span class="label">${C.fromDateKey(d).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })}${d < p.today ? ' · vencida' : ''}</span>${l.map((b) => `<div class="payplan-row"><span>${esc(b.supplier || 'Fornecedor')} <span class="hint">NF ${esc(b.number || 's/n')}${b.scheduledFor ? ' · agendada' : ''}</span></span><b>${money(b.amount)}</b></div>`).join('')}</div>`).join('')}</div>
+        <div class="btn-row">
+          <button type="button" class="btn" data-b2c="copy-pay">Copiar</button>
+          <a class="btn" href="https://wa.me/?text=${encodeURIComponent(p.text)}" target="_blank" rel="noopener">WhatsApp</a>
+          <a class="btn" href="mailto:?subject=${encodeURIComponent('Programação de pagamentos – Merchan')}&body=${encodeURIComponent(p.text)}">E-mail</a>
+          ${pending ? `<button type="button" class="btn btn-primary" data-b2c="pay-sent">Financeiro confirmou: marcar ${pending} como agendada${pending > 1 ? 's' : ''}</button>` : ''}
+        </div>
+      </section>`;
+    })()}
     ${closing}
     ${groups || `<div class="empty"><div class="empty-title">Nenhuma NF cadastrada</div><p class="empty-text">Cadastre as notas dos fornecedores de merchan para acompanhar documentos, envio ao financeiro e pagamentos.</p><button type="button" class="btn btn-primary" data-b2c="new-bill">Cadastrar NF</button></div>`}
     <p class="hint">Fluxo de cada nota: receber NF e XML → enviar ao financeiro → financeiro agenda o pagamento → paga. Dica: toque em "Importar XML" e selecione os XMLs dos fornecedores. A Central cria as contas com valor, emissão e vencimento de cada parcela.</p>`;
@@ -730,6 +763,13 @@ async function onAction(action, el) {
     case 'bill-paid':
       await Bills.save({ id: billId, paidAt: today });
       return H.toast('NF paga', { label: 'Desfazer', fn: () => Bills.save({ id: billId, paidAt: null }) });
+    case 'copy-pay':
+      return H.copy(payPlan().text, 'Programação copiada. Cole no WhatsApp ou e-mail do financeiro.');
+    case 'pay-sent': {
+      const list = payPlan().list.filter((b) => !b.scheduledFor);
+      for (const b of list) await Bills.save({ id: b.id, scheduledFor: b.dueDate, sentAt: b.sentAt || today });
+      return H.toast(`${list.length} ${list.length === 1 ? 'conta marcada' : 'contas marcadas'} como agendada${list.length > 1 ? 's' : ''}`);
+    }
     case 'copy-closing': {
       const { subject, body } = closingText(view.closeMonth);
       return H.copy(subject + '\n\n' + body, 'Resumo copiado. Cole no e-mail ou no WhatsApp do financeiro.');
