@@ -175,10 +175,11 @@ export function renderTeamCard() {
   const list = teamFollowUps();
   if (!list.length) return '';
   return `<section class="card team-card">
-    <div class="owner-head"><strong>Cobrar a equipe</strong><a class="link-btn" href="#/equipe">Ver equipe</a><span class="hint">prazos vencidos, próximos 2 dias e urgentes</span></div>
+    <div class="owner-head"><strong>Cobrar a equipe</strong><a class="link-btn" href="#/equipe">Ver equipe e 1:1</a></div>
+    <span class="hint">Prazos vencidos, próximos 2 dias e urgentes.</span>
     ${list.map(({ owner, items }) => `<div class="team-row"><span><strong>${esc(owner)}</strong> · ${items.length} ${items.length === 1 ? 'demanda' : 'demandas'}${items.some((x) => x.late) ? ' <span class="badge badge-overdue">atrasada</span>' : ''}</span>
       <button type="button" class="btn btn-sm" data-team-wa="${esc(owner)}">Cobrar no WhatsApp</button></div>`).join('')}
-    ${list.some(({ owner }) => !(personOf(owner) || {}).phone) ? '<p class="hint">Cadastre o WhatsApp da equipe em Configurações › Pessoas para abrir a conversa direto com a pessoa.</p>' : ''}
+    ${list.some(({ owner }) => !(personOf(owner) || {}).phone) ? '<p class="hint">Cadastre o WhatsApp da equipe em Configurações › Equipe para abrir a conversa direto com a pessoa.</p>' : ''}
   </section>`;
 }
 
