@@ -27,8 +27,9 @@ import { initMyDay, renderDayCard, openClose, planDay, captureShare, consumeShar
 import { waUrl, nudgeText, logNudge, personOf } from './team.js';
 import { initPlaybooks, renderPlaybooks, renderTriageCard } from './playbooks.js';
 import { initStatus, renderStatus } from './status.js';
+import { initSearch, openSearch } from './search.js';
 
-export const APP_VERSION = '5.5.0';
+export const APP_VERSION = '5.6.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1572,6 +1573,15 @@ function bindEvents() {
     } else if (e.key === '/' && state.route === 'tasks') {
       e.preventDefault();
       $('#search').focus();
+    } else if (e.key === '/') {
+      e.preventDefault();
+      openSearch();
+    } else if (e.key === 'd' || e.key === 'D') {
+      e.preventDefault();
+      location.hash = '#/dia/planejar';
+    } else if (e.key === 'a' || e.key === 'A') {
+      e.preventDefault();
+      location.hash = '#/assistente';
     }
   });
 
@@ -1749,6 +1759,7 @@ async function openCentral(id) {
       toast(msg || 'Copiado');
     },
     openTaskDialog: (prefill) => openTaskDialog(null, prefill),
+    openTask: (id) => openTaskDialog(id),
   };
   initB2C(helpers);
   initRadar(helpers);
@@ -1764,6 +1775,7 @@ async function openCentral(id) {
   initMyDay(Object.assign({ ask: askAssistant }, helpers));
   initPlaybooks(Object.assign({ ask: askAssistant }, helpers));
   initStatus(Object.assign({ ask: askAssistant }, helpers));
+  initSearch(helpers);
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

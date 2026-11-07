@@ -1432,3 +1432,20 @@ a.btn { text-decoration: none; }
 .status-sec ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .link-plain { background: none; border: 0; padding: 0; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
 .link-plain:hover { text-decoration: underline; }
+
+/* ---- v5.6: busca global ---------------------------------------------------- */
+.gs-btn { color: var(--muted); }
+.gs-dialog { width: min(640px, calc(100vw - 24px)); padding: 0; margin-top: 8vh; align-self: start; }
+.gs-bar { display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--border); color: var(--muted); }
+.gs-input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 1.05rem; color: var(--text); height: 40px; }
+.gs-results { max-height: 60vh; overflow: auto; padding: 6px; }
+.gs-group { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 10px 10px 4px; }
+.gs-item { display: grid; gap: 2px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 9px 10px; font: inherit; color: var(--text); cursor: pointer; }
+.gs-item span { font-size: .84rem; color: var(--muted); }
+.gs-item.is-sel, .gs-item:hover { background: color-mix(in srgb, var(--focus) 10%, transparent); }
+.gs-item.is-done strong { text-decoration: line-through; color: var(--muted); }
+.gs-empty { padding: 16px 10px; display: grid; gap: 10px; justify-items: start; }
+@media (max-width: 720px) {
+  .gs-dialog { margin: 0 0 auto; width: 100vw; max-width: 100vw; border-radius: 0 0 18px 18px; border-top: 0; border-bottom: 1px solid var(--border); }
+  .gs-results { max-height: 70dvh; }
+}
