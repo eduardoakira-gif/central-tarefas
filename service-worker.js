@@ -10,7 +10,7 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v7.8.0';
+const CACHE_VERSION = 'v7.9.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -100,11 +100,13 @@ self.addEventListener('fetch', (event) => {
   // Arquivos do app: abre na hora pelo cache desta versão e confere a rede em segundo plano.
   // Cada versão nova troca o CACHE_VERSION: o app baixa tudo de novo e recarrega sozinho.
   if (sameOrigin) {
-    const key = req.mode === 'navigate' ? './index.html' : req;
+    const appPage = req.mode === 'navigate' && /\/(index\.html)?$/.test(url.pathname);
+    if (req.mode === 'navigate' && !appPage) return; // outras páginas (ex.: inscrição de voluntário) vão direto à rede
+    const key = appPage ? './index.html' : req;
     event.respondWith(
       caches.open(CACHE).then(async (cache) => {
-        const hit = await cache.match(key, { ignoreSearch: req.mode === 'navigate' });
-        const network = fetch(req.mode === 'navigate' ? req : new Request(req, { cache: 'no-cache' }))
+        const hit = await cache.match(key, { ignoreSearch: appPage });
+        const network = fetch(appPage ? req : new Request(req, { cache: 'no-cache' }))
           .then((res) => {
             if (res && res.ok && res.type === 'basic') cache.put(key, res.clone());
             return res;

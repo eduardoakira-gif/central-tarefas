@@ -9,6 +9,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['7.9', 'Voluntários do Inferno Roxo', ['Área Inferno Roxo › Link de inscrição: página pública para divulgar; cada inscrição chega com notificação, WhatsApp e aprovação por setor.']],
   ['7.8', 'Navegação organizada', ['Mais agrupado em Gestão, Receita e dados, Seu crescimento e Sistema.', 'No computador, o menu do topo ganhou Projetos e Status.']],
   ['7.7', 'Área como cockpit', ['Cada área mostra também os projetos e os testes de Growth daquele pilar.']],
   ['7.5', 'Abre na hora', ['A Central abre direto do aparelho, mesmo com internet fraca; as atualizações continuam chegando sozinhas.', 'Sexta: a notificação já traz a nota da semana e o ponto fraco.']],

@@ -1605,3 +1605,9 @@ a.btn { text-decoration: none; }
   .hub .hub-item strong { font-size: .92rem; }
   .hub .hub-item span { font-size: .78rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 }
+/* v7.9: inscrições de voluntários */
+.vol-card { display: grid; gap: 10px; }
+.vol-link { font-size: .82rem; }
+.applicant { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; border-top: 1px solid var(--border); padding-top: 10px; flex-wrap: wrap; }
+.ap-main { display: grid; gap: 2px; min-width: 0; flex: 1 1 220px; }
+.ap-main p { margin: 4px 0 0; font-size: .9rem; }

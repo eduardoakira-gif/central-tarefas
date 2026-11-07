@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "7.4.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "7.9.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -71,8 +71,9 @@ const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
   posts: { table: "posts", maxSize: 30000 },
   crew: { table: "crew", maxSize: 20000 },
   ideas: { table: "ideas", maxSize: 20000 },
+  applicants: { table: "applicants", maxSize: 8000 },
 };
-const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "posts", "crew", "ideas", "radar", "devices", "ai_usage"];
+const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "posts", "crew", "ideas", "applicants", "radar", "devices", "ai_usage"];
 
 function newId(len = 24) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -1087,6 +1088,7 @@ async function handle(body: any, req: Request) {
         posts: await listItems("posts", central.id),
         crew: await listItems("crew", central.id),
         ideas: await listItems("ideas", central.id),
+        applicants: await listItems("applicants", central.id),
         version: SERVER_VERSION,
       };
     }
@@ -1446,6 +1448,49 @@ Cada ideia: título curto, hipótese no formato "Se fizermos X, esperamos Y porq
         impact: n(x.impact), confidence: n(x.confidence), ease: n(x.ease),
       })).filter((x: any) => x.title);
       return { ideas };
+    }
+
+    case "volunteerToken": {
+      const central = await getCentral(body.centralId, body.pin);
+      let token = central.vol_token as string | null;
+      if (!token || body.reset) {
+        token = newId(20);
+        const { error } = await db.from("centrals").update({ vol_token: token }).eq("id", central.id);
+        if (error) throw new HttpError(500, error.message);
+      }
+      return { token };
+    }
+
+    case "volunteerApply": {
+      // página pública: só conhece o token do formulário, nunca o link da central
+      const token = String(body.token ?? "");
+      if (!/^[A-Za-z0-9]{20}$/.test(token)) throw new HttpError(404, "Formulário não encontrado.");
+      if (body.website) return { ok: true }; // armadilha para robôs
+      const { data: central, error } = await db.from("centrals").select("*").eq("vol_token", token).maybeSingle();
+      if (error) throw new HttpError(500, error.message);
+      if (!central) throw new HttpError(404, "Formulário não encontrado ou encerrado.");
+      const str = (v: unknown, n: number) => String(v ?? "").trim().slice(0, n);
+      const name = str(body.name, 80);
+      const phone = String(body.phone ?? "").replace(/\D/g, "").slice(0, 15);
+      if (name.length < 3 || phone.length < 10) throw new HttpError(400, "Preencha nome e WhatsApp com DDD.");
+      if (!body.adult || !body.conduct) throw new HttpError(400, "Confirme os itens obrigatórios.");
+      const today = localNow("America/Sao_Paulo").today;
+      const existing = (await listItems("applicants", central.id)).filter(Boolean);
+      if (existing.filter((a: any) => String(a.createdAt ?? "").slice(0, 10) === today).length >= 300) throw new HttpError(429, "Muitas inscrições hoje. Tente amanhã.");
+      if (existing.some((a: any) => a.phone === phone)) return { ok: true, duplicate: true };
+      const now = new Date().toISOString();
+      const item = {
+        id: newId(16), name, phone, city: str(body.city, 80), instagram: str(body.instagram, 60).replace(/^@/, ""),
+        sector: str(body.sector, 40), availability: str(body.availability, 120), experience: str(body.experience, 600), why: str(body.why, 600),
+        status: "nova", notes: "", createdAt: now, updatedAt: now,
+      };
+      const { error: insErr } = await db.from("applicants").upsert({ central_id: central.id, id: item.id, data: item, updated_at: now }, { onConflict: "central_id,id" });
+      if (insErr) throw new HttpError(500, insErr.message);
+      if (PUSH_READY) {
+        const { data: devs } = await db.from("devices").select("*").eq("central_id", central.id);
+        for (const d of devs ?? []) await sendPush(d, { title: "Inferno Roxo: nova inscrição de voluntário", body: `${name}${item.city ? " (" + item.city + ")" : ""} quer ajudar${item.sector ? " em " + item.sector : ""}.`, route: "#/area/inferno", tag: "voluntario", centralId: central.id });
+      }
+      return { ok: true };
     }
 
     case "chatGet": {

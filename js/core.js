@@ -639,6 +639,25 @@
       updatedAt: x.updatedAt || now,
     };
   }
+  function normalizeApplicant(x) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    return {
+      id: str(x.id) || uid(),
+      name: str(x.name).trim().slice(0, 80) || 'Voluntário',
+      phone: str(x.phone).replace(/\D/g, '').slice(0, 15),
+      city: str(x.city).slice(0, 80),
+      instagram: str(x.instagram).slice(0, 60),
+      sector: str(x.sector).slice(0, 40),
+      availability: str(x.availability).slice(0, 120),
+      experience: str(x.experience).slice(0, 600),
+      why: str(x.why).slice(0, 600),
+      status: ['nova', 'contatada', 'aprovada', 'recusada'].includes(x.status) ? x.status : 'nova',
+      notes: str(x.notes).slice(0, 1000),
+      createdAt: x.createdAt || now,
+      updatedAt: x.updatedAt || now,
+    };
+  }
   const iceScore = (x) => Math.round(((x.impact + x.confidence + x.ease) / 3) * 10) / 10;
 
   function normalizeCrew(c) {
@@ -743,7 +762,7 @@
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,
     FUNNEL, FUNNEL_MAP, PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,
-    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign, normalizePost, normalizeCrew, normalizeIdea, iceScore, IDEA_STATUS,
+    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign, normalizePost, normalizeCrew, normalizeIdea, iceScore, IDEA_STATUS, normalizeApplicant,
     idb,
   };
 })(typeof self !== 'undefined' ? self : this);

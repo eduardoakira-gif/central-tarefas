@@ -103,6 +103,18 @@ create table if not exists public.posts (
 );
 alter table public.posts enable row level security;
 
+-- v7.9: inscrições públicas de voluntários (Inferno Roxo)
+alter table public.centrals add column if not exists vol_token text;
+create index if not exists centrals_vol_token_idx on public.centrals (vol_token);
+create table if not exists public.applicants (
+  central_id  text not null references public.centrals(id) on delete cascade,
+  id          text not null,
+  data        jsonb not null,
+  updated_at  timestamptz not null,
+  primary key (central_id, id)
+);
+alter table public.applicants enable row level security;
+
 -- v5.9: backlog de growth (ideias com ICE)
 create table if not exists public.ideas (
   central_id  text not null references public.centrals(id) on delete cascade,

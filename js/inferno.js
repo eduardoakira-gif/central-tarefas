@@ -9,6 +9,35 @@ import { Sync } from './sync.js';
 import { Tasks } from './tasks.js';
 import { esc } from './ui.js';
 
+
+const vol = { token: null, filter: 'nova' };
+const formUrl = (t) => new URL('voluntario.html?f=' + t, location.href.split('#')[0].split('?')[0]).href;
+const APP_STATUS = { nova: 'Nova', contatada: 'Contatada', aprovada: 'Aprovada', recusada: 'Recusada' };
+const sectorName = (id) => (SECTORS.find((x) => x[0] === id) || [id, id || 'Sem preferência'])[1];
+
+function renderApplicants() {
+  if (!Sync.v4() || !(Sync.serverColls || []).includes('applicants')) return '';
+  const list = (Sync.applicants || []).filter((a) => !a.deletedAt).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const shown = list.filter((a) => vol.filter === 'todas' || a.status === vol.filter);
+  const count = (s) => list.filter((a) => a.status === s).length;
+  const row = (a) => `<div class="applicant" data-applicant="${esc(a.id)}">
+      <div class="ap-main"><strong>${esc(a.name)}</strong><span class="hint">${esc(sectorName(a.sector))}${a.city ? ' · ' + esc(a.city) : ''}${a.instagram ? ' · @' + esc(a.instagram) : ''} · ${new Date(a.createdAt).toLocaleDateString('pt-BR')}</span>
+        ${a.availability ? `<span class="hint">Disponibilidade: ${esc(a.availability)}</span>` : ''}${a.why ? `<p>${esc(a.why)}</p>` : ''}${a.experience ? `<p class="hint">Experiência: ${esc(a.experience)}</p>` : ''}</div>
+      <div class="btn-row">
+        <button type="button" class="btn btn-sm" data-ap="wa">WhatsApp</button>
+        <select class="select select-sm" data-ap-status aria-label="Situação">${Object.entries(APP_STATUS).map(([k, n]) => `<option value="${k}"${a.status === k ? ' selected' : ''}>${n}</option>`).join('')}</select>
+      </div></div>`;
+  return `<h3 class="sub-h">Inscrições de voluntários <span class="hint">(${count('nova')} novas)</span></h3>
+    <section class="card report-card vol-card">
+      <div class="closing-head"><span>Página pública de inscrição para divulgar no Instagram e no grupo da torcida. Quem se inscreve não vê nada da sua Central.</span>
+        <div class="btn-row">${vol.token ? `<button type="button" class="btn btn-sm" data-vol="copy">Copiar link</button><a class="btn btn-sm" href="${esc(formUrl(vol.token))}" target="_blank" rel="noopener">Abrir</a>` : '<button type="button" class="btn btn-sm btn-primary" data-vol="link">Link de inscrição</button>'}</div></div>
+      ${vol.token ? `<input class="input vol-link" readonly value="${esc(formUrl(vol.token))}" aria-label="Link de inscrição">` : ''}
+      <div class="chips">${['nova', 'contatada', 'aprovada', 'recusada', 'todas'].map((s) => `<button type="button" class="chip" data-vol-filter="${s}" aria-pressed="${vol.filter === s}">${s === 'todas' ? 'Todas' : APP_STATUS[s]} <span class="chip-count">${s === 'todas' ? list.length : count(s) || ''}</span></button>`).join('')}</div>
+      ${shown.map(row).join('') || `<p class="hint">${list.length ? 'Nada nesta situação.' : 'Nenhuma inscrição ainda. Gere o link e divulgue com o post de vagas.'}</p>`}
+      <p class="hint">Ao aprovar, o voluntário entra na contagem do setor escolhido. Combine a integração pelo WhatsApp.</p>
+    </section>`;
+}
+
 const C = window.Core;
 const nowIso = () => new Date().toISOString();
 
@@ -103,6 +132,8 @@ export function renderInfernoStructure() {
       <div class="card kpi"><span class="stat-label">Fase</span><span class="stat-num">${sum.coord < 4 ? '1' : sum.active < 6 ? '2' : '3'}</span><span class="stat-sub">${sum.coord < 4 ? 'montar o conselho e os coordenadores' : sum.active < 6 ? 'abrir vagas e ativar os setores' : 'escalar: núcleos e patrocínio'}</span></div>
     </div>
 
+    ${renderApplicants()}
+
     <h3 class="sub-h">Organograma</h3>
     <div class="org">
       <div class="org-top">Conselho do Inferno Roxo<span>eleito pela torcida · fala com o Fluxo W7M</span></div>
@@ -158,8 +189,48 @@ export function initInferno(H) {
     const next = C.normalizeCrew(Object.assign({}, cur, { [f.dataset.crew]: f.value, updatedAt: nowIso(), createdAt: cur.createdAt || nowIso() }));
     await Sync.upsert('crew', next);
   });
+  document.addEventListener('change', async (e) => {
+    const st = e.target.closest && e.target.closest('[data-ap-status]');
+    if (!st) return;
+    const a = (Sync.applicants || []).find((x) => x.id === st.closest('[data-applicant]').dataset.applicant);
+    if (!a) return;
+    const was = a.status;
+    await Sync.upsert('applicants', C.normalizeApplicant(Object.assign({}, a, { status: st.value, updatedAt: nowIso() })));
+    // aprovar ou desaprovar mexe na contagem do setor
+    const sec = SECTORS.find((x) => x[0] === a.sector);
+    if (sec && (was === 'aprovada') !== (st.value === 'aprovada')) {
+      const cur = crewOf(sec[0]);
+      await Sync.upsert('crew', C.normalizeCrew(Object.assign({}, cur, { volunteers: Math.max(0, cur.volunteers + (st.value === 'aprovada' ? 1 : -1)), updatedAt: nowIso(), createdAt: cur.createdAt || nowIso() })));
+    }
+    H.toast(st.value === 'aprovada' ? `Aprovado${sec ? ' em ' + sec[1] : ''}. Faça a integração pelo WhatsApp.` : 'Situação atualizada');
+  });
   document.addEventListener('click', async (e) => {
     if (document.body.dataset.screen !== 'app') return;
+    const vf = e.target.closest('[data-vol-filter]');
+    if (vf) return ((vol.filter = vf.dataset.volFilter), H.render());
+    const v = e.target.closest('[data-vol]');
+    if (v) {
+      if (v.dataset.vol === 'link') {
+        try {
+          vol.token = (await Sync.call('volunteerToken', {})).token;
+          H.render();
+          return H.copy(formUrl(vol.token), 'Link de inscrição copiado. Divulgue no post de vagas.');
+        } catch (err) {
+          return H.toast(err.message);
+        }
+      }
+      if (v.dataset.vol === 'copy') return H.copy(formUrl(vol.token), 'Link copiado');
+    }
+    const ap = e.target.closest('[data-ap]');
+    if (ap) {
+      const a = (Sync.applicants || []).find((x) => x.id === ap.closest('[data-applicant]').dataset.applicant);
+      if (!a) return;
+      const first = a.name.split(' ')[0];
+      const msg = `Fala, ${first}! Aqui é o Edu, do Fluxo W7M. Vi sua inscrição para ser voluntário do Inferno Roxo${a.sector ? ' no setor ' + sectorName(a.sector) : ''}. Bora conversar sobre como você pode ajudar? 💜🔥`;
+      window.open(`https://wa.me/${a.phone.length <= 11 ? '55' + a.phone : a.phone}?text=${encodeURIComponent(msg)}`, '_blank');
+      if (a.status === 'nova') await Sync.upsert('applicants', C.normalizeApplicant(Object.assign({}, a, { status: 'contatada', updatedAt: nowIso() })));
+      return;
+    }
     const b = e.target.closest('[data-inferno]');
     if (!b) return;
     const a = b.dataset.inferno;

@@ -35,7 +35,7 @@ import { initProjects, renderProjects, renderProjectsCard, projectNames } from '
 import { initNfe, importFiles as importXml } from './nfe.js';
 import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 
-export const APP_VERSION = '7.8.0';
+export const APP_VERSION = '7.9.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
