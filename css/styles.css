@@ -1596,3 +1596,12 @@ a.btn { text-decoration: none; }
 /* v7.7: cockpit da área */
 .area-cockpit { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-bottom: 12px; }
 .area-cockpit .report-card { display: grid; gap: 6px; margin: 0; }
+/* v7.8: Mais agrupado */
+.hub-title { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 2px 8px; }
+.hub-title:first-of-type { margin-top: 4px; }
+@media (max-width: 720px) {
+  .hub { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .hub .hub-item { padding: 12px; gap: 4px; }
+  .hub .hub-item strong { font-size: .92rem; }
+  .hub .hub-item span { font-size: .78rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+}
