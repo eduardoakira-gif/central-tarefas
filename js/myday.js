@@ -137,6 +137,9 @@ function listen(btn) {
   rec.onend = () => {
     btn.classList.remove('is-on');
     rec = null;
+    let hf = false;
+    try { hf = localStorage.getItem('ct-voice-chat') === '1'; } catch {}
+    if (input.id === 'chatInput' && hf && input.value.trim() && document.getElementById('chatForm')) return document.getElementById('chatForm').requestSubmit();
     input.focus();
   };
   rec.start();

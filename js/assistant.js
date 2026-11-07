@@ -145,13 +145,47 @@ async function applyAction(mi, ai) {
   return true;
 }
 
+// -----------------------------------------------------------------------------
+// Voz: ouvir respostas e modo mãos livres
+// -----------------------------------------------------------------------------
+const TTS = 'speechSynthesis' in window;
+const VOICE_KEY = 'ct-voice-chat';
+export const handsFree = {
+  get: () => { try { return localStorage.getItem(VOICE_KEY) === '1'; } catch { return false; } },
+  set: (v) => { try { localStorage.setItem(VOICE_KEY, v ? '1' : '0'); } catch {} },
+};
+let speakingIdx = null;
+function plain(text) {
+  return String(text || '').replace(/\*\*|__|`|#+\s?/g, '').replace(/^\s*[-•]\s+/gm, '').replace(/\[(.*?)\]\(.*?\)/g, '$1').replace(/https?:\/\/\S+/g, 'link');
+}
+function speak(text, idx) {
+  if (!TTS) return;
+  speechSynthesis.cancel();
+  if (speakingIdx === idx) {
+    speakingIdx = null;
+    return H.render();
+  }
+  const u = new SpeechSynthesisUtterance(plain(text).slice(0, 4000));
+  u.lang = 'pt-BR';
+  const v = speechSynthesis.getVoices().find((x) => /pt[-_]BR/i.test(x.lang));
+  if (v) u.voice = v;
+  u.rate = 1.05;
+  speakingIdx = idx;
+  u.onend = u.onerror = () => {
+    speakingIdx = null;
+    H.render();
+  };
+  speechSynthesis.speak(u);
+  H.render();
+}
+
 export function renderAssistant() {
   if (!Sync.v4()) return `<p class="notice">O servidor ainda está sendo atualizado. O assistente começa a funcionar assim que a atualização terminar.</p>`;
   const msgs = A.messages
     .map((m, i) =>
       m.role === 'user'
         ? `<div class="msg msg-user"><p>${esc(m.content)}</p></div>`
-        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${actionsBlock(m, i)}${suggestions(m, i)}</div>`
+        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${TTS && !m.error ? `<button type="button" class="link-btn link-muted msg-speak" data-chat="speak" data-mi="${i}">${speakingIdx === i ? '■ Parar' : '🔊 Ouvir'}</button>` : ''}${actionsBlock(m, i)}${suggestions(m, i)}</div>`
     )
     .join('');
   const intro = `<div class="chat-intro">
@@ -166,7 +200,8 @@ export function renderAssistant() {
       ${micButton('chatInput', 'Ditar mensagem')}
       <button type="submit" class="btn btn-primary" ${A.sending ? 'disabled' : ''}>Enviar</button>
     </form>
-    ${A.messages.length ? '<button type="button" class="link-btn link-muted chat-clear" data-chat="clear">Nova conversa</button>' : ''}
+    <div class="chat-foot">${TTS ? `<label class="hands-free"><input type="checkbox" data-chat-handsfree ${handsFree.get() ? 'checked' : ''}> Mãos livres: envia ao terminar de falar e lê a resposta</label>` : ''}
+    ${A.messages.length ? '<button type="button" class="link-btn link-muted chat-clear" data-chat="clear">Nova conversa</button>' : ''}</div>
   </div>`;
 }
 
@@ -188,6 +223,7 @@ async function send(text) {
     const history = A.messages.filter((m) => !m.error).slice(-12).map((m) => ({ role: m.role, content: m.content }));
     const r = await Sync.call('assistantChat', { messages: history }, { timeout: 120000 });
     A.messages.push({ role: 'assistant', content: r.reply, tasks: r.tasks || [], actions: r.actions || [], at: new Date().toISOString() });
+    if (handsFree.get()) setTimeout(() => speak(r.reply, A.messages.length - 1), 200);
   } catch (err) {
     A.messages.push({ role: 'assistant', content: err.code === 'ai_not_configured' ? 'A IA ainda não foi configurada no servidor.' : err.message, error: true });
   } finally {
@@ -227,6 +263,10 @@ export function initAssistant(helpers) {
     if (!el) return;
     const a = el.dataset.chat;
     if (a === 'prompt') return send(PROMPTS[Number(el.dataset.i)][1]);
+    if (a === 'speak') {
+      const m = A.messages[Number(el.dataset.mi)];
+      return m && speak(m.content, Number(el.dataset.mi));
+    }
     if (a === 'clear') {
       const ok = await H.confirmDialog({ title: 'Começar nova conversa?', message: 'A conversa atual será apagada deste aparelho.', confirmLabel: 'Nova conversa', danger: false });
       if (!ok) return;
@@ -272,6 +312,12 @@ export function initAssistant(helpers) {
     if (e.target.id === 'chatInput' && e.key === 'Enter' && !e.shiftKey && innerWidth > 720) {
       e.preventDefault();
       $('#chatForm').requestSubmit();
+    }
+  });
+  document.addEventListener('change', (e) => {
+    if (e.target.matches && e.target.matches('[data-chat-handsfree]')) {
+      handsFree.set(e.target.checked);
+      if (e.target.checked) H.toast('Mãos livres ligado: toque no microfone e fale. Quando você parar, a mensagem vai sozinha e a resposta é lida em voz alta.');
     }
   });
   document.addEventListener('input', (e) => {

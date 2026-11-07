@@ -1547,3 +1547,9 @@ a.btn { text-decoration: none; }
 .extra-chip { flex: none; display: inline-flex; align-items: center; gap: 6px; max-width: 320px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); text-decoration: none; font-size: .84rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .extra-chip:hover { border-color: var(--focus); }
 @media (max-width: 720px) { .extras-strip { margin: 0 -16px 14px; padding: 0 16px 2px; } .extra-chip { max-width: 78vw; } }
+
+/* ---- v6.7: voz no assistente -------------------------------------------------- */
+.msg-speak { display: inline-block; margin-top: 6px; font-size: .82rem; }
+.chat-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.hands-free { display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; color: var(--muted); }
+.hands-free input { accent-color: var(--focus); }
