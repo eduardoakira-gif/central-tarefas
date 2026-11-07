@@ -28,8 +28,9 @@ import { waUrl, nudgeText, logNudge, personOf } from './team.js';
 import { initPlaybooks, renderPlaybooks, renderTriageCard } from './playbooks.js';
 import { initStatus, renderStatus } from './status.js';
 import { initSearch, openSearch } from './search.js';
+import { initKanban, renderKanban, layoutToggle, layout } from './kanban.js';
 
-export const APP_VERSION = '5.6.0';
+export const APP_VERSION = '5.7.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -290,7 +291,10 @@ function renderTasks() {
   const bar = $('#filterBar');
   bar.innerHTML = d.filterBar;
   bar.hidden = !d.filterBar;
-  $('#taskList').innerHTML = d.list;
+  const board = layout.get() === 'board';
+  $('#layoutToggle').innerHTML = layoutToggle();
+  $('#statusFilters').hidden = board;
+  $('#taskList').innerHTML = board ? renderKanban(state.filter, now, areas()) : d.list;
   document.title = (d.stats.overdue ? `(${d.stats.overdue}) ` : '') + Sync.central.name;
 }
 
@@ -1776,6 +1780,7 @@ async function openCentral(id) {
   initPlaybooks(Object.assign({ ask: askAssistant }, helpers));
   initStatus(Object.assign({ ask: askAssistant }, helpers));
   initSearch(helpers);
+  initKanban(helpers);
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);
