@@ -23,6 +23,7 @@ const PAGES = [
   ['Plano de estudo', '#/estudos', 'cursos aprender'], ['Aprender marketing', '#/aprender', 'glossario termos awareness cac ltv'],
   ['Notas de reunião', '#/notas', 'ata reuniao'], ['Agenda', '#/agenda', 'prazos calendario'], ['Relatório', '#/relatorio', 'produtividade entregas'],
   ['Histórico', '#/historico', 'concluidas lixeira'], ['Configurações', '#/config', 'notificacoes equipe whatsapp pin areas radar'],
+  ['Equipe e 1:1', '#/equipe', 'pessoas time one on one reuniao gestao xarpi yokota du'],
   ['Growth', '#/growth', 'experimentos ideias ice testes hipotese backlog'],
   ['Inferno Roxo', '#/area/inferno', 'torcida organizada setores voluntarios'],
 ];

@@ -1502,3 +1502,15 @@ a.btn { text-decoration: none; }
 .sugg-row { display: flex; gap: 10px; align-items: flex-start; justify-content: space-between; border-top: 1px solid var(--border); padding-top: 10px; }
 .sugg-row > div { display: grid; gap: 2px; }
 .sugg-row p { margin: 4px 0 0; font-size: .9rem; color: var(--muted); }
+
+/* ---- v6.0: equipe e 1:1 ------------------------------------------------------ */
+.person-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.person-card { display: grid; gap: 4px; text-align: left; padding: 14px; font: inherit; color: var(--text); cursor: pointer; border: 1px solid var(--border); }
+.person-card span { font-size: .85rem; color: var(--muted); }
+.person-card.has-late b { color: var(--danger, #D93036); }
+.person-card.is-sel { border-color: var(--focus); box-shadow: 0 0 0 1px var(--focus); }
+.tv-detail { padding: 16px; display: grid; gap: 12px; }
+.tv-detail h3 { font-size: .95rem; margin: 0 0 6px; }
+.tv-detail ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.tv-agenda pre { white-space: pre-wrap; font: inherit; font-size: .9rem; background: color-mix(in srgb, var(--text) 4%, transparent); padding: 12px; border-radius: 8px; margin: 8px 0 0; }
+.tv-agenda summary { cursor: pointer; font-weight: 600; }
