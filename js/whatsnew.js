@@ -9,6 +9,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['7.7', 'Área como cockpit', ['Cada área mostra também os projetos e os testes de Growth daquele pilar.']],
   ['7.5', 'Abre na hora', ['A Central abre direto do aparelho, mesmo com internet fraca; as atualizações continuam chegando sozinhas.', 'Sexta: a notificação já traz a nota da semana e o ponto fraco.']],
   ['7.3', 'Novidades e guia', ['Esta tela: o que mudou em cada atualização e a rotina recomendada (Mais › Novidades e guia).']],
   ['7.2', 'Programação de pagamentos', ['Financeiro: contas dos próximos 14 dias por data, pronto para mandar ao financeiro e marcar como agendadas.']],

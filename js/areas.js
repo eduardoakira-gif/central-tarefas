@@ -11,6 +11,7 @@ import { Metrics, metricCard, okrCard, defaultMonth, monthLabel, view as b2cView
 import { CASES } from './references.js';
 import { R } from './radar.js';
 import { renderInfernoStructure } from './inferno.js';
+import { projects } from './projects.js';
 
 const C = window.Core;
 const esc = UI.esc;
@@ -138,6 +139,21 @@ export function renderArea() {
   const refs = (CASES[a.id] || []).slice(0, 3);
   const news = R.items.filter((it) => fold(it.title + it.summary + it.category).includes(fold(a.name.split(' ')[0])) || (a.id === 'socio' && it.category === 'Sócio/Membership') || (a.id === 'merchan' && it.category === 'Merchan')).slice(0, 3);
 
+  // projetos com tarefas desta área e testes de growth do pilar
+  const areaIds = new Set(mine.map((x) => x.id));
+  const projs = projects().filter((p) => !p.finished && p.list.some((t) => areaIds.has(t.area)));
+  const tests = (Sync.ideas || []).filter((x) => !x.deletedAt && x.pillar === a.id && ['testando', 'ideia'].includes(x.status))
+    .sort((x, y) => (y.status === 'testando') - (x.status === 'testando') || C.iceScore(y) - C.iceScore(x)).slice(0, 4);
+  const today = C.toDateKey(now);
+  const cockpit = projs.length || tests.length
+    ? `<div class="area-cockpit">
+        ${projs.length ? `<section class="card report-card"><div class="closing-head"><h2>Projetos</h2><a class="link-muted" href="#/projetos">Ver todos ›</a></div>
+          ${projs.map((p) => `<a class="proj-mini-row" href="#/projetos" data-proj-open="${esc(p.name)}"><span><strong>${esc(p.name)}</strong> <span class="hint">${p.pct}%${p.late.length ? ` · <b class="is-bad">${p.late.length} atrasada${p.late.length > 1 ? 's' : ''}</b>` : ''}${p.open[0] ? ' · próxima: ' + esc(p.open[0].title.slice(0, 50)) : ''}</span></span>${p.dday ? `<span class="proj-dday">${p.dday >= today ? 'D-' + Math.round((C.fromDateKey(p.dday) - C.fromDateKey(today)) / 86400000) : 'D+' + Math.round((C.fromDateKey(today) - C.fromDateKey(p.dday)) / 86400000)}</span>` : ''}</a>`).join('')}</section>` : ''}
+        ${tests.length ? `<section class="card report-card"><div class="closing-head"><h2>Growth</h2><a class="link-muted" href="#/growth">Backlog ›</a></div>
+          ${tests.map((x) => `<a class="proj-mini-row" href="#/growth"><span><strong>${esc(x.title)}</strong> <span class="hint">${x.status === 'testando' ? 'testando' : 'ICE ' + C.iceScore(x)}${x.metric ? ' · ' + esc(x.metric) : ''}</span></span></a>`).join('')}</section>` : ''}
+      </div>`
+    : '';
+
   let special = '';
   if (a.id === 'merchan') {
     const open = Sync.bills.filter((b) => !b.deletedAt && !b.paidAt);
@@ -172,6 +188,7 @@ export function renderArea() {
       <div class="card kpi"><span class="stat-label">Plano de 90 dias</span><span class="stat-num">${planDone}/${plan.length}</span><span class="stat-sub">etapas viraram tarefa</span></div>
     </div>
     ${special}
+    ${cockpit}
     <section class="pillar"><h2 class="group-title">Demandas</h2>${tasksHtml}</section>
     <section class="pillar" style="--area:${a.color}"><div class="closing-head"><h2 class="group-title">Indicadores · ${esc(monthLabel(ym))}</h2><a class="link-muted" href="#/painel">Lançar no Painel ›</a></div>
       ${metrics.length ? `<div class="kpi-grid">${metrics.map((m) => metricCard(m, ym, false)).join('')}</div>` : '<p class="hint">Carregue os indicadores recomendados no Painel B2C.</p>'}</section>

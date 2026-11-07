@@ -1593,3 +1593,6 @@ a.btn { text-decoration: none; }
 .cl-item p { margin: 2px 0 0; font-size: .9rem; color: var(--muted); }
 .cl-v { flex: none; font-size: .75rem; font-weight: 700; padding: 3px 8px; border-radius: 999px; background: color-mix(in srgb, var(--focus) 12%, transparent); color: var(--focus); }
 .hub-guide { border-color: color-mix(in srgb, var(--focus) 40%, var(--border)); }
+/* v7.7: cockpit da área */
+.area-cockpit { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-bottom: 12px; }
+.area-cockpit .report-card { display: grid; gap: 6px; margin: 0; }
