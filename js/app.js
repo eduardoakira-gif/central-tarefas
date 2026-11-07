@@ -33,7 +33,7 @@ import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
 
-export const APP_VERSION = '6.7.0';
+export const APP_VERSION = '6.8.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);

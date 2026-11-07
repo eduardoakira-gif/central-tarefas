@@ -38,12 +38,39 @@ const PROMPTS = [
 export const A = { messages: [], loaded: false, sending: false };
 let H = null;
 
+// A conversa fica neste aparelho e também no servidor (para continuar no outro aparelho).
 async function loadChat() {
-  if (A.loaded) return;
-  A.messages = (await kv.get('chat:' + Sync.id)) || [];
-  A.loaded = true;
+  if (!A.loaded) {
+    const local = (await kv.get('chat:' + Sync.id)) || [];
+    A.messages = Array.isArray(local) ? local : [];
+    A.at = (await kv.get('chat-at:' + Sync.id)) || '';
+    A.loaded = true;
+  }
+  if (!Sync.v4() || A.sending) return;
+  try {
+    const r = await Sync.call('chatGet', {}, { timeout: 15000 });
+    if (r.chat && r.chat.updatedAt && r.chat.updatedAt > (A.at || '') && Array.isArray(r.chat.messages)) {
+      A.messages = r.chat.messages;
+      A.at = r.chat.updatedAt;
+      await kv.set('chat:' + Sync.id, A.messages);
+      await kv.set('chat-at:' + Sync.id, A.at);
+      if (H) H.render();
+    }
+  } catch {}
 }
-const saveChat = () => kv.set('chat:' + Sync.id, A.messages.slice(-60));
+let pushTimer = null;
+async function saveChat() {
+  A.at = new Date().toISOString();
+  await kv.set('chat:' + Sync.id, A.messages.slice(-60));
+  await kv.set('chat-at:' + Sync.id, A.at);
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => {
+    if (!Sync.v4()) return;
+    Sync.call('chatSave', { messages: A.messages.slice(-40) }, { timeout: 20000 })
+      .then((r) => r && r.updatedAt && ((A.at = r.updatedAt), kv.set('chat-at:' + Sync.id, A.at)))
+      .catch(() => {});
+  }, 600);
+}
 
 /** Markdown mínimo e seguro: negrito, itálico, títulos, listas e links. */
 function md(text) {

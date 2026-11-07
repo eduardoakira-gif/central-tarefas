@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "6.6.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "6.8.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -1418,6 +1418,28 @@ Cada ideia: título curto, hipótese no formato "Se fizermos X, esperamos Y porq
         impact: n(x.impact), confidence: n(x.confidence), ease: n(x.ease),
       })).filter((x: any) => x.title);
       return { ideas };
+    }
+
+    case "chatGet": {
+      const central = await getCentral(body.centralId, body.pin);
+      return { chat: central.chat ?? null };
+    }
+
+    case "chatSave": {
+      const central = await getCentral(body.centralId, body.pin);
+      const msgs = (Array.isArray(body.messages) ? body.messages : []).slice(-40).map((m: any) => ({
+        role: m?.role === "assistant" ? "assistant" : "user",
+        content: String(m?.content ?? "").slice(0, 12000),
+        at: String(m?.at ?? "").slice(0, 40),
+        error: !!m?.error,
+        tasks: Array.isArray(m?.tasks) ? m.tasks.slice(0, 12) : [],
+        actions: Array.isArray(m?.actions) ? m.actions.slice(0, 20) : [],
+      }));
+      const chat = { updatedAt: new Date().toISOString(), messages: msgs };
+      if (JSON.stringify(chat).length > 400000) throw new HttpError(413, "Conversa grande demais.");
+      const { error } = await db.from("centrals").update({ chat }).eq("id", central.id);
+      if (error) throw new HttpError(500, error.message);
+      return { ok: true, updatedAt: chat.updatedAt };
     }
 
     case "taskSteps": {
