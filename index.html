@@ -273,7 +273,10 @@
           <h1>Financeiro do Merchan</h1>
           <p class="summary">NFs e XMLs dos fornecedores, envio ao financeiro, agendamento e pagamento. Com o fechamento do mês e cobrança automática.</p>
         </div>
-        <button class="btn btn-primary" type="button" data-b2c="new-bill">Nova NF</button>
+        <div class="btn-row">
+          <label class="btn xml-import" title="Selecione um ou vários XMLs de NF-e">Importar XML<input type="file" accept=".xml,text/xml,application/xml" multiple data-nfe-input hidden></label>
+          <button class="btn btn-primary" type="button" data-b2c="new-bill">Nova NF</button>
+        </div>
       </div>
       <div id="financeBody"></div>
     </section>

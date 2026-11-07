@@ -1553,3 +1553,4 @@ a.btn { text-decoration: none; }
 .chat-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
 .hands-free { display: inline-flex; align-items: center; gap: 6px; font-size: .84rem; color: var(--muted); }
 .hands-free input { accent-color: var(--focus); }
+.xml-import { cursor: pointer; }

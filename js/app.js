@@ -32,8 +32,9 @@ import { initKanban, renderKanban, layoutToggle, layout } from './kanban.js';
 import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
+import { initNfe } from './nfe.js';
 
-export const APP_VERSION = '6.8.0';
+export const APP_VERSION = '6.9.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1910,6 +1911,7 @@ async function openCentral(id) {
   initGrowth(helpers);
   initTeamView(Object.assign({ ask: askAssistant }, helpers));
   initProjects(Object.assign({ ask: askAssistant }, helpers));
+  initNfe(helpers);
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

@@ -517,7 +517,7 @@ export function renderFinance() {
     </div>
     ${closing}
     ${groups || `<div class="empty"><div class="empty-title">Nenhuma NF cadastrada</div><p class="empty-text">Cadastre as notas dos fornecedores de merchan para acompanhar documentos, envio ao financeiro e pagamentos.</p><button type="button" class="btn btn-primary" data-b2c="new-bill">Cadastrar NF</button></div>`}
-    <p class="hint">Fluxo de cada nota: receber NF e XML → enviar ao financeiro → financeiro agenda o pagamento → paga. Quando o Bling for conectado, as notas poderão entrar sozinhas.</p>`;
+    <p class="hint">Fluxo de cada nota: receber NF e XML → enviar ao financeiro → financeiro agenda o pagamento → paga. Dica: toque em "Importar XML" e selecione os XMLs dos fornecedores. A Central cria as contas com valor, emissão e vencimento de cada parcela.</p>`;
 }
 
 // -----------------------------------------------------------------------------
