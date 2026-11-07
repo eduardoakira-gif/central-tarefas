@@ -32,7 +32,7 @@ import { initKanban, renderKanban, layoutToggle, layout } from './kanban.js';
 import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 
-export const APP_VERSION = '6.0.1';
+export const APP_VERSION = '6.1.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);

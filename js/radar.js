@@ -105,6 +105,7 @@ function card(it) {
       <div class="btn-row">
         <button type="button" class="btn btn-sm" data-radar="star">${it.starred ? '★ Salva' : '☆ Salvar referência'}</button>
         <button type="button" class="btn btn-sm" data-radar="task">Virar tarefa</button>
+        <button type="button" class="btn btn-sm" data-radar="idea">Virar ideia de growth</button>
         <button type="button" class="icon-btn" data-radar="delete" title="Remover" aria-label="Remover notícia">×</button>
       </div>
     </div>
@@ -214,6 +215,14 @@ async function onAction(action, el) {
       R.items = R.items.filter((x) => x.id !== id);
       H.render();
       return Sync.call('radarDelete', { itemId: id }).catch((err) => H.toast(err.message));
+    case 'idea': {
+      if (!Sync.serverIdeas) return H.toast('O servidor ainda está atualizando. Tente em instantes.');
+      const cat = String(it.category || '').toLowerCase();
+      const pillar = /merch|loja|produto/.test(cat) ? 'merchan' : /s[oó]cio|membro|assinatura/.test(cat) ? 'socio' : /crm|e-?mail|newsletter/.test(cat) ? 'crm' : /comunidade|f[aã]|evento|torcida/.test(cat) ? 'comunidade' : 'geral';
+      const now = new Date().toISOString();
+      await Sync.upsert('ideas', C.normalizeIdea({ title: (it.lesson || it.title).split(/[.:]/)[0].slice(0, 120), hypothesis: `Inspirado em ${it.org}: ${it.lesson || it.summary}`, metric: '', pillar, impact: Math.min(10, (it.relevance || 3) * 2), confidence: 5, ease: 5, createdAt: now, updatedAt: now }));
+      return H.toast('Ideia criada no Growth. Ajuste a hipótese e as notas ICE.', { label: 'Abrir', fn: () => (location.hash = '#/growth') });
+    }
     case 'task':
       return H.openTaskDialog({
         title: `Estudar e aplicar: ${it.org} – ${it.title}`.slice(0, 200),

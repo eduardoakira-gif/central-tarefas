@@ -37,7 +37,10 @@ function data() {
   const kpis = Sync.v4()
     ? Metrics.all().filter((m) => m.values && m.values[ym] != null).slice(0, 6).map((m) => ({ name: m.name, value: fmt(m, m.values[ym]), target: m.target != null ? fmt(m, m.target) : null, hit: m.target == null ? null : m.direction === 'down' ? m.values[ym] <= m.target : m.values[ym] >= m.target }))
     : [];
-  return { mon, sun, done, byArea, doing, waiting, late, next, kpis };
+  const ideas = (Sync.ideas || []).filter((x) => !x.deletedAt);
+  const tests = ideas.filter((x) => x.status === 'testando');
+  const learned = ideas.filter((x) => ['validada', 'descartada'].includes(x.status) && (() => { const d = C.toDateKey(new Date(x.updatedAt)); return d >= mon && d <= sun; })());
+  return { mon, sun, done, byArea, doing, waiting, late, next, kpis, tests, learned };
 }
 
 export function statusText() {
@@ -51,6 +54,7 @@ export function statusText() {
   if (d.waiting.length) L.push('', '⏳ Aguardando', ...d.waiting.slice(0, 8).map((t) => `• ${t.title}${t.waitingFor || t.owner ? ` – com ${t.waitingFor || t.owner}` : ''}`));
   if (d.late.length) L.push('', '⚠️ Riscos e atrasos', ...d.late.slice(0, 6).map((t) => `• ${t.title} (venceu ${dm(t.dueDate)})`));
   if (d.next.length) L.push('', '📅 Próxima semana', ...d.next.slice(0, 8).map((t) => `• ${dm(t.dueDate)} – ${t.title}`));
+  if (d.tests.length || d.learned.length) L.push('', '🧪 Experimentos de growth', ...d.tests.map((x) => `• Testando: ${x.title}`), ...d.learned.map((x) => `• ${x.status === 'validada' ? 'Validado' : 'Não validou'}: ${x.title}${x.result ? ' – ' + x.result : ''}`));
   if (d.kpis.length) L.push('', '📊 Indicadores do mês', ...d.kpis.map((k) => `• ${k.name}: ${k.value}${k.target ? ` (meta ${k.target})` : ''}`));
   return L.join('\n');
 }
@@ -70,6 +74,7 @@ export function renderStatus() {
       ${sec('⏳ Aguardando', d.waiting.slice(0, 10).map((t) => li(t, t.waitingFor || t.owner || '')), 'Nada aguardando retorno.')}
       ${sec('⚠️ Riscos e atrasos', d.late.slice(0, 10).map((t) => li(t, 'venceu ' + dm(t.dueDate))), 'Sem atrasos. 👏')}
       ${sec('📅 Próxima semana', d.next.slice(0, 10).map((t) => li(t, dm(t.dueDate))), 'Sem prazos na próxima semana.')}
+      ${d.tests.length || d.learned.length ? sec('🧪 Experimentos', [...d.tests.map((x) => `<li>Testando: ${esc(x.title)}</li>`), ...d.learned.map((x) => `<li>${x.status === 'validada' ? '✓ Validado' : '✗ Não validou'}: ${esc(x.title)}</li>`)], '') : ''}
       ${d.kpis.length ? sec('📊 Indicadores do mês', d.kpis.map((k) => `<li>${esc(k.name)}: <strong>${esc(k.value)}</strong>${k.target ? ` <span class="hint">meta ${esc(k.target)} ${k.hit ? '✓' : '✗'}</span>` : ''}</li>`), '') : ''}
     </div>`;
 }
