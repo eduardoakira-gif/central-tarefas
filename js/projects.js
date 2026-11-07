@@ -58,11 +58,40 @@ function card(p) {
   </article>`;
 }
 
+/** Próximas 8 semanas: dias D dos projetos e carga de tarefas com prazo por semana. */
+function timeline(all) {
+  const today = C.toDateKey(new Date());
+  const start = C.weekStart(new Date());
+  const weeks = Array.from({ length: 8 }, (_, i) => C.addDays(start, i * 7));
+  const open = Tasks.all().filter((t) => t.status !== 'done' && t.dueDate);
+  const late = open.filter((t) => t.dueDate < today).length;
+  const cols = weeks.map((w, i) => {
+    const end = C.addDays(w, 6);
+    const load = open.filter((t) => t.dueDate >= (i === 0 ? today : w) && t.dueDate <= end).length + (i === 0 ? late : 0);
+    const ddays = all.filter((p) => !p.finished && p.dday && p.dday >= w && p.dday <= end);
+    return { w, load, ddays };
+  });
+  const max = Math.max(8, ...cols.map((c) => c.load));
+  const heavy = (n) => n >= 15;
+  return `<section class="card tl-card">
+    <div class="closing-head"><h2>Próximas 8 semanas</h2><span class="hint">barra = tarefas com prazo · ◆ = dia D</span></div>
+    <div class="tl">${cols.map((c, i) => `<div class="tl-col${heavy(c.load) ? ' is-heavy' : ''}${c.ddays.length > 1 ? ' is-clash' : ''}">
+        <div class="tl-bar"><i style="height:${Math.round((c.load / max) * 100)}%"></i><b>${c.load}</b></div>
+        <span class="tl-week">${i === 0 ? 'esta' : C.fromDateKey(c.w).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+        <div class="tl-dd">${c.ddays.map((p) => `<span title="${esc(p.name)} · ${C.fromDateKey(p.dday).toLocaleDateString('pt-BR')}">◆ ${esc(p.name.split(': ').pop().slice(0, 14))}</span>`).join('')}</div>
+      </div>`).join('')}</div>
+    ${cols.some((c) => c.ddays.length) ? `<div class="tl-legend">${cols.flatMap((c) => c.ddays).sort((a, b) => a.dday.localeCompare(b.dday)).map((p) => `<span><b>◆ ${C.fromDateKey(p.dday).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</b> ${esc(p.name.split(': ').pop())}</span>`).join('')}</div>` : ''}
+    ${cols.some((c) => c.ddays.length > 1) ? '<p class="hint tl-warn">⚠️ Semana com mais de um dia D: confira se o time dá conta ou se dá para espaçar.</p>' : ''}
+    ${cols.some((c) => heavy(c.load)) ? '<p class="hint tl-warn">⚠️ Semana com 15 ou mais tarefas com prazo: antecipe, delegue ou renegocie.</p>' : ''}
+  </section>`;
+}
+
 export function renderProjects() {
   const all = projects();
   const list = all.filter((p) => p.finished === view.done);
   return `<div class="chips"><button type="button" class="chip" data-proj-tab="0" aria-pressed="${!view.done}">Em andamento <span class="chip-count">${all.filter((p) => !p.finished).length || ''}</span></button>
       <button type="button" class="chip" data-proj-tab="1" aria-pressed="${view.done}">Concluídos <span class="chip-count">${all.filter((p) => p.finished).length || ''}</span></button></div>
+    ${!view.done ? timeline(all) : ''}
     <p class="hint">Todo playbook vira projeto. Para colocar qualquer tarefa num projeto, preencha o campo Projeto dentro da tarefa.</p>
     <div class="proj-list">${list.map(card).join('') || `<p class="hint">${view.done ? 'Nenhum projeto concluído ainda.' : 'Nenhum projeto em andamento. Comece por um <a href="#/playbooks">playbook</a>.'}</p>`}</div>`;
 }
