@@ -1419,3 +1419,16 @@ a.btn { text-decoration: none; }
 .triage-card { display: grid; gap: 8px; }
 .triage-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); padding-top: 6px; }
 .triage-row .day-title { white-space: normal; }
+
+/* ---- v5.5: status semanal ------------------------------------------------- */
+.status-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.status-head .seg { display: flex; align-items: center; gap: 10px; }
+.status-kpis { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.status-kpis span { padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); font-size: .9rem; }
+.status-kpis .is-bad { color: var(--danger, #D93036); border-color: currentColor; }
+.status-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.status-sec { padding: 14px 16px; }
+.status-sec h2 { font-size: 1rem; margin: 0 0 8px; }
+.status-sec ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.link-plain { background: none; border: 0; padding: 0; font: inherit; color: var(--text); text-align: left; cursor: pointer; }
+.link-plain:hover { text-decoration: underline; }

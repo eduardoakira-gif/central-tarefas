@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "5.3.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "5.5.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -1232,8 +1232,8 @@ async function handle(body: any, req: Request) {
           `Em aberto: ${open.length}` + (late ? `, ${plural(late, "atrasada", "atrasadas")}.` : "."),
         ];
         if (nextWeek.length) lines.push(`Próxima semana: ${plural(nextWeek.length, "NF vence", "NFs vencem")} (${money(nextWeek.reduce((a: number, b: any) => a + (Number(b.amount) || 0), 0))}).`);
-        lines.push("", "Antes de sair: feche o que der, atualize o status do resto e defina as 3 prioridades de segunda. Peça o plano no Assistente.");
-        return { title: `${c.name}: revisão da semana`, body: lines.join("\n"), route: "#/assistente" };
+        lines.push("", "Antes de sair: feche o que der e mande o status semanal para o gestor (toque para abrir pronto).");
+        return { title: `${c.name}: revisão da semana`, body: lines.join("\n"), route: "#/status" };
       };
 
       let sent = 0;
@@ -1248,16 +1248,21 @@ async function handle(body: any, req: Request) {
         // Resumo do dia: uma vez por dia, a partir do horário escolhido (até 3h depois)
         const summaryAt = toMin(s.dailySummaryTime) ?? 480;
         if (s.dailySummary && d.last_summary_on !== today && minutes >= summaryAt && minutes < summaryAt + 180) {
-          let summary = await withAlerts(buildDailySummary(await tasksOf(c.id), d.timezone, c.name), c, s, d.timezone);
+          let summary: { title: string; body: string; route?: string } | null = await withAlerts(buildDailySummary(await tasksOf(c.id), d.timezone, c.name), c, s, d.timezone);
           if (s.aiBriefing && ANTHROPIC_API_KEY && (summary || (await tasksOf(c.id)).length)) {
             if (!briefings.has(c.id)) briefings.set(c.id, await aiBriefing(c).catch((err) => (console.error("Briefing", err?.message), null)));
             const text = briefings.get(c.id);
             if (text) summary = { title: `${c.name}: briefing do dono`, body: text, route: "#/assistente" };
           }
+          // segunda sem foco da semana definido: cobra as 3 prioridades
+          if (localNow(d.timezone).weekday === 1 && !(await tasksOf(c.id)).some((t: any) => t.focusWeek === weekStartKey(today)) && (await tasksOf(c.id)).length) {
+            const nudge = "★ Semana nova sem foco definido. Toque e a IA escolhe as 3 prioridades da semana.";
+            summary = summary ? { ...summary, body: summary.body + "\n\n" + nudge, route: "#/dia/semana" } : { title: `${c.name}: foco da semana`, body: nudge, route: "#/dia/semana" };
+          }
           const planned = (await tasksOf(c.id)).some((t: any) => t.plannedFor === today);
           if (!planned && (await tasksOf(c.id)).length) {
             const nudge = "☀ Você ainda não planejou o dia. Toque para a IA montar seu plano de hoje.";
-            summary = summary ? { ...summary, body: summary.body + "\n\n" + nudge, route: "#/dia/planejar" } : { title: `${c.name}: planeje o seu dia`, body: nudge, route: "#/dia/planejar" };
+            summary = summary ? { ...summary, body: summary.body + "\n\n" + nudge, route: summary.route === "#/dia/semana" ? summary.route : "#/dia/planejar" } : { title: `${c.name}: planeje o seu dia`, body: nudge, route: "#/dia/planejar" };
           }
           if (summary && (await sendPush(d, { ...summary, centralId: c.id }))) sent++;
           await db.from("devices").update({ last_summary_on: today, last_sent_at: now })

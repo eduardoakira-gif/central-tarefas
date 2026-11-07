@@ -10,7 +10,7 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v5.4.0';
+const CACHE_VERSION = 'v5.5.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -36,6 +36,7 @@ const APP_SHELL = [
   './js/myday.js',
   './js/team.js',
   './js/playbooks.js',
+  './js/status.js',
   './js/tasks.js',
   './js/notifications.js',
   './js/ui.js',

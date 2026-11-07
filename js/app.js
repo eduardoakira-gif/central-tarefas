@@ -26,8 +26,9 @@ import { initInferno } from './inferno.js';
 import { initMyDay, renderDayCard, openClose, planDay, captureShare, consumeShare } from './myday.js';
 import { waUrl, nudgeText, logNudge, personOf } from './team.js';
 import { initPlaybooks, renderPlaybooks, renderTriageCard } from './playbooks.js';
+import { initStatus, renderStatus } from './status.js';
 
-export const APP_VERSION = '5.4.0';
+export const APP_VERSION = '5.5.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -424,6 +425,7 @@ function renderAll() {
   if (r === 'brand') renderBrandView();
   if (r === 'study') renderStudyView();
   if (r === 'playbooks') keepFocus($('#playbooksBody'), renderPlaybooks());
+  if (r === 'status') $('#statusBody').innerHTML = renderStatus();
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -447,18 +449,19 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study', '/playbooks': 'playbooks',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study', '/playbooks': 'playbooks', '/status': 'status',
 };
 
 function route() {
   const hash = location.hash.replace(/^#/, '');
   if (state.route === 'radar' && hash !== '/radar') leaveRadar();
-  const dm = hash.match(/^\/dia\/(planejar|encerrar)$/);
+  const dm = hash.match(/^\/dia\/(planejar|encerrar|semana)$/);
   if (dm) {
     history.replaceState(null, '', location.pathname + location.search + '#/');
     state.route = 'tasks';
     showView();
     if (dm[1] === 'encerrar') openClose();
+    else if (dm[1] === 'semana') askAssistant('Defina o foco da semana: escolha as 3 tarefas que mais movem o resultado do B2C nesta semana (use propor_acoes com a ação "foco"), com o motivo de cada uma. Considere prazos, receita, OKRs e o que está travando. Se algo deveria ser delegado ou adiado para abrir espaço, proponha também.');
     else planDay();
     return;
   }
@@ -489,7 +492,7 @@ function showView() {
   const viewName = state.route === 'areas' ? 'area' : state.route;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== viewName));
   const r = state.route === 'note' ? 'notes' : state.route === 'area' ? 'areas' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study', 'playbooks'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study', 'playbooks'] };
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study', 'playbooks', 'status'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study', 'playbooks', 'status'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
@@ -1760,6 +1763,7 @@ async function openCentral(id) {
   initInferno(Object.assign({ ask: askAssistant }, helpers));
   initMyDay(Object.assign({ ask: askAssistant }, helpers));
   initPlaybooks(Object.assign({ ask: askAssistant }, helpers));
+  initStatus(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);
