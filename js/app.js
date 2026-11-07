@@ -25,8 +25,9 @@ import { initStudy, renderStudy, studyAlert } from './study.js';
 import { initInferno } from './inferno.js';
 import { initMyDay, renderDayCard, openClose, planDay, captureShare, consumeShare } from './myday.js';
 import { waUrl, nudgeText, logNudge, personOf } from './team.js';
+import { initPlaybooks, renderPlaybooks, renderTriageCard } from './playbooks.js';
 
-export const APP_VERSION = '5.3.0';
+export const APP_VERSION = '5.4.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -274,7 +275,7 @@ function renderTasks() {
   const now = new Date();
   renderOwnerFilter();
   const sa = studyAlert();
-  $('#ownerCard').innerHTML = renderDayCard() + renderOwnerCard() + renderTeamCard() + renderBrandAlert() +
+  $('#ownerCard').innerHTML = renderDayCard() + renderOwnerCard() + renderTeamCard() + renderTriageCard() + renderBrandAlert() +
     (sa ? `<a class="card term-card" href="#/estudos"><span class="label">Plano de estudo</span><strong>${esc(sa)}</strong></a>` : '') + renderTermCard();
   const d = UI.renderDashboard(Tasks.all(), state.filter, now, areas());
   $('#summary').textContent = d.summary;
@@ -422,6 +423,7 @@ function renderAll() {
   if (r === 'area' || r === 'areas') renderAreaView();
   if (r === 'brand') renderBrandView();
   if (r === 'study') renderStudyView();
+  if (r === 'playbooks') keepFocus($('#playbooksBody'), renderPlaybooks());
   if ($('#taskDialog').open && state.editingId) renderComments();
 }
 
@@ -445,7 +447,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study', '/playbooks': 'playbooks',
 };
 
 function route() {
@@ -487,7 +489,7 @@ function showView() {
   const viewName = state.route === 'areas' ? 'area' : state.route;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== viewName));
   const r = state.route === 'note' ? 'notes' : state.route === 'area' ? 'areas' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study'] };
+  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study', 'playbooks'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study', 'playbooks'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
@@ -1757,6 +1759,7 @@ async function openCentral(id) {
   initStudy(Object.assign({ ask: askAssistant }, helpers));
   initInferno(Object.assign({ ask: askAssistant }, helpers));
   initMyDay(Object.assign({ ask: askAssistant }, helpers));
+  initPlaybooks(Object.assign({ ask: askAssistant }, helpers));
   Sync.onChange(renderAll);
   Sync.onStatus(renderSyncStatus);
   renderSyncStatus(Sync.status, Sync.lastError);

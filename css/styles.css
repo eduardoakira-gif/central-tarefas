@@ -1406,3 +1406,16 @@ a.btn { text-decoration: none; }
 .share-options { display: grid; gap: 8px; }
 .share-options .btn { height: auto; padding: 12px 14px; display: grid; justify-items: start; justify-content: start; gap: 2px; text-align: left; width: 100%; }
 .share-options .btn span { font-size: .82rem; color: var(--muted); font-weight: 400; }
+
+/* ---- v5.4: playbooks e triagem ------------------------------------------- */
+.pb-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 12px; }
+.pb-card { display: grid; gap: 6px; text-align: left; padding: 16px; cursor: pointer; font: inherit; color: var(--text); border: 1px solid var(--border); }
+.pb-card:hover { border-color: var(--focus); }
+.pb-card span { color: var(--muted); font-size: .9rem; }
+.pb-steps { display: grid; gap: 0; max-height: 46vh; overflow: auto; border-top: 1px solid var(--border); margin-top: 6px; }
+.pb-step { border-bottom: 1px solid var(--border); font-size: .92rem; }
+.pb-step.is-past { color: var(--muted); }
+.pb-step em { color: var(--focus); font-style: normal; font-weight: 600; }
+.triage-card { display: grid; gap: 8px; }
+.triage-row { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--border); padding-top: 6px; }
+.triage-row .day-title { white-space: normal; }

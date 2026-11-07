@@ -328,6 +328,12 @@
       <div id="studyBody"></div>
     </section>
 
+    <!-- PLAYBOOKS -------------------------------------------------------------- -->
+    <section class="view" data-view="playbooks" hidden>
+      <div class="page-head"><div><h1>Playbooks</h1></div></div>
+      <div id="playbooksBody"></div>
+    </section>
+
     <!-- MARCA PESSOAL ---------------------------------------------------------- -->
     <section class="view" data-view="brand" hidden>
       <div class="page-head">
@@ -376,6 +382,7 @@
     <section class="view" data-view="more" hidden>
       <div class="page-head"><div><h1>Mais</h1></div></div>
       <div class="hub">
+        <a class="card hub-item" href="#/playbooks"><strong>Playbooks</strong><span>Drop de merch, campanha de sócio, evento, newsletter, Kings League e fechamento do mês: todas as tarefas com prazo em 1 toque</span></a>
         <a class="card hub-item" href="#/estudos"><strong>Plano de estudo</strong><span>Trilha de 12 semanas com cursos gratuitos, podcasts e leituras da sua área</span></a>
         <a class="card hub-item" href="#/marca"><strong>Marca pessoal</strong><span>Plano de conteúdo no LinkedIn, Instagram e X, calendário de posts e metas</span></a>
         <a class="card hub-item" href="#/painel"><strong>Painel B2C</strong><span>Todos os indicadores, funil do torcedor e OKRs</span></a>
@@ -1036,6 +1043,31 @@
         <div class="btn-row">
           <button type="button" class="btn" data-close>Cancelar</button>
           <button type="submit" class="btn btn-primary">Salvar</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- DIÁLOGO: PLAYBOOK ------------------------------------------------- -->
+  <dialog id="pbDialog" class="dialog" aria-labelledby="pbTitle">
+    <form id="pbForm" novalidate>
+      <div class="dialog-head">
+        <h2 id="pbTitle">Playbook</h2>
+        <button type="button" class="icon-btn" data-close aria-label="Fechar"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <p class="hint" id="pbDesc"></p>
+        <div class="setting-grid">
+          <label class="field"><span class="label" id="pbDateLabel">Dia D</span><input type="date" id="pbDate" class="input" required></label>
+          <label class="field"><span class="label">Nome (opcional)</span><input id="pbName" class="input" maxlength="60" placeholder="Ex.: Camisa Inferno Roxo" autocomplete="off"></label>
+        </div>
+        <div class="pb-steps" id="pbSteps"></div>
+      </div>
+      <div class="dialog-foot">
+        <span></span>
+        <div class="btn-row">
+          <button type="button" class="btn" data-close>Cancelar</button>
+          <button type="submit" class="btn btn-primary">Criar tarefas</button>
         </div>
       </div>
     </form>
