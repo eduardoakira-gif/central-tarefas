@@ -8,6 +8,8 @@ import { STATUS_FILTERS, applyFilters, computeStats } from './tasks.js';
 const C = window.Core;
 const pad = C.pad;
 
+const TAG_TONE = { Aprovado: 'ok', Pago: 'ok', Contratado: 'ok', Divulgado: 'ok', Bloqueado: 'bad', 'Aguardando aprovação': 'wait', 'Aguardando fornecedor': 'wait', 'Orçamento pedido': 'wait' };
+export const tagTone = (t) => TAG_TONE[t] || 'neutral';
 export const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -122,6 +124,9 @@ export function taskCard(t, now, areaMap, mode = '') {
   else if (c.overdue) badges.push('<span class="badge badge-overdue">Atrasada</span>');
 
   const meta = [];
+  const tagRow = (t.tags || []).length
+    ? `<div class="task-tags">${t.tags.map((x) => `<span class="dt-chip is-mini tone-${tagTone(x)}">${esc(x)}</span>`).join('')}</div>`
+    : '';
   meta.push(
     `<label class="pill pill-select status-${t.status}" title="Alterar status"><i class="dot"></i>` +
       `<select data-quick="status" aria-label="Status">${options(C.STATUSES, t.status)}</select></label>`
@@ -137,12 +142,12 @@ export function taskCard(t, now, areaMap, mode = '') {
   );
   if (t.checklist && t.checklist.length) {
     const doneCount = t.checklist.filter((x) => x.done).length;
-    meta.push(`<button type="button" class="pill pill-check${doneCount === t.checklist.length ? ' is-complete' : ''}" data-action="edit" title="Checklist">${icons.checklist}${doneCount}/${t.checklist.length}</button>`);
+    meta.push(`<button type="button" class="pill pill-check${doneCount === t.checklist.length ? ' is-complete' : ''}" data-action="open" title="Checklist">${icons.checklist}${doneCount}/${t.checklist.length}</button>`);
   }
   if (t.funnel && C.FUNNEL_MAP[t.funnel]) meta.push(`<span class="meta-item funnel-tag" style="--funnel:${C.FUNNEL_MAP[t.funnel].color}" title="${esc(C.FUNNEL_MAP[t.funnel].hint)}"><i></i>${esc(C.FUNNEL_MAP[t.funnel].short)}</span>`);
   if (t.recurrence) meta.push(`<span class="meta-item" title="Tarefa recorrente">${icons.repeat}${esc(C.RECURRENCE_MAP[t.recurrence].name)}</span>`);
   if (t.owner) meta.push(`<span class="meta-item">${icons.user}${esc(t.owner)}</span>`);
-  if (t.comments && t.comments.length) meta.push(`<button type="button" class="meta-item meta-btn" data-action="edit" title="Comentários">${icons.comment}${t.comments.length}</button>`);
+  if (t.comments && t.comments.length) meta.push(`<button type="button" class="meta-item meta-btn" data-action="open" title="Andamento">${icons.comment}${t.comments.length}</button>`);
   if (t.noteId) meta.push(`<button type="button" class="meta-item meta-btn" data-action="open-note" data-note-id="${esc(t.noteId)}" title="Abrir a nota de origem">${icons.note}Reunião</button>`);
   const href = safeHref(t.link);
   if (href) meta.push(`<a class="meta-item meta-link" href="${esc(href)}" target="_blank" rel="noopener">${icons.link}Link</a>`);
@@ -188,11 +193,12 @@ export function taskCard(t, now, areaMap, mode = '') {
         <span class="area-tag" style="--area:${area.color}"><i></i>${esc(area.name)}</span>
         ${badges.join('')}
       </div>
-      <h3 class="task-title"><button type="button" data-action="edit">${esc(t.title)}</button></h3>
+      <h3 class="task-title"><button type="button" data-action="open">${esc(t.title)}</button></h3>
       ${desc}
       ${waitLine}
       ${doneLine}
       ${trashLine}
+      ${tagRow}
       <div class="task-meta">${meta.join('')}</div>
     </div>
     <div class="task-actions">${actions}</div>

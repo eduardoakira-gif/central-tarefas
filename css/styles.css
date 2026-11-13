@@ -1634,3 +1634,63 @@ a.btn { text-decoration: none; }
 .tl-warn { margin: 0; }
 .tl-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: .8rem; }
 .tl-legend span b { color: var(--focus); }
+
+/* Ficha da tarefa (v8.5) ---------------------------------------------------- */
+.dialog-detail { width: min(640px, calc(100vw - 32px)); }
+.dt-wrap { display: flex; flex-direction: column; max-height: calc(100dvh - 48px); }
+.dt-title { font-size: 20px; font-weight: 650; letter-spacing: -0.015em; margin: 8px 0 10px; line-height: 1.25; }
+.dt-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.dt-meta .dt-date { position: relative; }
+.dt-meta .dt-date input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.dt-status { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 12px; padding: 3px; background: var(--surface-2); border-radius: 10px; }
+.dt-status button { border: 0; background: transparent; padding: 8px 4px; border-radius: 8px; font-size: 12.5px; font-weight: 550; color: var(--text-2); cursor: pointer; }
+.dt-status button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.dt-desc { color: var(--text-2); white-space: pre-wrap; font-size: 14px; margin: 0; }
+.dt-sec { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); padding-top: 14px; }
+.dt-sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.dt-sec-head h3 { font-size: 13px; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); margin: 0; }
+.dt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.dt-chip { --tone: var(--muted); border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 99px; padding: 6px 11px; font-size: 13px; font-weight: 500; cursor: pointer; line-height: 1.2; }
+.dt-chip.tone-ok { --tone: var(--green); }
+.dt-chip.tone-wait { --tone: var(--amber); }
+.dt-chip.tone-bad { --tone: var(--red); }
+.dt-chip[aria-pressed="true"], .dt-chip.is-mini { border-color: color-mix(in srgb, var(--tone) 45%, var(--border)); background: color-mix(in srgb, var(--tone) 14%, var(--surface)); color: color-mix(in srgb, var(--tone) 75%, var(--text)); font-weight: 600; }
+.dt-chip-add { border-style: dashed; }
+.dt-chip.is-mini { padding: 2px 8px; font-size: 11.5px; cursor: default; }
+.task-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
+.dt-checks { display: flex; flex-direction: column; gap: 2px; }
+.dt-check { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; padding: 6px 2px; font-size: 14.5px; cursor: pointer; }
+.dt-check input { width: 18px; height: 18px; accent-color: var(--green); margin: 0; }
+.dt-check.is-done span { color: var(--muted); text-decoration: line-through; }
+.dt-check .icon-btn, .dt-entry .icon-btn { opacity: .45; font-size: 18px; line-height: 1; width: 28px; height: 28px; }
+.dt-add { display: flex; gap: 8px; align-items: flex-end; }
+.dt-add input, .dt-add textarea { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: 9px 11px; background: var(--surface); color: var(--text); font: inherit; font-size: 14.5px; resize: vertical; }
+.dt-log { display: flex; flex-direction: column; gap: 0; position: relative; padding-left: 14px; border-left: 2px solid var(--border); margin-left: 4px; }
+.dt-entry { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 6px 0 10px; }
+.dt-entry::before { content: ""; position: absolute; left: -20px; top: 11px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); border: 2px solid var(--surface); }
+.dt-entry.is-auto::before { background: var(--border-strong); }
+.dt-when { grid-column: 1; font-size: 11.5px; color: var(--muted); font-weight: 550; }
+.dt-entry p { grid-column: 1; margin: 0; font-size: 14.5px; white-space: pre-wrap; }
+.dt-entry.is-auto p { color: var(--text-2); font-size: 13px; }
+.dt-entry .icon-btn { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+.task .task-main { cursor: pointer; }
+.task.is-done .task-main { cursor: pointer; }
+@media (max-width: 720px) {
+  .dialog-detail { width: 100vw; }
+  .dt-wrap { max-height: calc(100dvh - env(safe-area-inset-top, 0px) - 12px); }
+  .dt-foot { flex-direction: row !important; align-items: center !important; }
+  .dt-status button { font-size: 11.5px; }
+}
+.dialog form.dt-add { flex-direction: row; max-height: none; align-items: flex-end; }
+.dt-add .btn { flex: none; }
+.dt-foot .btn-row { display: flex; flex-direction: row; flex-wrap: nowrap; gap: 8px; }
+.dt-status button { white-space: nowrap; }
+@media (max-width: 720px) {
+  .dt-foot { gap: 8px; }
+  .dt-foot > .btn { padding-left: 10px; padding-right: 10px; }
+  .dt-status button { font-size: 11px; padding: 8px 2px; }
+}
+@media (max-width: 720px) {
+  .dt-foot { justify-content: space-between !important; }
+  .dt-foot .btn { font-size: 13.5px; padding-left: 11px; padding-right: 11px; }
+}

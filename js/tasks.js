@@ -174,7 +174,7 @@ export function matchesSearch(t, query, areaMap) {
   const area = areaMap && areaMap[t.area];
   const hay = fold([
     t.title, t.description, area && area.name, t.owner, t.waitingFor, t.notes, t.link,
-    ...(t.checklist || []).map((c) => c.text), ...(t.comments || []).map((c) => c.text),
+    ...(t.checklist || []).map((c) => c.text), ...(t.comments || []).map((c) => c.text), ...(t.tags || []),
   ].join(' '));
   return q.split(/\s+/).every((w) => hay.includes(w));
 }

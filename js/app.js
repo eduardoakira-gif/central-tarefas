@@ -34,8 +34,9 @@ import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
 import { initNfe, importFiles as importXml } from './nfe.js';
 import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
+import { initDetail, openDetail, refreshDetail } from './detail.js';
 
-export const APP_VERSION = '8.4.0';
+export const APP_VERSION = '8.5.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -447,6 +448,7 @@ function renderAll() {
   if (r === 'projects') $('#projectsBody').innerHTML = renderProjects();
   if (r === 'guide') $('#guideBody').innerHTML = renderGuide();
   if ($('#taskDialog').open && state.editingId) renderComments();
+  refreshDetail();
 }
 
 const STATUS_TEXT = { saved: 'Sincronizado', saving: 'Salvando…', offline: 'Offline', error: 'Erro ao sincronizar', idle: '' };
@@ -480,7 +482,7 @@ function route() {
     history.replaceState(null, '', location.pathname + location.search + '#/');
     state.route = 'tasks';
     showView();
-    if (Tasks.get(tm[1])) openTaskDialog(tm[1]);
+    if (Tasks.get(tm[1])) openDetail(tm[1]);
     else toast('Essa tarefa não existe mais.');
     return;
   }
@@ -1069,6 +1071,8 @@ async function handleAction(action, id, el) {
       return setTimeout(() => $('#pasteText').focus(), 50);
     case 'edit':
       return openTaskDialog(id);
+    case 'open':
+      return openDetail(id);
     case 'wait':
       return openWaitDialog(id);
     case 'today': {
@@ -1584,6 +1588,11 @@ function bindEvents() {
       handleAction(actionEl.dataset.action, card && card.dataset.id, actionEl);
       return;
     }
+    const bodyCard = e.target.closest('article.task .task-main, article.kb-card');
+    if (bodyCard && !e.target.closest('a, button, input, select, label, textarea')) {
+      const card = bodyCard.closest('[data-id]');
+      if (card && Tasks.get(card.dataset.id) && !Tasks.get(card.dataset.id).deletedAt) return openDetail(card.dataset.id);
+    }
     const statusEl = e.target.closest('[data-filter-status]');
     if (statusEl) {
       const v = statusEl.dataset.filterStatus;
@@ -1966,6 +1975,7 @@ async function openCentral(id) {
   initStudy(Object.assign({ ask: askAssistant }, helpers));
   initInferno(Object.assign({ ask: askAssistant }, helpers));
   initMyDay(Object.assign({ ask: askAssistant }, helpers));
+  initDetail(Object.assign({ ask: askAssistant }, helpers));
   initPlaybooks(Object.assign({ ask: askAssistant }, helpers));
   initStatus(Object.assign({ ask: askAssistant }, helpers));
   initSearch(helpers);

@@ -180,6 +180,7 @@
       project: str(t.project).trim().slice(0, 80) || null,
       projectDate: validDate(t.projectDate),
       funnel: FUNNEL_MAP[t.funnel] ? t.funnel : null,
+      tags: Array.isArray(t.tags) ? [...new Set(t.tags.map((x) => str(x).trim().slice(0, 30)).filter(Boolean))].slice(0, 12) : [],
       deletedAt: t.deletedAt || null,
     };
   }
