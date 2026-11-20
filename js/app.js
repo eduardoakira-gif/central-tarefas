@@ -36,7 +36,7 @@ import { initNfe, importFiles as importXml } from './nfe.js';
 import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 
-export const APP_VERSION = '8.5.0';
+export const APP_VERSION = '8.6.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1073,6 +1073,15 @@ async function handleAction(action, id, el) {
       return openTaskDialog(id);
     case 'open':
       return openDetail(id);
+    case 'tag': {
+      const v = el.dataset.tag || '';
+      state.filter.query = state.filter.query === v ? '' : v;
+      $('#search').value = state.filter.query;
+      if (state.route !== 'tasks') location.hash = '#/';
+      renderTasks();
+      if (state.filter.query) toast('Mostrando: ' + v + ' (toque de novo para limpar)');
+      return;
+    }
     case 'wait':
       return openWaitDialog(id);
     case 'today': {

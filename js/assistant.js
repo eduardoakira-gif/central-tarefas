@@ -226,19 +226,32 @@ function speak(text, idx) {
 
 export function renderAssistant() {
   if (!Sync.v4()) return `<p class="notice">O servidor ainda está sendo atualizado. O assistente começa a funcionar assim que a atualização terminar.</p>`;
+  let lastDay = '';
+  const today = C.toDateKey(new Date());
+  const dayLabel = (k) => (k === today ? 'Hoje' : k === C.addDays(today, -1) ? 'Ontem' : C.fromDateKey(k).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }));
+  const divider = (m) => {
+    if (!m.at) return '';
+    const k = C.toDateKey(new Date(m.at));
+    if (k === lastDay) return '';
+    lastDay = k;
+    return `<div class="chat-day"><span>${dayLabel(k)}</span></div>`;
+  };
   const msgs = A.messages
-    .map((m, i) =>
+    .map((m, i) => divider(m) + (
       m.role === 'user'
         ? `<div class="msg msg-user"><p>${esc(m.content)}</p></div>`
-        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${projectsBlock(m, i)}${TTS && !m.error ? `<button type="button" class="link-btn link-muted msg-speak" data-chat="speak" data-mi="${i}">${speakingIdx === i ? '■ Parar' : '🔊 Ouvir'}</button>` : ''}${actionsBlock(m, i)}${suggestions(m, i)}</div>`
+        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${projectsBlock(m, i)}${TTS && !m.error ? `<button type="button" class="link-btn link-muted msg-speak" data-chat="speak" data-mi="${i}">${speakingIdx === i ? '■ Parar' : '🔊 Ouvir'}</button>` : ''}${actionsBlock(m, i)}${suggestions(m, i)}</div>`)
     )
     .join('');
+  const stale = A.messages.length && lastDay && lastDay < today
+    ? `<div class="chat-stale">Esta conversa é de ${esc(dayLabel(lastDay).toLowerCase())}. <button type="button" class="link-btn" data-chat="clear">Começar a de hoje</button></div>`
+    : '';
   const intro = `<div class="chat-intro">
       <h2>Seu sócio na Central</h2>
       <p>Eu leio suas demandas, o Painel B2C, os OKRs, as NFs do merchan e o radar das organizações. Pergunte o que quiser ou comece por um atalho.</p>
     </div>`;
   return `<div class="chat">
-    <div class="chat-log" id="chatLog">${msgs || intro}${A.sending ? '<div class="msg msg-ai is-typing"><span></span><span></span><span></span></div>' : ''}</div>
+    <div class="chat-log" id="chatLog">${msgs || intro}${stale}${A.sending ? '<div class="msg msg-ai is-typing"><span></span><span></span><span></span></div>' : ''}</div>
     <div class="chat-prompts">${PROMPTS.map(([label], i) => `<button type="button" class="chip" data-chat="prompt" data-i="${i}">${label}</button>`).join('')}</div>
     <form class="chat-form" id="chatForm" novalidate>
       <textarea class="input" id="chatInput" rows="1" placeholder="Pergunte ao assistente…" aria-label="Mensagem"></textarea>
@@ -265,7 +278,7 @@ async function send(text) {
   H.render();
   scrollDown();
   try {
-    const history = A.messages.filter((m) => !m.error).slice(-12).map((m) => ({ role: m.role, content: m.content }));
+    const history = A.messages.filter((m) => !m.error).slice(-12).map((m) => ({ role: m.role, content: m.content, at: m.at || '' }));
     const r = await Sync.call('assistantChat', { messages: history }, { timeout: 120000 });
     A.messages.push({ role: 'assistant', content: r.reply, tasks: r.tasks || [], actions: r.actions || [], projects: r.projects || [], at: new Date().toISOString() });
     if (handsFree.get()) setTimeout(() => speak(r.reply, A.messages.length - 1), 200);

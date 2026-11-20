@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "8.2.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "8.6.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -852,6 +852,7 @@ function fmtMetric(m: any, v: any) {
 async function assistantContext(central: any) {
   const s = cleanSettings(central.settings);
   const { today, minutes } = localNow("America/Sao_Paulo");
+  const dayBR = (iso: any) => (iso && Date.parse(iso) ? localNow("America/Sao_Paulo", new Date(iso)).today : "?");
   const [tasks, metrics, okrs, bills, radar, campaigns, ideas] = await Promise.all([
     listItems("tasks", central.id), listItems("metrics", central.id), listItems("okrs", central.id),
     listItems("bills", central.id), radarRecent(central.id, 25), listItems("campaigns", central.id), listItems("ideas", central.id),
@@ -882,7 +883,11 @@ async function assistantContext(central: any) {
     const upd = Math.floor((Date.now() - Date.parse(t.updatedAt || t.createdAt)) / 86400000);
     if (upd >= 3) bits.push(`sem atualização há ${upd} dias`);
     const ck = Array.isArray(t.checklist) && t.checklist.length ? ` [checklist ${t.checklist.filter((x: any) => x.done).length}/${t.checklist.length}]` : "";
-    return `- [id:${t.id}] ${t.title}${ck} (${bits.filter(Boolean).join(", ")})`;
+    if (Array.isArray(t.tags) && t.tags.length) bits.push("marcações: " + t.tags.slice(0, 6).join(" / "));
+    const notes = (Array.isArray(t.comments) ? t.comments : []).filter((n: any) => n && n.text && !/^(Marcou|Desmarcou|Situação|Passo concluído)/.test(n.text))
+      .sort((a: any, b: any) => String(b.at).localeCompare(String(a.at))).slice(0, 2)
+      .map((n: any) => `${dayBR(n.at)}: ${String(n.text).replace(/\s+/g, " ").slice(0, 140)}`);
+    return `- [id:${t.id}] ${t.title}${ck} (${bits.filter(Boolean).join(", ")})${notes.length ? ` — últimas notas: ${notes.join(" | ")}` : ""}`;
   };
   const done7 = live.filter((t: any) => t.status === "done" && t.completedAt && Date.parse(t.completedAt) > Date.now() - 7 * 86400000);
 
@@ -901,7 +906,7 @@ async function assistantContext(central: any) {
     `- ${b.supplier || "Fornecedor"} NF ${b.number || "s/n"}: ${money(Number(b.amount) || 0)}, vence ${b.dueDate || "?"}, etapa ${billStage(b)}` +
     `${b.nfOk ? "" : ", sem NF"}${b.xmlOk ? "" : ", sem XML"}${b.scheduledFor ? ", agendada " + b.scheduledFor : ""}`);
   const alerts = ownerAlerts(live, bills, metrics, s, today);
-  const radarLines = radar.slice(0, 20).map((r: any) => `- ${r.createdAt?.slice(0, 10)} ${r.org}: ${r.title}. Lição: ${r.lesson}`);
+  const radarLines = radar.slice(0, 20).map((r: any) => `- ${dayBR(r.createdAt)} ${r.org}: ${r.title}. Lição: ${r.lesson}`);
 
   return `Hoje: ${today} (${WEEKDAYS[new Date(today + "T12:00:00Z").getUTCDay()]}), ${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")} em Brasília.
 Central: ${central.name}. Áreas: ${central.areas.map((a: any) => a.name).join(", ")}.
@@ -916,7 +921,7 @@ ${alerts.lines.map((l) => "- " + l).join("\n") || "- nenhum"}
 ${open.slice(0, 70).map(taskLine).join("\n") || "- nenhuma"}
 
 ## Concluídas nos últimos 7 dias (${done7.length})
-${done7.slice(0, 25).map((t: any) => "- " + t.title).join("\n") || "- nenhuma"}
+${done7.slice(0, 25).map((t: any) => `- ${dayBR(t.completedAt)}: ${t.title}`).join("\n") || "- nenhuma"}
 
 ## Indicadores do Painel B2C
 ${metricLines.join("\n") || "- nenhum cadastrado"}
@@ -1022,6 +1027,7 @@ const SUGGEST_TOOL = {
 
 function assistantSystem(contextText: string) {
   return `Você é o assistente pessoal e "sócio-dono" do usuário dentro da Central de Tarefas dele. Pense como o dono da empresa: foco em receita, prioridades, prazos e execução.
+Data e hora: use SEMPRE o "Hoje" do contexto abaixo (horário de Brasília). Mensagens marcadas como de dia anterior são histórico: não repita resumos, briefings ou prioridades antigas como se fossem de hoje; refaça com os dados atuais e, se citar algo antigo, diga a data (ex.: "ontem, 19/11").
 Seu papel:
 - Cobrar com firmeza e respeito: aponte o que está atrasado, parado ou sem dono, e diga o que fazer primeiro.
 - Dar direcionamento estratégico para a área B2C, conectando demandas, indicadores, OKRs, financeiro e o radar das organizações de referência (T1, Karmine Corp, Team Liquid, 100 Thieves, FURIA, LOUD, MIBR etc.).
@@ -1587,8 +1593,15 @@ Regras: de 3 a 8 passos, cada um começando com verbo no infinitivo, curto (até
     case "assistantChat": {
       const central = await getCentral(body.centralId, body.pin);
       const raw = Array.isArray(body.messages) ? body.messages.slice(-16) : [];
+      const todayBR = localNow("America/Sao_Paulo").today;
+      // Mensagens de dias anteriores levam a data, para a IA não tratar um resumo antigo como de hoje.
       const messages = raw
-        .map((m: any) => ({ role: m?.role === "assistant" ? "assistant" : "user", content: String(m?.content ?? "").slice(0, 8000) }))
+        .map((m: any) => {
+          const day = m?.at && Date.parse(m.at) ? localNow("America/Sao_Paulo", new Date(m.at)).today : null;
+          const old = day && day < todayBR;
+          const content = String(m?.content ?? "").slice(0, 8000);
+          return { role: m?.role === "assistant" ? "assistant" : "user", content: old && content.trim() ? `[mensagem de ${day.slice(8, 10)}/${day.slice(5, 7)}, dia anterior]\n${content}` : content };
+        })
         .filter((m: any) => m.content.trim());
       while (messages.length && messages[0].role !== "user") messages.shift();
       if (!messages.length || messages[messages.length - 1].role !== "user") throw new HttpError(400, "Escreva sua mensagem.");

@@ -9,6 +9,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['8.6', 'Assistente no dia certo', ['O Assistente sempre usa a data e a hora de Brasília e não trata conversa de ontem como se fosse de hoje.', 'Conversa separada por dia (Hoje, Ontem…) e atalho para começar a conversa do dia.', 'O Assistente lê as marcações e as últimas notas da ficha de cada tarefa.', 'Toque numa marcação do card para ver todas as tarefas com ela.']],
   ['8.5', 'Ficha da tarefa', ['Toque em qualquer tarefa: abre a ficha com marcações de andamento (Orçamento pedido, Aprovado, Pago… ou crie as suas), checklist com progresso e um diário de notas com data e hora.', 'As marcações aparecem no card e a IA lê o diário para sugerir o próximo passo.']],
   ['8.4', 'Diretoria mais completa', ['Relatório mensal com projetos, experimentos de Growth e média do scorecard.']],
   ['8.3', 'Linha do tempo', ['Projetos: próximas 8 semanas com dias D e carga de tarefas, avisando choques e semanas pesadas.']],

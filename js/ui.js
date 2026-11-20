@@ -125,7 +125,7 @@ export function taskCard(t, now, areaMap, mode = '') {
 
   const meta = [];
   const tagRow = (t.tags || []).length
-    ? `<div class="task-tags">${t.tags.map((x) => `<span class="dt-chip is-mini tone-${tagTone(x)}">${esc(x)}</span>`).join('')}</div>`
+    ? `<div class="task-tags">${t.tags.map((x) => `<button type="button" class="dt-chip is-mini tone-${tagTone(x)}" data-action="tag" data-tag="${esc(x)}" title="Ver todas com esta marcação">${esc(x)}</button>`).join('')}</div>`
     : '';
   meta.push(
     `<label class="pill pill-select status-${t.status}" title="Alterar status"><i class="dot"></i>` +

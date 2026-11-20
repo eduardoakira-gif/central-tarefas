@@ -1656,7 +1656,7 @@ a.btn { text-decoration: none; }
 .dt-chip.tone-bad { --tone: var(--red); }
 .dt-chip[aria-pressed="true"], .dt-chip.is-mini { border-color: color-mix(in srgb, var(--tone) 45%, var(--border)); background: color-mix(in srgb, var(--tone) 14%, var(--surface)); color: color-mix(in srgb, var(--tone) 75%, var(--text)); font-weight: 600; }
 .dt-chip-add { border-style: dashed; }
-.dt-chip.is-mini { padding: 2px 8px; font-size: 11.5px; cursor: default; }
+.dt-chip.is-mini { padding: 2px 8px; font-size: 11.5px; cursor: pointer; }
 .task-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
 .dt-checks { display: flex; flex-direction: column; gap: 2px; }
 .dt-check { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 8px; padding: 6px 2px; font-size: 14.5px; cursor: pointer; }
@@ -1694,3 +1694,8 @@ a.btn { text-decoration: none; }
   .dt-foot { justify-content: space-between !important; }
   .dt-foot .btn { font-size: 13.5px; padding-left: 11px; padding-right: 11px; }
 }
+
+/* Conversa por dia (v8.6) */
+.chat-day { display: flex; align-items: center; gap: 10px; margin: 6px 0; color: var(--muted); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.chat-day::before, .chat-day::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.chat-stale { align-self: center; font-size: 13px; color: var(--text-2); background: var(--surface-2); border-radius: 99px; padding: 6px 14px; text-align: center; }
