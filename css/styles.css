@@ -1861,3 +1861,8 @@ body[data-route="tasks"] #taskList.is-selecting { padding-bottom: 130px; }
 .crm-cad > div { display: flex; flex-direction: column; }
 .crm-cad strong { font-size: 18px; }
 .crm-cad p { grid-column: 1 / -1; margin: 0; }
+
+/* v9.7 */
+.chip-group { display: inline-flex; align-items: center; gap: 4px; }
+.chip-group select { border: 0; background: transparent; font: inherit; color: var(--text); font-weight: 600; padding: 0 2px; cursor: pointer; }
+.extra-event { border-color: var(--primary); }

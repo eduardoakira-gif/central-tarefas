@@ -42,6 +42,8 @@ function results(q) {
   const terms = fold(q).split(/[^a-z0-9]+/).filter(Boolean);
   if (!terms.length) return [];
   const out = [];
+  const raw = q.trim();
+  const quick = raw.length >= 4 ? ({ group: 'Ação rápida', title: `+ Criar tarefa: "${raw.replace(/^\+\s*/, '').slice(0, 80)}"`, sub: 'para hoje, na primeira área', run: async () => { const t = await Tasks.create({ title: raw.replace(/^\+\s*/, '').slice(0, 200), dueDate: C.toDateKey(new Date()), area: ((Sync.central && Sync.central.areas) || [])[0]?.id, priority: 'normal' }); H.toast('Tarefa criada'); H.openDetail ? H.openDetail(t.id) : null; } }) : null;
   const areas = (Sync.central && Sync.central.areas) || [];
   const areaName = (id) => (areas.find((a) => a.id === id) || { name: '' }).name;
   const tasks = Tasks.all()
@@ -60,6 +62,7 @@ function results(q) {
     out.push({ group: 'Telas', title: name, sub: '', run: () => (location.hash = hash) });
   for (const pb of PLAYBOOKS.filter((p) => match([p.name, p.desc, p.steps.map((s) => s.t).join(' ')].join(' '), terms)).slice(0, 4))
     out.push({ group: 'Playbooks', title: pb.name, sub: pb.desc, run: () => openPlaybook(pb.id) });
+  if (quick) out.push(quick);
   return out;
 }
 

@@ -264,13 +264,21 @@ export function initDetail(helpers) {
     $('#dtNote').value = '';
     await addLog(v.slice(0, 2000));
   });
+  $('#dtStep').addEventListener('paste', (e) => {
+    const txt = (e.clipboardData || window.clipboardData).getData('text');
+    if (!/\n/.test(txt)) return;
+    e.preventDefault();
+    $('#dtStep').value = txt.split(/\r?\n/).map((x) => x.trim()).filter(Boolean).join('; ');
+  });
   $('#dtStepForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const v = $('#dtStep').value.trim();
     const t = Tasks.get(openId);
     if (!v || !t) return;
     $('#dtStep').value = '';
-    await Tasks.update(t.id, { checklist: (t.checklist || []).concat({ id: C.uid(), text: v.slice(0, 200), done: false }) });
+    const lines = v.split(/\n|;\s*/).map((x) => x.replace(/^[-•*\d.)\s]+/, '').trim()).filter(Boolean).slice(0, 30);
+    await Tasks.update(t.id, { checklist: (t.checklist || []).concat(lines.map((x) => ({ id: C.uid(), text: x.slice(0, 200), done: false }))) });
+    if (lines.length > 1) H.toast(`${lines.length} passos adicionados`);
   });
   const mic = micButton('dtNote', 'Ditar nota');
   if (mic) $('#dtNoteBtn').insertAdjacentHTML('beforebegin', mic);

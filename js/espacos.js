@@ -97,6 +97,24 @@ const TEMPLATES = {
       return it;
     },
   },
+  estudio: {
+    name: 'Estúdio / live',
+    build: (W, D) => [
+      { type: 'backdrop', x: 0, z: -D / 2 + 0.4 }, { type: 'mesa', x: 0, z: -D / 2 + 2, w: 2.4 }, { type: 'cadeira', x: -0.7, z: -D / 2 + 2.6, rot: 180 }, { type: 'cadeira', x: 0.7, z: -D / 2 + 2.6, rot: 180 },
+      { type: 'tv', x: -2.2, z: -D / 2 + 0.2 }, { type: 'camera', x: 0, z: -D / 2 + 5 }, { type: 'camera', x: -2.5, z: -D / 2 + 4.2, rot: 30 }, { type: 'camera', x: 2.5, z: -D / 2 + 4.2, rot: -30 },
+      { type: 'mesa_tecnica', x: W / 2 - 1.6, z: -D / 2 + 5 }, { type: 'som', x: -2.6, z: -D / 2 + 1 }, { type: 'som', x: 2.6, z: -D / 2 + 1 }, { type: 'totem', x: 2.4, z: -D / 2 + 1.2 }, { type: 'sofa', x: -W / 2 + 1.5, z: D / 2 - 1 },
+    ],
+  },
+  popup: {
+    name: 'Loja pop-up de merch',
+    build: (W, D) => {
+      const it = [{ type: 'credenciamento', x: 0, z: D / 2 - 1, w: 2.4 }, { type: 'backdrop', x: 0, z: -D / 2 + 0.4 }, { type: 'tv', x: -2, z: -D / 2 + 0.2 }, { type: 'tv', x: 2, z: -D / 2 + 0.2 }];
+      for (let i = 0; i < Math.min(6, Math.floor((W - 2) / 2.2)); i++) it.push({ type: 'merch', x: -W / 2 + 1.6 + i * 2.2, z: -D / 2 + 1.6 });
+      for (let i = 0; i < 3; i++) it.push({ type: 'mesa', x: -3 + i * 3, z: 0.5 });
+      it.push({ type: 'totem', x: -W / 2 + 1, z: D / 2 - 1.5 }, { type: 'bandeira', x: W / 2 - 1, z: D / 2 - 1.5 }, { type: 'bar', x: W / 2 - 1.8, z: -0.5, rot: 90, w: 2 });
+      return it;
+    },
+  },
   ativacao: {
     name: 'Ativação de patrocinador',
     build: (W, D) => [

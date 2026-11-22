@@ -37,7 +37,7 @@ import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged, openLayout } from './espacos.js';
 
-export const APP_VERSION = '9.6.0';
+export const APP_VERSION = '9.7.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -48,7 +48,7 @@ const state = {
   centralId: null,
   route: 'tasks',
   noteId: null,
-  filter: { status: 'all', area: null, query: '', owner: '' },
+  filter: { status: 'all', area: null, query: '', owner: '', groupBy: (() => { try { return localStorage.getItem('ct-groupby') || 'prazo'; } catch { return 'prazo'; } })() },
   selecting: false,
   sel: new Set(),
   history: { query: '', area: '', tab: 'done' },
@@ -292,6 +292,11 @@ function renderTasks() {
   const ba = brandAlert();
   if (ba) extras.push(`<a class="extra-chip" href="#/marca"><span>✍️</span>${esc(ba.text)}</a>`);
   if (sa) extras.push(`<a class="extra-chip" href="#/estudos"><span>📚</span>${esc(sa)}</a>`);
+  const nextEv = (Sync.layouts || []).filter((l) => !l.deletedAt && !l.base && l.eventDate && l.eventDate >= C.toDateKey(now)).sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0];
+  if (nextEv) {
+    const nd = Math.round((C.fromDateKey(nextEv.eventDate) - C.fromDateKey(C.toDateKey(now))) / 86400000);
+    extras.unshift(`<a class="extra-chip extra-event" href="#/espacos" data-layout="${esc(nextEv.id)}"><span>🎪</span>${esc(nextEv.name)}: <strong>${nd === 0 ? 'é hoje!' : nd === 1 ? 'amanhã' : 'em ' + nd + ' dias'}</strong></a>`);
+  }
   const term = termOfDay();
   extras.push(`<a class="extra-chip" href="#/aprender" title="${esc(term.what)}"><span>💡</span>Termo do dia: <strong>${esc(term.term)}</strong></a>`);
   $('#ownerCard').innerHTML = renderDayCard() + renderOwnerCard() + renderProjectsCard() + renderTeamCard() + renderTriageCard() +
@@ -311,6 +316,7 @@ function renderTasks() {
   $('#layoutToggle').innerHTML = layoutToggle();
   $('#statusFilters').hidden = board;
   $('#taskList').innerHTML = board ? renderKanban(state.filter, now, areas()) : d.list;
+  if (!board) $('#statusFilters').insertAdjacentHTML('beforeend', `<label class="chip chip-group" title="Agrupar a lista">Agrupar: <select data-groupby aria-label="Agrupar por">${[['prazo', 'Prazo'], ['area', 'Área'], ['owner', 'Responsável'], ['project', 'Projeto'], ['tag', 'Marcação']].map(([v, n]) => `<option value="${v}"${state.filter.groupBy === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`);
   if (!board) $('#statusFilters').insertAdjacentHTML('beforeend', `<button type="button" class="chip chip-select" data-select-mode aria-pressed="${state.selecting}">${state.selecting ? '✕ Sair da seleção' : '☑ Selecionar'}</button>`);
   paintSelection();
   document.title = (d.stats.overdue ? `(${d.stats.overdue}) ` : '') + Sync.central.name;
@@ -1800,6 +1806,11 @@ function bindEvents() {
   });
 
   document.addEventListener('change', (e) => {
+    if (e.target.matches('[data-groupby]')) {
+      state.filter.groupBy = e.target.value;
+      try { localStorage.setItem('ct-groupby', e.target.value); } catch {}
+      return renderTasks();
+    }
     if (e.target.matches('[data-bulk-prio]') && e.target.value) bulk('prio', e.target.value);
     if (e.target.matches('[data-bulk-area]') && e.target.value) bulk('area', e.target.value);
   });
@@ -1954,6 +1965,12 @@ function bindEvents() {
       return;
     }
     if (typing || dialogOpen || e.ctrlKey || e.metaKey || e.altKey) return;
+    const go = { a: '#/assistente', g: '#/agenda', p: '#/projetos', e: '#/espacos', t: '#/', s: '#/status' }[e.key];
+    if (go) { e.preventDefault(); location.hash = go; return; }
+    if (e.key === '?') {
+      e.preventDefault();
+      return confirmDialog({ title: 'Atalhos do teclado', message: 'N nova tarefa · / buscar · T tarefas · A assistente · G agenda · P projetos · E espaços (mapa 3D) · S status semanal · Ctrl+Enter salva a tarefa · no mapa 3D: Ctrl+Z desfaz, Delete apaga, R gira, setas movem', confirmLabel: 'Ok', danger: false });
+    }
     if (e.key === 'n' || e.key === 'N') {
       e.preventDefault();
       openTaskDialog();

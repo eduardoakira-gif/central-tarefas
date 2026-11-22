@@ -9,6 +9,14 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.7', 'Mais praticidade', [
+    'Tarefas: Agrupar a lista por prazo, área, responsável, projeto ou marcação (fica lembrado).',
+    'Tela inicial: contagem regressiva do próximo evento do mapa 3D, com atalho para o layout.',
+    'Ficha: cole vários passos de uma vez no checklist (um por linha ou separados por ;).',
+    'Mapa 3D: novos modelos Estúdio/live e Loja pop-up de merch.',
+    'Busca: digite e toque em + Criar tarefa para criar na hora.',
+    'Computador: aperte ? para ver os atalhos; novos atalhos T, A, G, P, E e S para ir às telas.',
+  ]],
   ['9.6', 'Rodada forte 5', [
     'Ficha: estimativa de tempo (15 min a 1 dia) e responsável com 1 toque. O card mostra ⏱ e o Meu dia soma o trabalho restante, avisando quando passa de 6h focadas.',
     'Quadro (kanban): limite de 5 em andamento, com aviso quando passa.',

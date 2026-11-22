@@ -374,7 +374,14 @@ export function renderTaskList(all, filter, now, areaMap) {
   open.forEach((t) => groups[C.classify(t, now).section].push(t));
 
   let html = '';
-  if (!open.length) {
+  const gb = filter.groupBy || 'prazo';
+  if (open.length && gb !== 'prazo') {
+    const keyOf = (t) => (gb === 'area' ? (areaMap[t.area] || { name: 'Sem área' }).name : gb === 'owner' ? t.owner || 'Eu (Edu)' : gb === 'project' ? t.project || 'Sem projeto' : (t.tags || [])[0] || 'Sem marcação');
+    const g = {};
+    open.forEach((t) => (g[keyOf(t)] = g[keyOf(t)] || []).push(t));
+    const order = Object.keys(g).sort((a, b) => (/^Sem |^Eu /.test(a) ? 1 : 0) - (/^Sem |^Eu /.test(b) ? 1 : 0) || g[b].length - g[a].length || a.localeCompare(b));
+    order.forEach((k, i) => (html += section('grp' + i, esc(k), C.sortTasks(g[k], now), now, areaMap)));
+  } else if (!open.length) {
     html += hasFilter ? emptyFiltered() : emptyAllDone();
   } else {
     for (const s of SECTIONS) {
