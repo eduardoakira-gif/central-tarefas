@@ -9,6 +9,13 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.8', 'Ideias de outras ferramentas + links dos cursos', [
+    'Plano de estudo: todos os cursos e livros agora abrem a página direta (sem busca no Google). Os cursos do Google Ateliê Digital, que saiu do ar, foram trocados por HubSpot Academy e FGV.',
+    'Tarefas: modo Matriz (urgente x importante), inspirado no TickTick: Fazer agora, Agendar, Delegar e Depois. ☆ marca como importante.',
+    'Tarefas: 📥 Triagem, inspirada no Linear: o que chegou sem prazo aparece um por vez para decidir em 1 toque (hoje, amanhã, semana que vem, urgente, delegar, já fiz ou lixeira).',
+    'Projetos: indicadores ao abrir o projeto, inspirados no Todoist: em risco, progresso, concluídas na semana x semana passada e o ritmo necessário até o dia D.',
+    'Correção: os botões Lista/Quadro voltaram a funcionar normalmente.',
+  ]],
   ['9.7', 'Mais praticidade', [
     'Tarefas: Agrupar a lista por prazo, área, responsável, projeto ou marcação (fica lembrado).',
     'Tela inicial: contagem regressiva do próximo evento do mapa 3D, com atalho para o layout.',

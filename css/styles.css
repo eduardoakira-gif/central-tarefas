@@ -1866,3 +1866,27 @@ body[data-route="tasks"] #taskList.is-selecting { padding-bottom: 130px; }
 .chip-group { display: inline-flex; align-items: center; gap: 4px; }
 .chip-group select { border: 0; background: transparent; font: inherit; color: var(--text); font-weight: 600; padding: 0 2px; cursor: pointer; }
 .extra-event { border-color: var(--primary); }
+
+/* v9.8 */
+.matrix { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 720px) { .matrix { grid-template-columns: 1fr; } }
+.mx-q { border: 1px solid var(--border); border-radius: 14px; padding: 10px; background: var(--surface); display: flex; flex-direction: column; gap: 6px; min-height: 140px; }
+.mx-q header { display: flex; justify-content: space-between; align-items: center; }
+.mx-q header span { font-weight: 700; color: var(--text-2); }
+.mx-q > .hint { margin: 0; font-size: 12px; }
+.mx-q1 { border-top: 4px solid var(--red); }
+.mx-q2 { border-top: 4px solid var(--primary); }
+.mx-q3 { border-top: 4px solid var(--amber); }
+.mx-q4 { border-top: 4px solid var(--border-strong, #9ca3af); }
+.mx-card { border: 1px solid var(--border); border-left: 3px solid var(--area); border-radius: 10px; padding: 8px 10px; background: var(--surface); display: flex; flex-direction: column; gap: 4px; }
+.mx-help { margin-top: 10px; }
+.chip-triage { border-color: var(--primary); font-weight: 600; }
+.triage-dialog { width: min(520px, calc(100vw - 24px)); }
+.triage-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 6px 0 4px; }
+.triage-done { text-align: center; padding: 30px 18px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.triage-big { font-size: 46px; }
+.proj-insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 10px 0; }
+.proj-insights > div { background: var(--surface-2); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; }
+.proj-insights strong { font-size: 20px; }
+.proj-insights .is-bad strong { color: var(--red); }
+.mx-card .kb-next.is-on { color: var(--amber); }

@@ -182,6 +182,7 @@
       funnel: FUNNEL_MAP[t.funnel] ? t.funnel : null,
       dependsOn: t.dependsOn ? str(t.dependsOn).slice(0, 40) : null,
       estimate: Number(t.estimate) > 0 ? Math.min(960, Math.round(Number(t.estimate))) : null,
+      triagedAt: t.triagedAt || null,
       tags: Array.isArray(t.tags) ? [...new Set(t.tags.map((x) => str(x).trim().slice(0, 30)).filter(Boolean))].slice(0, 12) : [],
       deletedAt: t.deletedAt || null,
     };

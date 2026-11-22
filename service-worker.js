@@ -10,7 +10,7 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v9.7.0';
+const CACHE_VERSION = 'v9.8.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -36,6 +36,7 @@ const APP_SHELL = [
   './js/myday.js',
   './js/detail.js',
   './js/espacos.js',
+  './js/triage.js',
   './js/vendor/three.module.min.js',
   './js/vendor/OrbitControls.js',
   './js/team.js',

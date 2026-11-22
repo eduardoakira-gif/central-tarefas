@@ -28,7 +28,7 @@ import { waUrl, nudgeText, logNudge, personOf } from './team.js';
 import { initPlaybooks, renderPlaybooks, renderTriageCard } from './playbooks.js';
 import { initStatus, renderStatus } from './status.js';
 import { initSearch, openSearch } from './search.js';
-import { initKanban, renderKanban, layoutToggle, layout } from './kanban.js';
+import { initKanban, renderKanban, renderMatrix, layoutToggle, layout } from './kanban.js';
 import { initGrowth, renderGrowth } from './growth.js';
 import { initTeamView, renderTeam } from './team-view.js';
 import { initProjects, renderProjects, renderProjectsCard, projectNames } from './projects.js';
@@ -36,8 +36,9 @@ import { initNfe, importFiles as importXml } from './nfe.js';
 import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged, openLayout } from './espacos.js';
+import { initTriage, triageList, openTriage } from './triage.js';
 
-export const APP_VERSION = '9.7.0';
+export const APP_VERSION = '9.8.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -295,7 +296,7 @@ function renderTasks() {
   const nextEv = (Sync.layouts || []).filter((l) => !l.deletedAt && !l.base && l.eventDate && l.eventDate >= C.toDateKey(now)).sort((a, b) => a.eventDate.localeCompare(b.eventDate))[0];
   if (nextEv) {
     const nd = Math.round((C.fromDateKey(nextEv.eventDate) - C.fromDateKey(C.toDateKey(now))) / 86400000);
-    extras.unshift(`<a class="extra-chip extra-event" href="#/espacos" data-layout="${esc(nextEv.id)}"><span>🎪</span>${esc(nextEv.name)}: <strong>${nd === 0 ? 'é hoje!' : nd === 1 ? 'amanhã' : 'em ' + nd + ' dias'}</strong></a>`);
+    extras.unshift(`<a class="extra-chip extra-event" href="#/espacos" data-open-layout="${esc(nextEv.id)}"><span>🎪</span>${esc(nextEv.name)}: <strong>${nd === 0 ? 'é hoje!' : nd === 1 ? 'amanhã' : 'em ' + nd + ' dias'}</strong></a>`);
   }
   const term = termOfDay();
   extras.push(`<a class="extra-chip" href="#/aprender" title="${esc(term.what)}"><span>💡</span>Termo do dia: <strong>${esc(term.term)}</strong></a>`);
@@ -312,10 +313,12 @@ function renderTasks() {
   const bar = $('#filterBar');
   bar.innerHTML = d.filterBar;
   bar.hidden = !d.filterBar;
-  const board = layout.get() === 'board';
+  const mode = layout.get();
+  const board = mode !== 'list';
   $('#layoutToggle').innerHTML = layoutToggle();
   $('#statusFilters').hidden = board;
-  $('#taskList').innerHTML = board ? renderKanban(state.filter, now, areas()) : d.list;
+  $('#taskList').innerHTML = mode === 'board' ? renderKanban(state.filter, now, areas()) : mode === 'matrix' ? renderMatrix(state.filter, now, areas()) : d.list;
+  if (!board) { const nT = triageList().length; if (nT) $('#statusFilters').insertAdjacentHTML('afterbegin', `<button type="button" class="chip chip-triage" data-triage-open>📥 Triagem <span class="chip-count">${nT}</span></button>`); }
   if (!board) $('#statusFilters').insertAdjacentHTML('beforeend', `<label class="chip chip-group" title="Agrupar a lista">Agrupar: <select data-groupby aria-label="Agrupar por">${[['prazo', 'Prazo'], ['area', 'Área'], ['owner', 'Responsável'], ['project', 'Projeto'], ['tag', 'Marcação']].map(([v, n]) => `<option value="${v}"${state.filter.groupBy === v ? ' selected' : ''}>${n}</option>`).join('')}</select></label>`);
   if (!board) $('#statusFilters').insertAdjacentHTML('beforeend', `<button type="button" class="chip chip-select" data-select-mode aria-pressed="${state.selecting}">${state.selecting ? '✕ Sair da seleção' : '☑ Selecionar'}</button>`);
   paintSelection();
@@ -1680,6 +1683,7 @@ function bindEvents() {
 
   document.addEventListener('click', (e) => {
     if (document.body.dataset.screen !== 'app') return;
+    if (e.target.closest('[data-triage-open]')) return openTriage();
     if (e.target.closest('[data-select-mode]')) {
       state.selecting = !state.selecting;
       state.sel.clear();
@@ -1707,8 +1711,8 @@ function bindEvents() {
       handleAction(actionEl.dataset.action, card && card.dataset.id, actionEl);
       return;
     }
-    const lay = e.target.closest('[data-layout]');
-    if (lay) { e.preventDefault(); return openLayout(lay.dataset.layout); }
+    const lay = e.target.closest('[data-open-layout]');
+    if (lay) { e.preventDefault(); return openLayout(lay.dataset.openLayout); }
     const bodyCard = e.target.closest('article.task .task-main, article.kb-card');
     if (bodyCard && !e.target.closest('a, button, input, select, label, textarea')) {
       const card = bodyCard.closest('[data-id]');
@@ -2181,6 +2185,7 @@ async function openCentral(id) {
   initInferno(Object.assign({ ask: askAssistant }, helpers));
   initMyDay(Object.assign({ ask: askAssistant, openDetail: (id) => openDetail(id) }, helpers));
   initDetail(Object.assign({ ask: askAssistant }, helpers));
+  initTriage(Object.assign({}, helpers, { openDetail }));
   initSpaces(Object.assign({}, helpers, { render: () => renderSpacesView(true), openDetail }));
   initPlaybooks(Object.assign({ ask: askAssistant }, helpers));
   initStatus(Object.assign({ ask: askAssistant }, helpers));

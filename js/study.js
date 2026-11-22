@@ -10,14 +10,13 @@ import { Tasks } from './tasks.js';
 const C = window.Core;
 const kv = { get: (k) => C.idb.get('kv', k), set: (k, v) => C.idb.put('kv', v, k) };
 const yt = (q) => 'https://www.youtube.com/results?search_query=' + encodeURIComponent(q);
-const gs = (q) => 'https://www.google.com/search?q=' + encodeURIComponent(q);
 
 // tipo: curso | podcast | leitura | vídeo | livro | prática
 export const MODULES = [
   { id: 'fund', name: 'Fundamentos de marketing', why: 'A base para falar a língua do marketing na diretoria.', items: [
-    ['curso', 'Fundamentos do Marketing Digital (Google Ateliê Digital)', 'Gratuito, 40 horas, 26 módulos, com certificado credenciado pelo IAB.', 'https://learndigital.withgoogle.com/ateliedigital'],
-    ['curso', 'Produto e Mercado: conceitos e pilares do Marketing (FGV)', 'Curso livre gratuito da FGV.', gs('FGV curso gratuito Produto e Mercado conceitos e pilares do Marketing')],
-    ['curso', 'A Importância Estratégica da Marca (FGV)', 'Curso livre gratuito da FGV sobre branding.', gs('FGV curso gratuito A Importância Estratégica da Marca')],
+    ['curso', 'Digital Marketing (HubSpot Academy)', 'Certificação gratuita: estratégia digital, SEO, redes, e-mail e anúncios. Substitui o Google Ateliê Digital, que foi desativado.', 'https://academy.hubspot.com/courses/digital-marketing'],
+    ['curso', 'Fundamentos de Marketing (FGV)', 'Curso livre gratuito da FGV: conceitos, mix de marketing e terminologia.', 'https://educacao-executiva.fgv.br/cursos/online/curta-media-duracao-online/fundamentos-de-marketing'],
+    ['curso', 'A Importância Estratégica da Marca: Conceitos Básicos (FGV)', 'Gratuito, 5 horas: identidade, imagem, reputação e projeto de branding.', 'https://educacao-executiva.fgv.br/cursos/online/curta-media-duracao-online/importancia-estrategica-da-marca-conceitos-basicos'],
     ['prática', 'Glossário da Central: 1 termo por dia', 'Leia o termo do dia e use em uma conversa ou post.', '#/aprender'],
   ] },
   { id: 'sport', name: 'Negócio do esporte e marketing esportivo', why: 'Entender patrocínio, torcida e receita como um gestor esportivo.', items: [
@@ -34,38 +33,38 @@ export const MODULES = [
     ['vídeo', 'Modelo de negócio da Kings League', 'Busca no YouTube para entender a liga por dentro.', yt('Kings League modelo de negócio Piqué receita')],
   ] },
   { id: 'crm', name: 'CRM e e-mail marketing', why: 'Sua newsletter tem 13% de abertura e 0,5% de clique: aqui está o caminho para subir.', items: [
-    ['curso', 'Email Marketing (HubSpot Academy)', 'Certificação gratuita, cerca de 4 horas, com segmentação, automação e métricas.', 'https://academy.hubspot.com/pt/courses'],
-    ['curso', 'Introdução ao Inbound Marketing (RD University)', 'Gratuito, com certificado da RD Station, a ferramenta que vocês usam.', 'https://www.rdstation.com/blog/noticias/rd-university/'],
+    ['curso', 'Email Marketing (HubSpot Academy)', 'Certificação gratuita, cerca de 4 horas, com segmentação, automação e métricas.', 'https://academy.hubspot.com/courses/email-marketing'],
+    ['curso', 'Cursos gratuitos da RD University (Inbound e Marketing Digital)', 'Gratuitos, com certificado da RD Station, a ferramenta que vocês usam.', 'https://university.rdstation.com/cursos'],
     ['prática', 'Aplicar: régua de boas-vindas no RD Station', 'Monte a régua de 4 a 6 e-mails da aba Áreas › CRM.', '#/area/crm'],
   ] },
   { id: 'comunidade', name: 'Comunidade e fãs', why: 'O seu pilar mais importante: transformar audiência em comunidade.', items: [
     ['vídeo', 'Community building: palestras e casos', 'Busca no YouTube: comunidade como estratégia de negócio.', yt('community led growth palestra comunidade estratégia')],
     ['vídeo', 'Karmine Corp e a cultura de torcida', 'Busca no YouTube: KCX e Blue Wall.', yt('Karmine Corp KCX Blue Wall fans')],
-    ['livro', 'Superfans (Pat Flynn)', 'Como transformar seguidores em superfãs. Leitura curta e prática.', gs('livro Superfans Pat Flynn')],
+    ['livro', 'Superfans (Pat Flynn)', 'Como transformar seguidores em superfãs. Leitura curta e prática.', 'https://patflynn.com/superfans/'],
     ['prática', 'Aplicar: plano de 90 dias da Comunidade', 'Transforme em tarefas na aba Áreas.', '#/area/comunidade'],
   ] },
   { id: 'socio', name: 'Assinatura e fidelidade (sócio)', why: 'Receita recorrente: churn, LTV e programas de fidelidade.', items: [
     ['leitura', 'Team Liquid: MyBlue', 'Como funciona o programa de missões e recompensas.', 'https://teamliquid.com/news/introducing-myblue'],
-    ['livro', 'Subscribed (Tien Tzuo)', 'O livro de referência sobre economia de assinaturas.', gs('livro Subscribed Tien Tzuo')],
+    ['livro', 'Subscribed (Tien Tzuo)', 'O livro de referência sobre economia de assinaturas.', 'https://books.apple.com/br/book/subscribed/id1326615127'],
     ['vídeo', 'Churn e retenção de assinantes', 'Busca no YouTube: como reduzir churn em assinatura.', yt('como reduzir churn assinatura retenção')],
   ] },
   { id: 'merchan', name: 'E-commerce e merchan', why: 'Drops, margem e conversão da loja.', items: [
-    ['curso', 'Cursos gratuitos de e-commerce do Sebrae', 'Práticos e com certificado.', gs('Sebrae curso gratuito e-commerce loja virtual')],
+    ['curso', 'Como construir uma loja virtual (Sebrae)', 'Gratuito, 2 horas, com certificado.', 'https://sebrae.com.br/sites/PortalSebrae/cursosonline/como-construir-uma-loja-virtual,a5d0b8a6a28bb610VgnVCM1000004c00210aRCRD'],
     ['vídeo', 'Estratégia de drops e lifestyle (100 Thieves)', 'Busca no YouTube.', yt('100 Thieves apparel drop strategy')],
     ['prática', 'Aplicar: plano de 90 dias do Merchan', 'Transforme em tarefas na aba Áreas.', '#/area/merchan'],
   ] },
   { id: 'gestao', name: 'Gestão, OKRs e prioridade', why: 'Visão de dono: foco, metas e rituais de gestão.', items: [
-    ['leitura', 'Guia de OKRs do Google re:Work', 'Gratuito: como definir objetivos e resultados-chave.', 'https://rework.withgoogle.com/guides/set-goals-with-okrs/steps/introduction/'],
-    ['livro', 'Measure What Matters / Avalie o que Importa (John Doerr)', 'O livro dos OKRs.', gs('livro Avalie o que importa John Doerr')],
-    ['livro', 'Traction / Tração (Gino Wickman)', 'Método EOS: scorecard semanal e prioridades do trimestre.', gs('livro Traction Gino Wickman EOS')],
+    ['leitura', 'Guia de OKRs do Google re:Work', 'Gratuito: como definir objetivos e resultados-chave.', 'https://rework.withgoogle.com/en/guides/set-goals-with-okrs'],
+    ['livro', 'Measure What Matters / Avalie o que Importa (John Doerr)', 'O livro dos OKRs.', 'https://www.martinsfontespaulista.com.br/avalie-o-que-importa-853630/p'],
+    ['livro', 'Ganhando Tração / Traction (Gino Wickman)', 'Método EOS: scorecard semanal e prioridades do trimestre.', 'https://www.martinsfontespaulista.com.br/ganhando-tracao-942387/p'],
   ] },
   { id: 'dados', name: 'Dados e analytics', why: 'Medir o que funciona e falar com números.', items: [
-    ['curso', 'Google Analytics (Skillshop)', 'Cursos gratuitos do Google com certificado.', 'https://skillshop.withgoogle.com/'],
+    ['curso', 'Certificação Google Analytics (Skillshop)', 'Trilha oficial e gratuita do GA4, com certificado do Google.', 'https://skillshop.exceedlms.com/student/path/525060'],
     ['prática', 'Aplicar: UTM em todos os links', 'Medir quanto cada canal vende e quantos sócios traz.', '#/area/crm'],
   ] },
   { id: 'marca', name: 'Marca pessoal e comunicação', why: 'Ser mais relevante no cenário e falar bem em público e na diretoria.', items: [
-    ['curso', 'Social Media Marketing (HubSpot Academy)', 'Certificação gratuita sobre estratégia de redes sociais.', 'https://academy.hubspot.com/pt/courses'],
-    ['curso', 'Como falar em público (Google Ateliê Digital)', 'Curso curto e gratuito.', 'https://learndigital.withgoogle.com/ateliedigital'],
+    ['curso', 'Social Media Marketing (HubSpot Academy)', 'Certificação gratuita sobre estratégia de redes sociais.', 'https://academy.hubspot.com/courses/social-media'],
+    ['curso', 'Storytelling e Técnicas de Apresentação (FGV)', 'Gratuito: técnicas para falar em público e apresentar na diretoria.', 'https://educacao-executiva.fgv.br/cursos/online/curta-media-duracao-online/storytelling-e-tecnicas-de-apresentacao-conceitos-gerais-de-comunicacao'],
     ['vídeo', 'Como escrever bons posts no LinkedIn', 'Busca no YouTube: escolha 2 criadores e estude o formato.', yt('como escrever post linkedin gancho storytelling')],
     ['prática', 'Aplicar: plano de conteúdo da Marca pessoal', 'Publique 4 posts por semana.', '#/marca'],
   ] },

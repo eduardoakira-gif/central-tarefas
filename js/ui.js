@@ -493,7 +493,7 @@ export function renderAgenda(all, now, areas, offset = 0, events = []) {
   for (const day of days) {
     const list = C.sortTasks(open.filter((t) => dateOf(t) === day && !(day === today && C.classify(t, now).overdue)), now);
     const evs = events.filter((e) => !e.deletedAt && !e.base && e.eventDate === day);
-    const evHtml = evs.map((e) => `<a class="agenda-event" href="#/espacos" data-layout="${esc(e.id)}">🎪 ${esc(e.name)} <span>${e.items.length} ${e.items.length === 1 ? "item" : "itens"} no mapa 3D</span></a>`).join('');
+    const evHtml = evs.map((e) => `<a class="agenda-event" href="#/espacos" data-open-layout="${esc(e.id)}">🎪 ${esc(e.name)} <span>${e.items.length} ${e.items.length === 1 ? "item" : "itens"} no mapa 3D</span></a>`).join('');
     const label = relativeDay(day, now) + evHtml;
     const isWeekend = [0, 6].includes(C.fromDateKey(day).getDay());
     if (!list.length) {

@@ -12,7 +12,8 @@ const KEY = 'ct-layout';
 export const layout = {
   get: () => {
     try {
-      return localStorage.getItem(KEY) === 'board' ? 'board' : 'list';
+      const v = localStorage.getItem(KEY);
+      return v === 'board' || v === 'matrix' ? v : 'list';
     } catch {
       return 'list';
     }
@@ -37,7 +38,33 @@ export function layoutToggle() {
   const l = layout.get();
   return `<div class="seg-toggle" role="group" aria-label="Visualização">
     <button type="button" data-layout="list" aria-pressed="${l === 'list'}">Lista</button>
-    <button type="button" data-layout="board" aria-pressed="${l === 'board'}">Quadro</button></div>`;
+    <button type="button" data-layout="board" aria-pressed="${l === 'board'}">Quadro</button>
+    <button type="button" data-layout="matrix" aria-pressed="${l === 'matrix'}" title="Matriz urgente x importante">Matriz</button></div>`;
+}
+
+/** Matriz de Eisenhower: urgente x importante. */
+export function renderMatrix(filter, now, areas) {
+  const areaMap = areaMapOf(areas);
+  const today = C.toDateKey(now);
+  const soon = C.addDays(today, 2);
+  const open = applyFilters(Tasks.all(), { area: filter.area, query: filter.query, owner: filter.owner, status: 'all' }, now, areaMap).filter((t) => t.status !== 'done');
+  const urgent = (t) => t.priority === 'urgent' || t.plannedFor === today || (t.dueDate && t.dueDate <= soon) || (t.status === 'waiting' && t.followUpDate && t.followUpDate <= today);
+  const important = (t) => t.priority === 'urgent' || t.priority === 'high' || !!t.project || (t.tags || []).includes('Bloqueado');
+  const Q = [
+    ['q1', 'Fazer agora', 'Urgente e importante', (t) => urgent(t) && important(t)],
+    ['q2', 'Agendar', 'Importante, sem urgência: é aqui que se cresce', (t) => !urgent(t) && important(t)],
+    ['q3', 'Delegar', 'Urgente, pouco importante', (t) => urgent(t) && !important(t)],
+    ['q4', 'Depois ou cortar', 'Nem urgente nem importante', (t) => !urgent(t) && !important(t)],
+  ];
+  const card = (t, q) => {
+    const late = t.dueDate && t.dueDate < today;
+    const area = areaMap[t.area] || { name: 'Sem área', color: '#8A92A3' };
+    return `<article class="mx-card" data-id="${esc(t.id)}" style="--area:${area.color}"><button type="button" class="kb-title" data-action="open">${esc(t.title)}</button>
+      <div class="kb-meta"><span class="kb-area"><i></i>${esc(area.name)}</span>${t.dueDate ? `<span class="kb-due${late ? ' is-late' : ''}">${t.dueDate === today ? 'hoje' : C.fromDateKey(t.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>` : ''}${t.owner ? `<span class="kb-owner">${esc(t.owner.split(' ')[0])}</span>` : ''}
+      ${q === 'q4' || q === 'q3' ? `<button type="button" class="kb-next" data-mx-prio="high" data-id="${esc(t.id)}" title="Marcar como importante">☆</button>` : `<button type="button" class="kb-next is-on" data-mx-prio="normal" data-id="${esc(t.id)}" title="Tirar a importância">★</button>`}</div></article>`;
+  };
+  return `<div class="matrix">${Q.map(([id, name, sub, fn]) => { const l = C.sortTasks(open.filter(fn), now); return `<section class="mx-q mx-${id}"><header><strong>${name}</strong><span>${l.length}</span></header><p class="hint">${sub}</p><div class="kb-list">${l.slice(0, 30).map((t) => card(t, id)).join('') || '<p class="hint kb-empty">Nada aqui</p>'}</div></section>`; }).join('')}</div>
+    <p class="hint mx-help">Urgente = prazo em até 2 dias, plano de hoje ou prioridade urgente. Importante = prioridade alta ou urgente, parte de projeto ou bloqueada. ☆ marca como importante; ★ tira.</p>`;
 }
 
 export function renderKanban(filter, now, areas) {
@@ -90,6 +117,8 @@ export function initKanban(helpers) {
       layout.set(l.dataset.layout);
       return H.render();
     }
+    const mp = e.target.closest('[data-mx-prio]');
+    if (mp) return Tasks.update(mp.dataset.id, { priority: mp.dataset.mxPrio });
     const m = e.target.closest('[data-kb-move]');
     if (m) move(m.closest('[data-id]').dataset.id, m.dataset.kbMove);
   });

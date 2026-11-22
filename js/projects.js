@@ -60,8 +60,22 @@ function card(p) {
     </button>
     <span class="kpi-bar"><i style="width:${p.pct}%"></i></span>
     ${!p.finished && !isOpen && p.open[0] ? `<p class="proj-next"><span class="label">Próxima etapa</span> ${esc(p.open[0].title)}${p.open[0].dueDate ? ` <span class="hint">· ${dm(p.open[0].dueDate)}</span>` : ''}</p>` : ''}
+    ${isOpen ? (() => {
+      const ws = C.weekStart(new Date());
+      const thisW = p.done.filter((t) => t.completedAt && C.toDateKey(new Date(t.completedAt)) >= ws).length;
+      const lastW = p.done.filter((t) => t.completedAt && C.toDateKey(new Date(t.completedAt)) >= C.addDays(ws, -7) && C.toDateKey(new Date(t.completedAt)) < ws).length;
+      const soon = p.open.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= C.addDays(today, 7)).length;
+      const daysLeft = p.dday ? Math.round((C.fromDateKey(p.dday) - C.fromDateKey(today)) / 86400000) : null;
+      const pace = daysLeft != null && daysLeft > 0 && p.open.length ? (p.open.length / Math.max(1, daysLeft / 7)).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) : null;
+      return `<div class="proj-insights">
+        <div class="${p.late.length ? 'is-bad' : ''}"><span class="stat-label">Em risco</span><strong>${p.late.length}</strong><span class="hint">atrasada${p.late.length === 1 ? '' : 's'} · ${soon} vence${soon === 1 ? '' : 'm'} em 7 dias</span></div>
+        <div><span class="stat-label">Progresso</span><strong>${p.pct}%</strong><span class="hint">${p.done.length} de ${p.list.length} etapas</span></div>
+        <div><span class="stat-label">Esta semana</span><strong>${thisW}</strong><span class="hint">concluídas · semana passada: ${lastW}</span></div>
+        ${pace ? `<div><span class="stat-label">Ritmo necessário</span><strong>${pace}</strong><span class="hint">etapas por semana até o dia D</span></div>` : ''}
+      </div>`;
+    })() : ''}
     ${isOpen ? `<ul class="proj-steps">${p.list.slice().sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')).map(li).join('')}</ul>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button><button type="button" class="btn btn-sm" data-proj-share="${esc(p.name)}">Enviar cronograma</button>${p.dday ? `<label class="btn btn-sm proj-move" title="Copia todas as etapas para um novo dia D, com os mesmos intervalos">Duplicar para outra data<input type="date" data-proj-dup="${esc(p.name)}"></label>` : ''}${p.dday && !p.finished ? `<label class="btn btn-sm proj-move" title="Muda o dia D e empurra todas as etapas abertas junto">Mudar dia D<input type="date" data-proj-move="${esc(p.name)}" value="${p.dday}"></label>` : ''}${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button><button type="button" class="btn btn-sm" data-proj-share="${esc(p.name)}">Enviar cronograma</button>${p.dday ? `<label class="btn btn-sm proj-move" title="Copia todas as etapas para um novo dia D, com os mesmos intervalos">Duplicar para outra data<input type="date" data-proj-dup="${esc(p.name)}"></label>` : ''}${p.dday && !p.finished ? `<label class="btn btn-sm proj-move" title="Muda o dia D e empurra todas as etapas abertas junto">Mudar dia D<input type="date" data-proj-move="${esc(p.name)}" value="${p.dday}"></label>` : ''}${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-open-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
   </article>`;
 }
 
