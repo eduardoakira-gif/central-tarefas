@@ -116,6 +116,11 @@ export function renderCrm() {
       <div class="closing-head"><h2>Campanhas</h2><button type="button" class="btn btn-primary btn-sm" data-crm-new>Registrar envio</button></div>
       ${rows ? `<div class="crm-list">${rows}</div>` : '<p class="hint">Registre cada envio do RD Station (entregues, aberturas e cliques ficam no relatório da campanha). Com 3 envios o diagnóstico aparece.</p>'}
     </section>
+    ${(() => {
+      const by = KINDS.map(([k, n]) => { const l = list.filter((c) => c.kind === k && c.delivered); const del = l.reduce((a, c) => a + c.delivered, 0); return { n, count: l.length, o: pct(l.reduce((a, c) => a + c.opens, 0), del), k: pct(l.reduce((a, c) => a + c.clicks, 0), del), rev: l.reduce((a, c) => a + (Number(c.revenue) || 0), 0) }; }).filter((x) => x.count);
+      if (by.length < 2) return '';
+      return `<section class="card report-card"><h2>Desempenho por tipo de envio</h2><div class="crm-kinds">${by.map((x) => `<div class="crm-kind"><strong>${esc(x.n)}</strong><span>${x.count} envio${x.count > 1 ? 's' : ''}</span><span>abertura <b>${fp(x.o)}</b></span><span>clique <b>${fp(x.k)}</b></span>${x.rev ? `<span>receita <b>${brl.format(x.rev)}</b></span>` : ''}</div>`).join('')}</div><p class="hint">Mande mais do tipo que converte e repense o que só gasta a base.</p></section>`;
+    })()}
     <section class="card report-card crm-subj">
       <h2>Testar assunto antes de enviar</h2>
       <input class="input" id="crmSubject" maxlength="150" placeholder="Cole o assunto da próxima newsletter" autocomplete="off" aria-label="Assunto">

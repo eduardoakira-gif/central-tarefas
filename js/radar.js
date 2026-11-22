@@ -156,6 +156,14 @@ export function renderRadar() {
       </div>
     </div>
     ${R.status.lastError ? `<p class="notice">A última busca falhou: ${esc(R.status.lastError)}</p>` : ''}
+    ${(() => {
+      const since = Date.now() - 30 * 86400000;
+      const by = {};
+      R.items.filter((x) => Date.parse(x.createdAt) >= since && x.category !== 'Estudo de caso').forEach((x) => (by[x.org] = (by[x.org] || 0) + 1));
+      const top = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6);
+      if (top.length < 3) return '';
+      return `<div class="radar-top-orgs"><span class="label">Mais ativas em 30 dias</span>${top.map(([o, n]) => `<button type="button" class="chip chip-sm" data-radar-orgpick="${esc(o)}">${esc(o)} <span class="chip-count">${n}</span></button>`).join('')}</div>`;
+    })()}
     <div class="toolbar radar-toolbar">
       <label class="search radar-search"><input id="radarQ" type="search" placeholder="Buscar no radar (ex.: sócio, merch, Karmine)" autocomplete="off" value="${esc(R.filter.q || '')}" aria-label="Buscar no radar"></label>
       <div class="chips">
@@ -272,6 +280,8 @@ export function initRadar(helpers) {
     if (document.body.dataset.screen !== 'app') return;
     const el = e.target.closest('[data-radar]');
     if (el) return onAction(el.dataset.radar, el);
+    const op = e.target.closest('[data-radar-orgpick]');
+    if (op) { R.filter.org = R.filter.org === op.dataset.radarOrgpick ? '' : op.dataset.radarOrgpick; return H.render(); }
     const cat = e.target.closest('[data-radar-cat]');
     if (cat) {
       R.filter.cat = R.filter.cat === cat.dataset.radarCat ? '' : cat.dataset.radarCat;

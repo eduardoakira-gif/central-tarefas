@@ -88,7 +88,13 @@ export function renderTeam() {
       <details class="tv-agenda"><summary>Ver pauta sugerida</summary><pre>${esc(agenda(name))}</pre></details>
     </section>`;
   }
-  return `<div class="person-grid">${cards.join('')}</div>${detail || '<p class="hint">Toque em uma pessoa para ver as demandas dela e preparar a 1:1.</p>'}`;
+  const loads = ppl.map((n) => ({ n, d: dataOf(n) })).map((x) => ({ n: x.n, open: x.d.open.length, late: x.d.late.length }));
+  const light = loads.slice().sort((a, b) => a.open + a.late * 2 - (b.open + b.late * 2))[0];
+  const heavy = loads.slice().sort((a, b) => b.open + b.late * 2 - (a.open + a.late * 2))[0];
+  const balance = ppl.length > 1 && heavy && light && heavy.n !== light.n && heavy.open - light.open >= 3
+    ? `<p class="team-balance">⚖️ <b>${esc(heavy.n)}</b> está com ${heavy.open} demandas${heavy.late ? ` (${heavy.late} atrasadas)` : ''} e <b>${esc(light.n)}</b> com ${light.open}. Vale redistribuir: selecione as tarefas na lista (☑ Selecionar) ou mude o responsável na ficha.</p>`
+    : '';
+  return `${balance}<div class="person-grid">${cards.join('')}</div>${detail || '<p class="hint">Toque em uma pessoa para ver as demandas dela e preparar a 1:1.</p>'}`;
 }
 
 export function initTeamView(helpers) {

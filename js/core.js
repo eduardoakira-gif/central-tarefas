@@ -642,6 +642,7 @@
         color: /^#[0-9a-f]{6}$/i.test(it.color || '') ? it.color : null,
       })).filter((it) => it.type),
       notes: str(x.notes).slice(0, 3000),
+      prices: Object.fromEntries(Object.entries(x.prices && typeof x.prices === 'object' ? x.prices : {}).filter(([k, v]) => /^[a-z_]{2,20}$/.test(k) && Number(v) >= 0).slice(0, 40).map(([k, v]) => [k, Math.min(1e7, Number(v))])),
       base: !!x.base,
       createdAt: x.createdAt || now,
       updatedAt: x.updatedAt || now,

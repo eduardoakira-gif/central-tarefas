@@ -40,6 +40,9 @@ const PROMPTS = [
 ];
 
 export const A = { messages: [], loaded: false, sending: false };
+// Atalhos do Edu (ficam neste aparelho)
+const myPrompts = () => { try { return JSON.parse(localStorage.getItem('ct-my-prompts') || '[]'); } catch { return []; } };
+const saveMyPrompts = (l) => { try { localStorage.setItem('ct-my-prompts', JSON.stringify(l.slice(0, 12))); } catch {} };
 let H = null;
 
 // A conversa fica neste aparelho e também no servidor (para continuar no outro aparelho).
@@ -255,7 +258,7 @@ export function renderAssistant() {
     </div>`;
   return `<div class="chat">
     <div class="chat-log" id="chatLog">${msgs || intro}${stale}${A.sending ? '<div class="msg msg-ai is-typing"><span></span><span></span><span></span></div>' : ''}</div>
-    <div class="chat-prompts">${PROMPTS.map(([label], i) => `<button type="button" class="chip" data-chat="prompt" data-i="${i}">${label}</button>`).join('')}</div>
+    <div class="chat-prompts">${myPrompts().map((p, i) => `<span class="chip chip-mine"><button type="button" data-chat="myprompt" data-i="${i}">⭐ ${esc(p.label)}</button><button type="button" class="chip-x" data-chat="myprompt-del" data-i="${i}" aria-label="Remover atalho">×</button></span>`).join('')}${PROMPTS.map(([label], i) => `<button type="button" class="chip" data-chat="prompt" data-i="${i}">${label}</button>`).join('')}<button type="button" class="chip chip-add" data-chat="myprompt-add">+ Meu atalho</button></div>
     <form class="chat-form" id="chatForm" novalidate>
       <textarea class="input" id="chatInput" rows="1" placeholder="Pergunte ao assistente…" aria-label="Mensagem"></textarea>
       ${micButton('chatInput', 'Ditar mensagem')}
@@ -324,6 +327,18 @@ export function initAssistant(helpers) {
     if (!el) return;
     const a = el.dataset.chat;
     if (a === 'prompt') return send(PROMPTS[Number(el.dataset.i)][1]);
+    if (a === 'myprompt') { const p = myPrompts()[Number(el.dataset.i)]; return p && send(p.text); }
+    if (a === 'myprompt-del') { const l = myPrompts(); l.splice(Number(el.dataset.i), 1); saveMyPrompts(l); return H.render(); }
+    if (a === 'myprompt-add') {
+      const last = A.messages.slice().reverse().find((m) => m.role === 'user');
+      const text = (prompt('Pergunta do atalho (o que o Assistente deve fazer):', ($('#chatInput') && $('#chatInput').value.trim()) || (last ? last.content : '')) || '').trim();
+      if (!text) return;
+      const label = (prompt('Nome curto do atalho:', text.split(/[.:?!\n]/)[0].slice(0, 24)) || '').trim().slice(0, 28);
+      if (!label) return;
+      saveMyPrompts(myPrompts().concat({ label, text: text.slice(0, 2000) }));
+      H.toast('Atalho salvo');
+      return H.render();
+    }
     if (a === 'savenote' || a === 'copy') {
       const m = A.messages[Number(el.dataset.mi)];
       if (!m) return;

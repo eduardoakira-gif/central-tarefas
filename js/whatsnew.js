@@ -9,6 +9,18 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.5', 'Rodada forte 4', [
+    'Meu dia: botão ⚡ O que faço agora? escolhe a próxima tarefa (plano de hoje, atraso, prioridade e prazo; pula bloqueadas e dependentes) e abre a ficha.',
+    'Ficha: botão Duplicar cria uma cópia com checklist zerado.',
+    'Painel B2C: quadro com os indicadores que mais pioraram e mais melhoraram em relação ao mês anterior.',
+    'Financeiro: ranking de fornecedores dos últimos 90 dias, com valor e participação.',
+    'CRM: desempenho por tipo de envio (newsletter, promoção, sócio, reativação, automação).',
+    'Radar: organizações mais ativas em 30 dias, com toque para filtrar.',
+    'Mapa 3D: orçamento estimado por item (valor unitário x quantidade), salvo no layout e no PDF do fornecedor.',
+    'Equipe e 1:1: aviso quando a carga está desequilibrada entre as pessoas.',
+    'Notas de reunião: Cobrar pendências monta a mensagem com as tarefas abertas da reunião, agrupadas por responsável.',
+    'Assistente: + Meu atalho para salvar as perguntas que você faz sempre.',
+  ]],
   ['9.4', 'Mais uma rodada forte', [
     'Tarefas: dependência na ficha ("Depende de"). O card mostra 🔗 enquanto a outra não termina e, ao concluir, a dependente é liberada com aviso e registro no andamento.',
     'Agenda: dias com mais de 6 tarefas ganham o botão Distribuir, que move as menos prioritárias para os próximos dias úteis mais leves.',

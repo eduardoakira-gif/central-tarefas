@@ -56,7 +56,7 @@ export function renderDayCard() {
   if (!plan.length) {
     return `<section class="card day-card">
       <div class="day-head"><div><span class="label">${greet}, Edu</span><strong>Planeje o seu dia</strong></div>
-        <button type="button" class="btn btn-sm btn-primary" data-day="plan-ai">Planejar com IA</button></div>
+        <div class="btn-row"><button type="button" class="btn btn-sm" data-day="now">⚡ O que faço agora?</button><button type="button" class="btn btn-sm btn-primary" data-day="plan-ai">Planejar com IA</button></div></div>
       <p class="hint">Escolha de 3 a 5 tarefas para hoje tocando em ☀ Hoje nos cards, ou deixe a IA sugerir com base em prazos, foco da semana e receita.</p>
       ${leftHtml}
     </section>`;
@@ -65,7 +65,7 @@ export function renderDayCard() {
   const st = streak();
   return `<section class="card day-card">
     <div class="day-head"><div><span class="label">${greet}, Edu · plano de hoje</span><strong>${done === plan.length ? 'Plano cumprido 👏' : `${done} de ${plan.length} feitas`}</strong></div>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-day="plan-ai">Replanejar com IA</button><button type="button" class="btn btn-sm btn-primary" data-day="close">Encerrar o dia</button></div></div>
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-day="now">⚡ Agora</button><button type="button" class="btn btn-sm" data-day="plan-ai">Replanejar com IA</button><button type="button" class="btn btn-sm btn-primary" data-day="close">Encerrar o dia</button></div></div>
     <span class="kpi-bar day-bar"><i style="width:${pct}%"></i></span>
     ${st >= 2 ? `<span class="day-streak">🔥 ${st} dias úteis seguidos cumprindo o plano</span>` : ''}
     <div class="day-list">${plan.sort((a, b) => (a.status === 'done') - (b.status === 'done')).map(row).join('')}</div>
@@ -250,6 +250,19 @@ export function initMyDay(helpers) {
     const d = e.target.closest('[data-day]');
     if (!d) return;
     const a = d.dataset.day;
+    if (a === 'now') {
+      // próxima melhor tarefa: plano de hoje > atrasada > urgente/alta > prazo mais perto; pula bloqueadas e dependentes
+      const now = new Date();
+      const day = today();
+      const open = Tasks.all().filter((t) => t.status !== 'done' && t.status !== 'waiting' && !(t.tags || []).includes('Bloqueado') && !(t.dependsOn && Tasks.get(t.dependsOn) && Tasks.get(t.dependsOn).status !== 'done'));
+      const rank = { urgent: 0, high: 1, normal: 2, low: 3 };
+      const score = (t) => (t.plannedFor === day ? 0 : 10) + (t.dueDate && t.dueDate < day ? 0 : 5) + rank[t.priority] * 2 + (t.dueDate ? Math.min(30, Math.max(0, (C.fromDateKey(t.dueDate) - C.fromDateKey(day)) / 86400000)) / 10 : 4);
+      const best = open.sort((x, y) => score(x) - score(y))[0];
+      if (!best) return H.toast('Nada pendente que dependa só de você agora. 👏');
+      void now;
+      H.toast('Foco nesta: ' + best.title);
+      return H.openDetail(best.id);
+    }
     if (a === 'close') return openClose();
     if (a === 'bring') {
       const list = leftovers();

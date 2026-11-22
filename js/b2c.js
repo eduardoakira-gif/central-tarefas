@@ -372,7 +372,20 @@ export function renderPanel() {
     </section>`;
   }).join('');
 
+  const moves = metrics.map((m) => {
+    const v = m.values[ym], p = m.values[addMonths(ym, -1)];
+    if (v == null || p == null || p === 0) return null;
+    const d = ((v - p) / Math.abs(p)) * 100;
+    return { m, d, good: m.direction === 'down' ? d < 0 : d > 0 };
+  }).filter(Boolean);
+  const worst = moves.filter((x) => !x.good && Math.abs(x.d) >= 5).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 3);
+  const best = moves.filter((x) => x.good && Math.abs(x.d) >= 5).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 3);
+  const pulse = worst.length || best.length ? `<section class="card month-pulse">
+      ${worst.length ? `<div><span class="label">⚠ Pioraram vs. mês anterior</span>${worst.map((x) => `<p><b>${esc(x.m.name)}</b> <span class="delta is-bad">${x.d > 0 ? '▲' : '▼'} ${nf.format(Math.abs(x.d))}%</span></p>`).join('')}</div>` : ''}
+      ${best.length ? `<div><span class="label">▲ Melhoraram</span>${best.map((x) => `<p><b>${esc(x.m.name)}</b> <span class="delta is-good">${x.d > 0 ? '▲' : '▼'} ${nf.format(Math.abs(x.d))}%</span></p>`).join('')}</div>` : ''}
+    </section>` : '';
   return `${notice}${head}
+    ${pulse}
     ${north.length ? `<div class="kpi-grid kpi-north">${north.map((m) => metricCard(m, ym, view.entry)).join('')}</div>` : ''}
     ${renderFunnel(metrics, ym)}
     <div class="health-row">${health}</div>
@@ -559,9 +572,21 @@ export function renderFinance() {
       if (!vals.some(Boolean)) return '';
       const max = Math.max(...vals);
       const short = (v) => (v >= 1000 ? (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil' : Math.round(v).toLocaleString('pt-BR'));
+      void 0;
       return `<section class="card report-card cashflow"><div class="closing-head"><h2>Saídas previstas por semana</h2><span class="hint">NFs em aberto · 8 semanas</span></div>
         <div class="cf-bars">${vals.map((v, i) => `<div class="cf-col${v === max && v ? ' is-peak' : ''}" title="Semana de ${C.fromDateKey(weeks[i]).toLocaleDateString('pt-BR')}: ${money(v)}"><span class="cf-v">${v ? short(v) : ''}</span><span class="cf-bar" style="height:${max ? Math.max(2, (v / max) * 100) : 2}%"></span><span class="cf-l">${i === 0 ? 'Esta' : C.fromDateKey(weeks[i]).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span></div>`).join('')}</div>
         <p class="hint">A semana atual inclui as vencidas. A barra destacada é a semana de maior saída: alinhe o caixa com o financeiro antes.</p></section>`;
+    })()}
+    ${(() => {
+      const since = C.addDays(today, -90);
+      const by = {};
+      all.filter((b) => (b.dueDate || b.createdAt?.slice(0, 10) || '') >= since).forEach((b) => { const k = (b.supplier || 'Sem fornecedor').trim(); by[k] = (by[k] || 0) + (Number(b.amount) || 0); });
+      const rows = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6);
+      if (rows.length < 2) return '';
+      const tot = Object.values(by).reduce((a, b) => a + b, 0);
+      return `<section class="card report-card"><div class="closing-head"><h2>Fornecedores (90 dias)</h2><strong>${money(tot)}</strong></div>
+        <div class="sup-list">${rows.map(([k, v]) => `<div class="sup-row"><span>${esc(k)}</span><span class="sup-bar"><i style="width:${Math.round((v / rows[0][1]) * 100)}%"></i></span><b>${money(v)}</b><span class="hint">${Math.round((v / tot) * 100)}%</span></div>`).join('')}</div>
+        <p class="hint">Concentração alta num fornecedor é poder de negociação: use o volume para pedir desconto ou prazo.</p></section>`;
     })()}
     ${(() => {
       const p = payPlan();

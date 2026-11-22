@@ -37,7 +37,7 @@ import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged, openLayout } from './espacos.js';
 
-export const APP_VERSION = '9.4.0';
+export const APP_VERSION = '9.5.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1234,6 +1234,16 @@ async function handleAction(action, id, el) {
       location.hash = '#/notas/' + nid;
       return;
     }
+    case 'note-followup': {
+      const n = Notes.get(state.noteId);
+      if (!n) return;
+      const open = Tasks.all().filter((t) => t.noteId === n.id && t.status !== 'done');
+      if (!open.length) return toast('Nenhuma pendência aberta desta reunião. 👏');
+      const by = {};
+      open.forEach((t) => { const k = t.owner || t.waitingFor || 'Edu'; (by[k] = by[k] || []).push(t); });
+      const text = [`*Pendências da reunião "${n.title || 'sem título'}"${n.date ? ' (' + C.fromDateKey(n.date).toLocaleDateString('pt-BR') + ')' : ''}*`, '', ...Object.entries(by).flatMap(([k, l]) => [`*${k}*`, ...l.map((t) => `• ${t.title}${t.dueDate ? ' – até ' + C.fromDateKey(t.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''}`), ''])].join('\n').trim();
+      return UI.shareText(text, toast, 'Pendências');
+    }
     case 'share-note': {
       const n = Notes.get(state.noteId);
       if (!n) return;
@@ -2133,7 +2143,7 @@ async function openCentral(id) {
   initBrand(Object.assign({ ask: askAssistant }, helpers));
   initStudy(Object.assign({ ask: askAssistant }, helpers));
   initInferno(Object.assign({ ask: askAssistant }, helpers));
-  initMyDay(Object.assign({ ask: askAssistant }, helpers));
+  initMyDay(Object.assign({ ask: askAssistant, openDetail: (id) => openDetail(id) }, helpers));
   initDetail(Object.assign({ ask: askAssistant }, helpers));
   initSpaces(Object.assign({}, helpers, { render: () => renderSpacesView(true), openDetail }));
   initPlaybooks(Object.assign({ ask: askAssistant }, helpers));

@@ -285,6 +285,17 @@ export function renderSpaces() {
     return `<section class="card sp-check-card"><div class="dt-sec-head"><h3>Checagem de segurança</h3><span class="hint">${issues.length ? issues.length + ' ponto' + (issues.length > 1 ? 's' : '') + ' para revisar' : 'tudo certo'}</span></div>
       ${issues.length ? `<ul class="sp-issues">${issues.map((x) => `<li class="lv-${x.level}">${x.id ? `<button type="button" class="link-plain" data-sp-issue="${esc(x.id)}">${esc(x.text)}</button>` : esc(x.text)}</li>`).join('')}</ul>` : '<p class="hint">Nada fora da sala, sem sobreposição e saídas livres.</p>'}</section>`;
   })()}
+  ${(() => {
+    if (l.base) return '';
+    const rows = Object.entries(counts).filter(([k]) => !['parede', 'coluna', 'porta', 'saida', 'area', 'planta'].includes(k));
+    if (!rows.length) return '';
+    const pr = l.prices || {};
+    const total = rows.reduce((a, [k, n]) => a + (Number(pr[k]) || 0) * n, 0);
+    const brl = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+    return `<details class="card sp-budget"${total ? ' open' : ''}><summary><strong>Orçamento estimado</strong><span class="hint">${total ? brl(total) : 'coloque o valor de aluguel ou compra por item'}</span></summary>
+      <div class="sp-budget-rows">${rows.sort((a, b) => b[1] - a[1]).map(([k, n]) => `<label class="sp-budget-row"><span>${n}× ${esc((CATALOG[k] || {}).name || k)}</span><input class="input" type="number" min="0" step="1" inputmode="decimal" data-sp-price="${k}" value="${pr[k] ?? ''}" placeholder="R$ unid."><b>${pr[k] ? brl(pr[k] * n) : '–'}</b></label>`).join('')}</div>
+      <p class="hint">Os valores ficam salvos no layout e vão para o PDF do fornecedor. Duplicar o layout leva os preços junto.</p></details>`;
+  })()}
   <section class="card sp-dl">
     <div class="dt-sec-head"><h3>Baixar e compartilhar</h3></div>
     <div class="btn-row">
@@ -730,7 +741,7 @@ function itemList(l) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, n]) => {
     const [type, size] = k.split('|');
     const s = CATALOG[type] || { name: type, w: '', d: '' };
-    return { n, name: s.name, size: size || `${s.w}×${s.d}`, seats: (s.seats || 0) * n };
+    return { n, type, name: s.name, size: size || `${s.w}×${s.d}`, seats: (s.seats || 0) * n };
   });
 }
 
@@ -739,6 +750,9 @@ function pdfFor(l) {
   const img3d = shot3d();
   const rows = itemList(l);
   const seats = rows.reduce((a, r) => a + r.seats, 0);
+  const brl0 = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  rows.forEach((r) => (r.total = (Number((l.prices || {})[r.type]) || 0) * r.n));
+  const hasPrice = rows.some((r) => r.total);
   const w = window.open('', '_blank');
   if (!w) return H.toast('Libere os pop-ups para gerar o PDF.');
   w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(l.name)} — layout</title>
@@ -747,7 +761,7 @@ function pdfFor(l) {
   .notes{white-space:pre-wrap;background:#f7f7f9;border-radius:8px;padding:10px;margin-top:10px}.pb{page-break-before:always}</style></head><body>
   <h1>${esc(l.name)}</h1><p class="s">${l.eventDate ? l.eventDate.split('-').reverse().join('/') + ' · ' : ''}Sala ${l.room.w} × ${l.room.d} m (${(l.room.w * l.room.d).toFixed(0)} m²) · ${l.items.length} itens · ${seats} lugares · Fluxo W7M</p>
   <div class="grid"><img src="${plan}" alt="Planta"><div><img src="${img3d}" alt="Vista 3D">
-  <table><thead><tr><th>Qtd</th><th>Item</th><th>Medida (m)</th></tr></thead><tbody>${rows.map((r) => `<tr><td class="n">${r.n}</td><td>${esc(r.name)}</td><td>${esc(r.size)}</td></tr>`).join('')}</tbody></table>
+  <table><thead><tr><th>Qtd</th><th>Item</th><th>Medida (m)</th>${hasPrice ? '<th>Valor</th>' : ''}</tr></thead><tbody>${rows.map((r) => `<tr><td class="n">${r.n}</td><td>${esc(r.name)}</td><td>${esc(r.size)}</td>${hasPrice ? `<td>${r.total ? brl0(r.total) : ''}</td>` : ''}</tr>`).join('')}${hasPrice ? `<tr><td></td><td><strong>Total estimado</strong></td><td></td><td><strong>${brl0(rows.reduce((a, r) => a + r.total, 0))}</strong></td></tr>` : ''}</tbody></table>
   ${(() => { const iss = checkLayout(l); return iss.length ? `<div class="notes"><strong>Pontos para revisar na montagem</strong>\n${iss.map((x) => '• ' + esc(x.text)).join('\n')}</div>` : ''; })()}
   ${l.notes ? `<div class="notes"><strong>Observações de montagem</strong>\n${esc(l.notes)}</div>` : ''}</div></div>
   <script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
@@ -840,6 +854,17 @@ export function initSpaces(helpers) {
     const step = e.shiftKey ? 1 : 0.25;
     const mv = { arrowleft: [-step, 0], arrowright: [step, 0], arrowup: [0, -step], arrowdown: [0, step] }[k];
     if (mv) { e.preventDefault(); it.x += mv[0]; it.z += mv[1]; commit(l); buildScene(l); }
+  });
+  root.addEventListener('change', (e) => {
+    const pk = e.target.dataset && e.target.dataset.spPrice;
+    if (!pk) return;
+    const l = editable();
+    if (!l) return;
+    l.prices = Object.assign({}, l.prices);
+    const v = parseFloat(String(e.target.value).replace(',', '.'));
+    if (v >= 0) l.prices[pk] = v; else delete l.prices[pk];
+    commit(l, true, false);
+    H.render();
   });
   root.addEventListener('input', (e) => { if (e.target.dataset.spField || (e.target.dataset.spLayout && e.target.type !== 'checkbox')) onField(e); });
   root.addEventListener('change', async (e) => {

@@ -200,6 +200,11 @@ export function initDetail(helpers) {
       return H.toast('Concluída');
     }
     if (a === 'focus-stop') return stopFocus(false);
+    if (a === 'dup') {
+      const copy = await Tasks.create({ title: t.title + ' (cópia)', description: t.description, area: t.area, priority: t.priority, dueDate: t.dueDate, dueTime: t.dueTime, owner: t.owner, link: t.link, project: t.project, projectDate: t.projectDate, tags: [], checklist: (t.checklist || []).map((c) => ({ id: C.uid(), text: c.text, done: false })) });
+      H.toast('Cópia criada');
+      return openDetail(copy.id);
+    }
     if (a === 'share') {
       const ck = t.checklist || [];
       const notes = (t.comments || []).filter((c) => !/^(Marcou|Desmarcou|Situação|Passo concluído)/.test(c.text))
