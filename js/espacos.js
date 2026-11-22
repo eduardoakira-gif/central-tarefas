@@ -116,7 +116,7 @@ const S = {
   dirty: false,
   ready: false,
   three: null, // { renderer, scene, camera, ortho, controls, meshes:Map }
-  undo: [], redo: [], last: '', lastPush: 0, eye: false, measure: false, mpts: [],
+  undo: [], redo: [], last: '', lastPush: 0, eye: false, measure: false, mpts: [], tour: false,
 };
 
 const layouts = () => (Sync.layouts || []).filter((l) => !l.deletedAt).sort((a, b) => (b.base - a.base) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
@@ -240,6 +240,7 @@ export function renderSpaces() {
       <button type="button" class="btn btn-sm" data-sp="labels" aria-pressed="${S.labels}">Nomes</button>
       <button type="button" class="btn btn-sm" data-sp="undo" ${S.undo.length ? '' : 'disabled'} aria-label="Desfazer" title="Desfazer">↶</button>
       <button type="button" class="btn btn-sm" data-sp="redo" ${S.redo.length ? '' : 'disabled'} aria-label="Refazer" title="Refazer">↷</button>
+      <button type="button" class="btn btn-sm" data-sp="tour" aria-pressed="${S.tour}" title="Modo apresentação: a câmera gira sozinha em volta do espaço">🎬</button>
       <button type="button" class="btn btn-sm" data-sp="measure" aria-pressed="${S.measure}" title="Medir distância: toque em dois pontos do piso">📏</button>
       <button type="button" class="btn btn-sm" data-sp="eye" aria-pressed="${S.eye}" title="Vista de quem chega pela porta (1,7 m)">👁</button>
       <button type="button" class="btn btn-sm" data-sp="fit" title="Centralizar">⌖</button>
@@ -603,6 +604,7 @@ function bindPointer() {
     return hits.length ? hits[0].object.userData.hit : null;
   };
   el.addEventListener('pointerdown', (e) => {
+    if (S.tour) { S.tour = false; S.three.controls.autoRotate = false; }
     setNdc(e);
     down = { x: e.clientX, y: e.clientY, t: Date.now() };
     const id = pick();
@@ -911,6 +913,14 @@ export function initSpaces(helpers) {
     if (a === 'view') { S.view = S.view === 'plan' ? '3d' : 'plan'; fitOrtho(); return H.render(); }
     if (a === 'labels') { S.labels = !S.labels; return H.render(); }
     if (a === 'fit') { S.eye = false; fit(); return H.render(); }
+    if (a === 'tour') {
+      S.tour = !S.tour;
+      S.eye = false;
+      S.view = '3d';
+      if (S.tour) { fit(); S.three.controls.autoRotate = true; S.three.controls.autoRotateSpeed = 1.2; S.sel = null; S.labels = true; }
+      else S.three.controls.autoRotate = false;
+      return H.render();
+    }
     if (a === 'measure') { S.measure = !S.measure; S.mpts = []; drawMeasure(); return H.render(); }
     if (a === 'eye') {
       S.eye = !S.eye;

@@ -1846,3 +1846,18 @@ body[data-route="tasks"] #taskList.is-selecting { padding-bottom: 130px; }
 .chip-mine button { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; padding: 0; }
 .chip-mine .chip-x { opacity: .5; font-size: 15px; padding: 0 4px; }
 .chip-add { border-style: dashed; }
+
+/* v9.6 */
+.dt-est, .dt-owner { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.dt-est button { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 99px; padding: 3px 9px; font-size: 12.5px; cursor: pointer; }
+.dt-est button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); font-weight: 600; }
+.dt-owner select { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
+.badge-est { background: var(--surface-2); color: var(--text-2); }
+.day-cap { display: block; font-size: 12.5px; color: var(--text-2); margin-top: 6px; }
+.day-cap.is-over { color: color-mix(in srgb, var(--amber) 80%, var(--text)); font-weight: 600; }
+.kb-col.is-wip header span { color: var(--red); font-weight: 700; }
+.kb-wip { font-size: 12px; color: color-mix(in srgb, var(--red) 80%, var(--text)); background: color-mix(in srgb, var(--red) 8%, var(--surface)); border-radius: 8px; padding: 6px 8px; margin: 0 0 6px; }
+.crm-cad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.crm-cad > div { display: flex; flex-direction: column; }
+.crm-cad strong { font-size: 18px; }
+.crm-cad p { grid-column: 1 / -1; margin: 0; }

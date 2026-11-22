@@ -37,7 +37,7 @@ import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged, openLayout } from './espacos.js';
 
-export const APP_VERSION = '9.5.0';
+export const APP_VERSION = '9.6.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1719,6 +1719,25 @@ function bindEvents() {
       const v = areaEl.dataset.filterArea;
       state.filter.area = state.filter.area === v ? null : v;
       return renderTasks();
+    }
+    const ash = e.target.closest('[data-agenda-share]');
+    if (ash) {
+      const start = C.addDays(C.toDateKey(new Date()), Number(ash.dataset.agendaShare) * 7);
+      const open = Tasks.all().filter((t) => t.status !== 'done');
+      const evs = (Sync.layouts || []).filter((l) => !l.deletedAt && !l.base && l.eventDate);
+      const L = [`*Agenda B2C – ${C.fromDateKey(start).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} a ${C.fromDateKey(C.addDays(start, 6)).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}*`, ''];
+      for (let i = 0; i < 7; i++) {
+        const d = C.addDays(start, i);
+        const l = open.filter((t) => (t.status === 'waiting' ? t.followUpDate : t.dueDate) === d);
+        const ev = evs.filter((x) => x.eventDate === d);
+        if (!l.length && !ev.length) continue;
+        L.push(`*${C.fromDateKey(d).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' })}*`);
+        ev.forEach((x) => L.push(`🎪 ${x.name}`));
+        l.forEach((t) => L.push(`• ${t.dueTime ? t.dueTime + ' ' : ''}${t.title}${t.owner ? ' (' + t.owner.split(' ')[0] + ')' : ''}`));
+        L.push('');
+      }
+      if (L.length <= 2) return toast('Nada com prazo nesta semana.');
+      return UI.shareText(L.join('\n').trim(), toast, 'Agenda');
     }
     const spread = e.target.closest('[data-agenda-spread]');
     if (spread) {

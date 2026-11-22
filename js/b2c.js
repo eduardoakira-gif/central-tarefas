@@ -334,7 +334,7 @@ export function renderPanel() {
         ${metrics.length ? `<button type="button" class="btn${view.entry ? ' btn-primary' : ''}" data-b2c="toggle-entry">${view.entry ? 'Concluir lançamento' : 'Lançar valores do mês'}</button>` : ''}
         <button type="button" class="btn" data-b2c="new-metric">Novo indicador</button>
         <button type="button" class="btn" data-b2c="new-okr">Novo OKR</button>
-        ${metrics.length ? '<button type="button" class="btn" data-b2c="csv">Exportar planilha</button>' : ''}
+        ${metrics.length ? '<button type="button" class="btn" data-b2c="csv">Exportar planilha</button><button type="button" class="btn" data-b2c="share-month">Enviar resumo</button>' : ''}
       </div>
     </div>`;
 
@@ -783,6 +783,27 @@ async function onAction(action, el) {
     Metrics.all().forEach((m) => { const v = m.values[ym]; rows.push([pn(m.pillar), m.name, m.unit || '', v ?? '', m.values[prev] ?? '', m.target ?? '', v != null && m.target ? Math.round((v / m.target) * 100) + '%' : '']); });
     downloadCsv(`painel-b2c-${ym}.csv`, rows);
     return H.toast('Planilha do painel baixada');
+  }
+  if (action === 'share-month') {
+    const ym = view.month || defaultMonth(new Date());
+    const ms = Metrics.all().filter((m) => m.values[ym] != null);
+    if (!ms.length) return H.toast('Lance os valores do mês primeiro.');
+    const L = [`*Painel B2C – ${monthLabel(ym)}*`, ''];
+    for (const pid of PILLAR_ORDER) {
+      const l = ms.filter((m) => m.pillar === pid);
+      if (!l.length) continue;
+      L.push(`*${(C.PILLAR_MAP[pid] || { name: pid }).name}*`);
+      for (const m of l) {
+        const v = m.values[ym], p = m.values[addMonths(ym, -1)];
+        const d = p ? ((v - p) / Math.abs(p)) * 100 : null;
+        const st = m.target != null ? (metricStatus(m, v).pct >= 1 ? ' ✅' : ' ⚠️') : '';
+        L.push(`• ${m.name}: ${fmt(m, v, true)}${m.target != null ? ` (meta ${fmt(m, m.target, true)})` : ''}${d != null ? ` ${d >= 0 ? '▲' : '▼'}${nf.format(Math.abs(d))}%` : ''}${st}`);
+      }
+      L.push('');
+    }
+    const t = L.join('\n').trim();
+    if (navigator.share) { try { await navigator.share({ text: t }); return; } catch (err) { if (err && err.name === 'AbortError') return; } }
+    return H.copy(t, 'Resumo do mês copiado');
   }
   if (action === 'bills-csv') {
     const rows = [['Fornecedor', 'NF', 'Descrição', 'Valor', 'Vencimento', 'Competência', 'NF ok', 'XML ok', 'Enviada ao financeiro', 'Agendada para', 'Paga em']];

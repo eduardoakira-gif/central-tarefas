@@ -144,6 +144,7 @@ export function taskCard(t, now, areaMap, mode = '') {
   if (focused) badges.push('<span class="badge badge-focus">★ Foco da semana</span>');
   const planned = !done && t.plannedFor === C.toDateKey(now);
   if (planned) badges.push('<span class="badge badge-today">☀ Hoje</span>');
+  if (!done && t.estimate) badges.push(`<span class="badge badge-est">⏱ ${t.estimate >= 60 ? (t.estimate / 60).toLocaleString('pt-BR') + 'h' : t.estimate + 'min'}</span>`);
   if (!done && t.dependsOn) {
     const dep = Tasks.get(t.dependsOn);
     if (dep && dep.status !== 'done' && !dep.deletedAt) badges.push(`<span class="badge badge-dep" title="Só dá para fazer depois de: ${esc(dep.title)}">🔗 Depende de: ${esc(dep.title.slice(0, 28))}${dep.title.length > 28 ? '…' : ''}</span>`);
@@ -474,6 +475,7 @@ export function renderAgenda(all, now, areas, offset = 0, events = []) {
     <button type="button" class="btn" data-agenda="-1" ${offset <= 0 ? 'disabled' : ''}>‹ Anterior</button>
     <span class="agenda-range">${shortDate(start)} a ${shortDate(end)}</span>
     <button type="button" class="btn" data-agenda="1">Próxima ›</button>
+    <button type="button" class="btn" data-agenda-share="${offset}">Enviar semana</button>
   </div>`;
 
   if (offset === 0) {

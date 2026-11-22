@@ -59,8 +59,10 @@ export function renderKanban(filter, now, areas) {
         ${NEXT[t.status] ? `<button type="button" class="kb-next" data-kb-move="${NEXT[t.status]}" title="Mover para ${COLS.find((x) => x.id === NEXT[t.status]).name}" aria-label="Mover para ${COLS.find((x) => x.id === NEXT[t.status]).name}">›</button>` : ''}</div>
       </article>`;
     };
-    return `<section class="kb-col" data-kb-col="${c.id}">
-      <header><strong>${c.name}</strong><span>${items.length}</span></header>
+    const wip = c.id === 'doing' && items.length > 5;
+    return `<section class="kb-col${wip ? ' is-wip' : ''}" data-kb-col="${c.id}">
+      <header><strong>${c.name}</strong><span>${items.length}${c.id === 'doing' ? ' / 5' : ''}</span></header>
+      ${wip ? '<p class="kb-wip">Muita coisa ao mesmo tempo. Termine antes de começar outra: o ideal é até 5 em andamento.</p>' : ''}
       <div class="kb-list">${items.map(card).join('') || '<p class="hint kb-empty">Arraste para cá</p>'}</div>
     </section>`;
   };

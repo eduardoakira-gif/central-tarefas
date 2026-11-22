@@ -9,6 +9,17 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.6', 'Rodada forte 5', [
+    'Ficha: estimativa de tempo (15 min a 1 dia) e responsável com 1 toque. O card mostra ⏱ e o Meu dia soma o trabalho restante, avisando quando passa de 6h focadas.',
+    'Quadro (kanban): limite de 5 em andamento, com aviso quando passa.',
+    'Painel B2C: Enviar resumo do mês por pilar, com meta, variação e ✅/⚠️.',
+    'Projetos: Enviar cronograma com cada etapa, prazo, responsável e situação.',
+    'Mapa 3D: 🎬 modo apresentação, com a câmera girando sozinha em volta do espaço (bom para mostrar à presidência ou ao patrocinador).',
+    'Inferno Roxo: Escala do próximo evento, com coordenadores e voluntários aprovados por setor, pronta para o grupo.',
+    'Growth: Enviar aprendizados dos testes validados e descartados.',
+    'CRM: cadência de envios (último envio, intervalo médio, envios em 30 dias) com alerta de base esfriando ou de excesso.',
+    'Agenda: Enviar semana, com prazos por dia e eventos do mapa 3D.',
+  ]],
   ['9.5', 'Rodada forte 4', [
     'Meu dia: botão ⚡ O que faço agora? escolhe a próxima tarefa (plano de hoje, atraso, prioridade e prazo; pula bloqueadas e dependentes) e abre a ficha.',
     'Ficha: botão Duplicar cria uma cópia com checklist zerado.',

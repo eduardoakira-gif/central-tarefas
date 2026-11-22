@@ -104,7 +104,7 @@ export function renderGrowth() {
     : '';
   return `<div class="growth-head">
       <div class="status-kpis"><span><strong>${all.filter((x) => x.status === 'ideia').length}</strong> no backlog</span><span><strong>${testing}</strong> testando</span><span><strong>${decided ? Math.round((won / decided) * 100) : 0}%</strong> de acerto</span></div>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-g="new">Nova ideia</button><button type="button" class="btn btn-sm btn-primary" data-g="suggest" ${view.loading ? 'disabled' : ''}>${view.loading ? 'Pensando…' : '✨ Sugerir com IA'}</button></div>
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-g="new">Nova ideia</button>${won + all.filter((x) => x.status === 'descartada').length ? '<button type="button" class="btn btn-sm" data-g="learnings">Enviar aprendizados</button>' : ''}<button type="button" class="btn btn-sm btn-primary" data-g="suggest" ${view.loading ? 'disabled' : ''}>${view.loading ? 'Pensando…' : '✨ Sugerir com IA'}</button></div>
     </div>
     <p class="hint">Regra de growth: no máximo 2 ou 3 testes ao mesmo tempo, cada um com uma métrica e prazo. ${testing > 3 ? '<strong>Você tem ' + testing + ' testes abertos: feche alguns antes de abrir novos.</strong>' : ''}</p>
     <div class="chips"><button type="button" class="chip" data-g-status="aberto" aria-pressed="${open}">Backlog e testes</button><button type="button" class="chip" data-g-status="fechado" aria-pressed="${!open}">Aprendizados</button>
@@ -197,6 +197,12 @@ export function initGrowth(helpers) {
     if (!b) return;
     const a = b.dataset.g;
     if (a === 'new') return editIdea(null);
+    if (a === 'learnings') {
+      const done = live().filter((x) => ['validada', 'descartada'].includes(x.status)).sort((p, q) => String(q.updatedAt).localeCompare(String(p.updatedAt))).slice(0, 15);
+      const text = [`*Growth B2C – aprendizados dos testes*`, '', ...done.map((x) => `${x.status === 'validada' ? '✅ Validou' : '❌ Não validou'}: ${x.title}${x.metric ? ` (métrica: ${x.metric})` : ''}${x.result ? `\n   → ${x.result}` : ''}`)].join('\n');
+      if (navigator.share) { navigator.share({ text }).catch(() => {}); return; }
+      return H.copy(text, 'Aprendizados copiados');
+    }
     if (a === 'suggest') return suggest();
     if (a === 'sugg-clear') return ((view.suggestions = []), H.render());
     if (a === 'sugg-add') {

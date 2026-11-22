@@ -61,7 +61,7 @@ function card(p) {
     <span class="kpi-bar"><i style="width:${p.pct}%"></i></span>
     ${!p.finished && !isOpen && p.open[0] ? `<p class="proj-next"><span class="label">Próxima etapa</span> ${esc(p.open[0].title)}${p.open[0].dueDate ? ` <span class="hint">· ${dm(p.open[0].dueDate)}</span>` : ''}</p>` : ''}
     ${isOpen ? `<ul class="proj-steps">${p.list.slice().sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')).map(li).join('')}</ul>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button>${p.dday ? `<label class="btn btn-sm proj-move" title="Copia todas as etapas para um novo dia D, com os mesmos intervalos">Duplicar para outra data<input type="date" data-proj-dup="${esc(p.name)}"></label>` : ''}${p.dday && !p.finished ? `<label class="btn btn-sm proj-move" title="Muda o dia D e empurra todas as etapas abertas junto">Mudar dia D<input type="date" data-proj-move="${esc(p.name)}" value="${p.dday}"></label>` : ''}${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button><button type="button" class="btn btn-sm" data-proj-share="${esc(p.name)}">Enviar cronograma</button>${p.dday ? `<label class="btn btn-sm proj-move" title="Copia todas as etapas para um novo dia D, com os mesmos intervalos">Duplicar para outra data<input type="date" data-proj-dup="${esc(p.name)}"></label>` : ''}${p.dday && !p.finished ? `<label class="btn btn-sm proj-move" title="Muda o dia D e empurra todas as etapas abertas junto">Mudar dia D<input type="date" data-proj-move="${esc(p.name)}" value="${p.dday}"></label>` : ''}${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
   </article>`;
 }
 
@@ -163,6 +163,17 @@ export function initProjects(helpers) {
       const p = projects().find((x) => x.name === add.dataset.projAdd);
       const area = p && p.list[0] ? p.list[0].area : undefined;
       return H.openTaskDialog({ project: add.dataset.projAdd, projectDate: p && p.dday, area });
+    }
+    const sh = e.target.closest('[data-proj-share]');
+    if (sh) {
+      const p = projects().find((x) => x.name === sh.dataset.projShare);
+      if (!p) return;
+      const today = C.toDateKey(new Date());
+      const L = [`*${p.name}*${p.dday ? ` · Dia D ${dm(p.dday)} (${countdown(p.dday)})` : ''}`, `${p.done.length} de ${p.list.length} etapas concluídas (${p.pct}%)`, ''];
+      p.list.slice().sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')).forEach((t) => L.push(`${t.status === 'done' ? '✅' : t.dueDate && t.dueDate < today ? '⚠️' : '⬜'} ${t.dueDate ? dm(t.dueDate) + ' – ' : ''}${t.title}${t.owner ? ' (' + t.owner.split(' ')[0] + ')' : ''}`));
+      const text = L.join('\n');
+      if (navigator.share) { navigator.share({ text }).catch(() => {}); return; }
+      return H.copy(text, 'Cronograma copiado');
     }
     const sv = e.target.closest('[data-proj-save]');
     if (sv) {

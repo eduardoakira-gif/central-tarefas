@@ -123,6 +123,7 @@ export function renderInfernoStructure() {
         <button type="button" class="btn btn-sm btn-primary" data-inferno="tasks">Criar tarefas da estruturação</button>
         <button type="button" class="btn btn-sm" data-inferno="ask">Direcionamento com IA</button>
         <button type="button" class="btn btn-sm" data-inferno="report">Resumo para a presidência</button>
+        <button type="button" class="btn btn-sm" data-inferno="escala">Escala do próximo evento</button>
       </div>
     </div>
     <p>O Inferno Roxo já existe e tem Instagram. O próximo passo é virar uma organização: <strong>setores com coordenador, voluntários com função clara, governança e calendário</strong>. É o modelo da Dezorganizada Furiosa, das torcidas organizadas de futebol e das atléticas universitárias.</p>
@@ -242,6 +243,26 @@ export function initInferno(H) {
     const b = e.target.closest('[data-inferno]');
     if (!b) return;
     const a = b.dataset.inferno;
+    if (a === 'escala') {
+      const today = C.toDateKey(new Date());
+      const ev = (Sync.layouts || []).filter((l) => !l.deletedAt && !l.base && l.eventDate && l.eventDate >= today).sort((x, y) => x.eventDate.localeCompare(y.eventDate))[0];
+      const evTask = !ev && Tasks.all().filter((t) => t.status !== 'done' && t.projectDate && t.projectDate >= today && /evento|watch|caravana|kings/i.test(t.project || '')).sort((x, y) => x.projectDate.localeCompare(y.projectDate))[0];
+      const name = ev ? ev.name : evTask ? evTask.project : 'próximo evento';
+      const date = ev ? ev.eventDate : evTask ? evTask.projectDate : null;
+      const apps = (Sync.applicants || []).filter((x) => !x.deletedAt && x.status === 'aprovada');
+      const L = [`*Escala Inferno Roxo – ${name}${date ? ' (' + C.fromDateKey(date).toLocaleDateString('pt-BR') + ')' : ''}*`, ''];
+      for (const [id, sname] of SECTORS) {
+        const c = crewOf(id);
+        const vols = apps.filter((x) => x.sector === id).map((x) => x.name.split(' ').slice(0, 2).join(' '));
+        if (!c.coordinator && !vols.length && !c.volunteers) continue;
+        L.push(`*${sname}*${c.coordinator ? ` – coord. ${c.coordinator}` : ''}`);
+        L.push(vols.length ? vols.map((v) => '• ' + v).join('\n') : `• ${c.volunteers} voluntário(s) – confirmar nomes`);
+        L.push('');
+      }
+      if (L.length <= 2) return H.toast('Defina coordenadores ou aprove voluntários para montar a escala.');
+      L.push('Confirme presença respondendo esta mensagem até 2 dias antes. 💜🔥');
+      return shareText(L.join('\n'), H.toast, 'Escala');
+    }
     if (a === 'report') {
       const L = [`*Inferno Roxo – andamento da estruturação (${new Date().toLocaleDateString('pt-BR')})*`, ''];
       let vol = 0, goal = 0;

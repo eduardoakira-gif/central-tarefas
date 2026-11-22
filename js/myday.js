@@ -62,11 +62,16 @@ export function renderDayCard() {
     </section>`;
   }
   const pct = Math.round((done / plan.length) * 100);
+  const estMin = plan.filter((t) => t.status !== 'done').reduce((a, t) => a + (t.estimate || 0), 0);
+  const noEst = plan.filter((t) => t.status !== 'done' && !t.estimate).length;
+  const hm = (m) => (m >= 60 ? Math.floor(m / 60) + 'h' + (m % 60 ? String(m % 60).padStart(2, '0') : '') : m + ' min');
+  const cap = estMin ? `<span class="day-cap${estMin > 6 * 60 ? ' is-over' : ''}">⏱ ≈ ${hm(estMin)} de trabalho restante${noEst ? ` (+${noEst} sem estimativa)` : ''}${estMin > 6 * 60 ? ' · acima de 6h focadas: tire algo do dia' : ''}</span>` : '';
   const st = streak();
   return `<section class="card day-card">
     <div class="day-head"><div><span class="label">${greet}, Edu · plano de hoje</span><strong>${done === plan.length ? 'Plano cumprido 👏' : `${done} de ${plan.length} feitas`}</strong></div>
       <div class="btn-row"><button type="button" class="btn btn-sm" data-day="now">⚡ Agora</button><button type="button" class="btn btn-sm" data-day="plan-ai">Replanejar com IA</button><button type="button" class="btn btn-sm btn-primary" data-day="close">Encerrar o dia</button></div></div>
     <span class="kpi-bar day-bar"><i style="width:${pct}%"></i></span>
+    ${cap}
     ${st >= 2 ? `<span class="day-streak">🔥 ${st} dias úteis seguidos cumprindo o plano</span>` : ''}
     <div class="day-list">${plan.sort((a, b) => (a.status === 'done') - (b.status === 'done')).map(row).join('')}</div>
     ${plan.length > 5 ? '<p class="hint">Mais de 5 tarefas no dia costuma virar lista de desejos. Tire o que não é para hoje.</p>' : ''}

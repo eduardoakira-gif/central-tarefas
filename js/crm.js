@@ -102,6 +102,16 @@ export function renderCrm() {
       ${tile('Cliques ÷ aberturas', fp(s.ctor), 'quanto do conteúdo vira ação')}
       ${tile('Receita atribuída', brl.format(s.revenue || 0), 'nos envios registrados')}
     </div>
+    ${(() => {
+      const ds = list.map((c) => c.date).filter(Boolean).sort();
+      if (ds.length < 2) return '';
+      const gaps = ds.slice(1).map((d, i) => (C.fromDateKey(d) - C.fromDateKey(ds[i])) / 86400000);
+      const avg = gaps.reduce((a, b) => a + b, 0) / gaps.length;
+      const since = Math.round((C.fromDateKey(C.toDateKey(new Date())) - C.fromDateKey(ds[ds.length - 1])) / 86400000);
+      const last30 = ds.filter((d) => d >= C.addDays(C.toDateKey(new Date()), -30)).length;
+      const msg = since > avg * 1.5 && since >= 10 ? `<b>Já passou do seu ritmo.</b> A base esfria sem contato: programe o próximo envio.` : last30 > 8 ? '<b>Frequência alta.</b> Mais de 8 envios em 30 dias costuma derrubar abertura e aumentar descadastro.' : 'Ritmo em dia.';
+      return `<section class="card report-card crm-cad"><div><span class="stat-label">Último envio</span><strong>há ${since} dia${since === 1 ? '' : 's'}</strong></div><div><span class="stat-label">Intervalo médio</span><strong>${Math.round(avg)} dias</strong></div><div><span class="stat-label">Envios em 30 dias</span><strong>${last30}</strong></div><p class="hint">${msg}</p></section>`;
+    })()}
     ${list.length ? `<section class="card report-card"><h2>Diagnóstico da sua newsletter</h2>${diag}</section>` : ''}
     ${(() => {
       const withS = list.filter((c) => c.subject && c.delivered >= 50).map((c) => ({ c, o: pct(c.opens, c.delivered), k: pct(c.clicks, c.delivered) })).filter((x) => x.o != null);

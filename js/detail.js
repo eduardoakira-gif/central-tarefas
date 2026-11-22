@@ -94,6 +94,8 @@ function render() {
       ${t.waitingFor ? `<span class="pill">⏳ ${esc(t.waitingFor)}</span>` : ''}
     </div>
     <label class="dt-dep">🔗 Depende de <select data-dt-dep aria-label="Depende de"><option value="">nenhuma tarefa</option>${Tasks.all().filter((x) => x.id !== t.id && x.status !== 'done').slice(0, 80).map((x) => `<option value="${esc(x.id)}"${t.dependsOn === x.id ? ' selected' : ''}>${esc(x.title.slice(0, 60))}</option>`).join('')}${t.dependsOn && !Tasks.all().some((x) => x.id === t.dependsOn && x.status !== 'done') ? `<option value="${esc(t.dependsOn)}" selected>(já concluída)</option>` : ''}</select></label>
+    <div class="dt-est" role="group" aria-label="Tempo estimado"><span class="hint">⏱ Estimativa</span>${[[15, '15 min'], [30, '30 min'], [60, '1h'], [120, '2h'], [240, '4h'], [480, '1 dia']].map(([m, n]) => `<button type="button" data-dt-est="${m}" aria-pressed="${t.estimate === m}">${n}</button>`).join('')}</div>
+    <div class="dt-owner"><span class="hint">👤 Responsável</span><select data-dt-owner aria-label="Responsável"><option value="">Eu (Edu)</option>${[...new Set((((Sync.central && Sync.central.people) || []).map((p) => p.name)).concat(t.owner ? [t.owner] : []))].map((n) => `<option${t.owner === n ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
     <div class="dt-quickdue" role="group" aria-label="Prazo rápido">${[['Hoje', today], ['Amanhã', C.addDays(today, 1)], ['+3 dias', C.addDays(today, 3)], ['+1 semana', C.addDays(today, 7)]].map(([n, d]) => `<button type="button" data-dt-due="${d}" aria-pressed="${t.dueDate === d}">${n}</button>`).join('')}${t.dueDate ? '<button type="button" data-dt-due="">Sem prazo</button>' : ''}</div>
     <div class="dt-status" role="group" aria-label="Situação">${statuses.map(([k, n]) => `<button type="button" data-dt-status="${k}" aria-pressed="${t.status === k}">${n}</button>`).join('')}</div>`;
 
@@ -163,6 +165,8 @@ export function initDetail(helpers) {
       runTick();
       return render();
     }
+    const es = e.target.closest('[data-dt-est]');
+    if (es) { const v = Number(es.dataset.dtEst); return Tasks.update(t.id, { estimate: t.estimate === v ? null : v }); }
     const du = e.target.closest('[data-dt-due]');
     if (du) {
       const v = du.dataset.dtDue || null;
@@ -229,6 +233,12 @@ export function initDetail(helpers) {
     }
   });
   dlg.addEventListener('change', async (e) => {
+    if (e.target.matches('[data-dt-owner]')) {
+      const t = Tasks.get(openId);
+      if (!t) return;
+      await Tasks.update(t.id, { owner: e.target.value });
+      return addLog(e.target.value ? `Situação: responsável ${e.target.value}` : 'Situação: responsável Edu');
+    }
     if (e.target.matches('[data-dt-dep]')) {
       const t = Tasks.get(openId);
       if (!t) return;
