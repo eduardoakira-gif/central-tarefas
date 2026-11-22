@@ -553,6 +553,17 @@ export function renderFinance() {
       ${kpi('Pagas neste mês', money(sum(paidMonth)), paidMonth.length === 1 ? '1 nota' : paidMonth.length + ' notas')}
     </div>
     ${(() => {
+      const ws = C.weekStart(now);
+      const weeks = Array.from({ length: 8 }, (_, i) => C.addDays(ws, i * 7));
+      const vals = weeks.map((w, i) => sum(open.filter((b) => b.dueDate && (i === 0 ? b.dueDate <= C.addDays(w, 6) : b.dueDate >= w && b.dueDate <= C.addDays(w, 6)))));
+      if (!vals.some(Boolean)) return '';
+      const max = Math.max(...vals);
+      const short = (v) => (v >= 1000 ? (v / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + ' mil' : Math.round(v).toLocaleString('pt-BR'));
+      return `<section class="card report-card cashflow"><div class="closing-head"><h2>Saídas previstas por semana</h2><span class="hint">NFs em aberto · 8 semanas</span></div>
+        <div class="cf-bars">${vals.map((v, i) => `<div class="cf-col${v === max && v ? ' is-peak' : ''}" title="Semana de ${C.fromDateKey(weeks[i]).toLocaleDateString('pt-BR')}: ${money(v)}"><span class="cf-v">${v ? short(v) : ''}</span><span class="cf-bar" style="height:${max ? Math.max(2, (v / max) * 100) : 2}%"></span><span class="cf-l">${i === 0 ? 'Esta' : C.fromDateKey(weeks[i]).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span></div>`).join('')}</div>
+        <p class="hint">A semana atual inclui as vencidas. A barra destacada é a semana de maior saída: alinhe o caixa com o financeiro antes.</p></section>`;
+    })()}
+    ${(() => {
       const p = payPlan();
       if (!p.list.length) return '';
       const pending = p.list.filter((b) => !b.scheduledFor).length;

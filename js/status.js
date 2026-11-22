@@ -122,7 +122,7 @@ export function renderStatus() {
   const li = (t, extra = '') => `<li data-id="${esc(t.id)}"><button type="button" class="link-plain" data-action="open">${esc(t.title)}</button>${extra ? ` <span class="hint">${extra}</span>` : ''}</li>`;
   return `<div class="status-head">
       <div class="seg"><button type="button" class="btn btn-sm" data-status="prev" aria-label="Semana anterior">‹</button><strong>${dm(d.mon)} a ${dm(d.sun)}</strong><button type="button" class="btn btn-sm" data-status="next" ${view.offset >= 0 ? 'disabled' : ''} aria-label="Próxima semana">›</button></div>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-status="copy">Copiar</button><button type="button" class="btn btn-sm" data-status="wa">WhatsApp</button><button type="button" class="btn btn-sm" data-status="mail">E-mail</button><button type="button" class="btn btn-sm btn-primary" data-status="ai">Reescrever com IA</button></div>
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-status="copy">Copiar</button><button type="button" class="btn btn-sm" data-status="wa">WhatsApp</button><button type="button" class="btn btn-sm" data-status="mail">E-mail</button><button type="button" class="btn btn-sm" data-status="pdf">PDF</button><button type="button" class="btn btn-sm btn-primary" data-status="ai">Reescrever com IA</button></div>
     </div>
     ${(() => {
       const sc = scorecard();
@@ -160,6 +160,14 @@ export function initStatus(helpers) {
     const text = statusText();
     if (a === 'copy') return H.copy(text, 'Status copiado');
     if (a === 'wa') return window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    if (a === 'pdf') {
+      const w = window.open('', '_blank');
+      if (!w) return H.toast('Libere os pop-ups para gerar o PDF.');
+      const html = esc(text).replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>').split('\n').map((l) => (/^(✅|🔄|⏳|⚠️|📅|🧪|📊|🚧)/.test(l) ? `<h2>${l}</h2>` : l.startsWith('•') || l.startsWith('   ↳') ? `<p class="li">${l}</p>` : l ? `<p>${l}</p>` : '')).join('');
+      w.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Status semanal B2C</title><style>@page{size:A4;margin:16mm}body{font:13.5px/1.5 Inter,system-ui,sans-serif;color:#111318;max-width:720px;margin:0 auto}h2{font-size:15px;margin:18px 0 6px;border-bottom:1px solid #e5e7eb;padding-bottom:4px}p{margin:2px 0}p.li{padding-left:6px}strong{font-weight:700}.foot{margin-top:24px;color:#6b7280;font-size:11px}</style></head><body>${html}<p class="foot">Fluxo W7M · B2C · gerado na Central de Tarefas</p><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+      w.document.close();
+      return;
+    }
     if (a === 'mail') {
       const { mon, sun } = range();
       return (location.href = `mailto:?subject=${encodeURIComponent(`Status semanal B2C – ${dm(mon)} a ${dm(sun)}`)}&body=${encodeURIComponent(text.replace(/\*/g, ''))}`);

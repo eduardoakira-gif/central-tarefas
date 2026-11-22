@@ -37,7 +37,7 @@ import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged, openLayout } from './espacos.js';
 
-export const APP_VERSION = '9.3.0';
+export const APP_VERSION = '9.4.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -76,6 +76,7 @@ const settings = () => C.mergeSettings(Sync.central && Sync.central.settings);
 // -----------------------------------------------------------------------------
 // Utilidades de interface
 // -----------------------------------------------------------------------------
+window.addEventListener('ct-unblocked', (e) => setTimeout(() => toast(`🔓 Liberada${e.detail.length > 1 ? 's' : ''}: ${e.detail.slice(0, 2).join(', ')}${e.detail.length > 2 ? '…' : ''}`), 900));
 function toast(message, action) {
   const box = $('#toasts');
   box.innerHTML = '';
@@ -1709,10 +1710,43 @@ function bindEvents() {
       state.filter.area = state.filter.area === v ? null : v;
       return renderTasks();
     }
+    const spread = e.target.closest('[data-agenda-spread]');
+    if (spread) {
+      const day = spread.dataset.agendaSpread;
+      const open = Tasks.all().filter((t) => t.status !== 'done');
+      const load = (d) => open.filter((t) => t.dueDate === d).length;
+      const rank = { low: 0, normal: 1, high: 2, urgent: 3 };
+      const movable = open.filter((t) => t.dueDate === day && t.priority !== 'urgent' && t.status !== 'waiting' && !t.dueTime).sort((a, b) => rank[a.priority] - rank[b.priority]);
+      const extra = movable.slice(0, Math.max(0, load(day) - 5));
+      (async () => {
+        const plan = extra.map((t) => {
+          let d = C.addDays(day, 1);
+          for (let k = 0; k < 14 && ([0, 6].includes(C.fromDateKey(d).getDay()) || load(d) >= 5); k++) d = C.addDays(d, 1);
+          t.dueDate = d;
+          return [t.id, d];
+        });
+        for (const [id, d] of plan) await Tasks.update(id, { dueDate: d });
+        toast(plan.length ? `${plan.length} tarefa${plan.length > 1 ? 's' : ''} redistribuída${plan.length > 1 ? 's' : ''} para dias mais leves` : 'Nada para mover: o que sobrou é urgente, com hora ou aguardando.');
+      })();
+      return;
+    }
     const ag = e.target.closest('[data-agenda]');
     if (ag) {
       state.agendaOffset = Math.max(0, state.agendaOffset + Number(ag.dataset.agenda));
       return renderAgenda();
+    }
+    const rcsv = e.target.closest('[data-report-csv]');
+    if (rcsv) {
+      const since = Date.now() - Number(rcsv.dataset.reportCsv) * 86400000;
+      const an = (id) => (areas().find((a) => a.id === id) || { name: '' }).name;
+      const dt = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '');
+      const rows = [['Tarefa', 'Área', 'Situação', 'Prioridade', 'Prazo', 'Criada', 'Concluída', 'Responsável', 'Projeto', 'Marcações', 'Última nota']];
+      Tasks.all().filter((t) => t.status !== 'done' || Date.parse(t.completedAt) >= since).forEach((t) => {
+        const ln = (t.comments || []).filter((c) => !/^(Marcou|Desmarcou|Situação|Passo concluído|Foco:|Liberada:)/.test(c.text)).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
+        rows.push([t.title, an(t.area), (C.STATUS_MAP[t.status] || {}).name || t.status, (C.PRIORITY_MAP[t.priority] || {}).name || '', t.dueDate ? C.fromDateKey(t.dueDate).toLocaleDateString('pt-BR') : '', dt(t.createdAt), dt(t.completedAt), t.owner || '', t.project || '', (t.tags || []).join(', '), ln ? ln.text : '']);
+      });
+      UI.downloadCsv(`tarefas-${C.toDateKey(new Date())}.csv`, rows);
+      return toast('Planilha das tarefas baixada');
     }
     const rd = e.target.closest('[data-report-days]');
     if (rd) {

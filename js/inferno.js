@@ -24,7 +24,7 @@ function renderApplicants() {
       <div class="ap-main"><strong>${esc(a.name)}</strong><span class="hint">${esc(sectorName(a.sector))}${a.city ? ' · ' + esc(a.city) : ''}${a.instagram ? ' · @' + esc(a.instagram) : ''} · ${new Date(a.createdAt).toLocaleDateString('pt-BR')}</span>
         ${a.availability ? `<span class="hint">Disponibilidade: ${esc(a.availability)}</span>` : ''}${a.why ? `<p>${esc(a.why)}</p>` : ''}${a.experience ? `<p class="hint">Experiência: ${esc(a.experience)}</p>` : ''}</div>
       <div class="btn-row">
-        <button type="button" class="btn btn-sm" data-ap="wa">WhatsApp</button>
+        <button type="button" class="btn btn-sm" data-ap="${a.status === 'aprovada' ? 'welcome' : 'wa'}">${a.status === 'aprovada' ? 'Boas-vindas' : 'WhatsApp'}</button>
         <select class="select select-sm" data-ap-status aria-label="Situação">${Object.entries(APP_STATUS).map(([k, n]) => `<option value="${k}"${a.status === k ? ' selected' : ''}>${n}</option>`).join('')}</select>
       </div></div>`;
   return `<h3 class="sub-h">Inscrições de voluntários <span class="hint">(${count('nova')} novas)</span></h3>
@@ -227,6 +227,13 @@ export function initInferno(H) {
       const a = (Sync.applicants || []).find((x) => x.id === ap.closest('[data-applicant]').dataset.applicant);
       if (!a) return;
       const first = a.name.split(' ')[0];
+      const sec = SECTORS.find((x) => x[0] === a.sector);
+      const crew = sec ? crewOf(sec[0]) : null;
+      if (ap.dataset.ap === 'welcome') {
+        const wmsg = `Fala, ${first}! Seja muito bem-vindo ao Inferno Roxo 💜🔥\n\n${sec ? `Você entra no setor *${sec[1]}*. Missão: ${sec[2]}\n\nO que o setor faz:\n${sec[3].map((r) => '• ' + r).join('\n')}\n\n` : ''}${crew && crew.coordinator ? `Quem coordena é ${crew.coordinator}, que vai te chamar para a integração.\n\n` : ''}Combinado básico: respeito a todos, nada de falar em nome do Fluxo W7M sem alinhar, e avisar com antecedência se não puder ir. Bora fazer a maior torcida do esport! 🟣`;
+        window.open(`https://wa.me/${a.phone.length <= 11 ? '55' + a.phone : a.phone}?text=${encodeURIComponent(wmsg)}`, '_blank');
+        return;
+      }
       const msg = `Fala, ${first}! Aqui é o Edu, do Fluxo W7M. Vi sua inscrição para ser voluntário do Inferno Roxo${a.sector ? ' no setor ' + sectorName(a.sector) : ''}. Bora conversar sobre como você pode ajudar? 💜🔥`;
       window.open(`https://wa.me/${a.phone.length <= 11 ? '55' + a.phone : a.phone}?text=${encodeURIComponent(msg)}`, '_blank');
       if (a.status === 'nova') await Sync.upsert('applicants', C.normalizeApplicant(Object.assign({}, a, { status: 'contatada', updatedAt: nowIso() })));

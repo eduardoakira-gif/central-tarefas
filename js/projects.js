@@ -61,7 +61,7 @@ function card(p) {
     <span class="kpi-bar"><i style="width:${p.pct}%"></i></span>
     ${!p.finished && !isOpen && p.open[0] ? `<p class="proj-next"><span class="label">Próxima etapa</span> ${esc(p.open[0].title)}${p.open[0].dueDate ? ` <span class="hint">· ${dm(p.open[0].dueDate)}</span>` : ''}</p>` : ''}
     ${isOpen ? `<ul class="proj-steps">${p.list.slice().sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')).map(li).join('')}</ul>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button>${p.dday && !p.finished ? `<label class="btn btn-sm proj-move" title="Muda o dia D e empurra todas as etapas abertas junto">Mudar dia D<input type="date" data-proj-move="${esc(p.name)}" value="${p.dday}"></label>` : ''}${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button>${p.dday ? `<label class="btn btn-sm proj-move" title="Copia todas as etapas para um novo dia D, com os mesmos intervalos">Duplicar para outra data<input type="date" data-proj-dup="${esc(p.name)}"></label>` : ''}${p.dday && !p.finished ? `<label class="btn btn-sm proj-move" title="Muda o dia D e empurra todas as etapas abertas junto">Mudar dia D<input type="date" data-proj-move="${esc(p.name)}" value="${p.dday}"></label>` : ''}${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
   </article>`;
 }
 
@@ -116,6 +116,25 @@ export function renderProjectsCard() {
 export function initProjects(helpers) {
   H = helpers;
   document.addEventListener('change', async (e) => {
+    const dp = e.target.closest && e.target.closest('[data-proj-dup]');
+    if (dp && dp.value) {
+      const p = projects().find((x) => x.name === dp.dataset.projDup);
+      if (!p || !p.dday) return;
+      const base = p.name.replace(/\s*\(.*\)$/, '');
+      const name = (prompt('Nome do novo projeto:', `${base} (${C.fromDateKey(dp.value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })})`) || '').trim();
+      if (!name) return (dp.value = '');
+      if (projects().some((x) => x.name === name)) { dp.value = ''; return H.toast('Já existe um projeto com esse nome.'); }
+      const today = C.toDateKey(new Date());
+      for (const t of p.list) {
+        const off = t.dueDate ? Math.round((C.fromDateKey(t.dueDate) - C.fromDateKey(p.dday)) / 86400000) : null;
+        const due = off == null ? null : C.addDays(dp.value, off);
+        await Tasks.create({ title: t.title.replace(p.name.split(': ').pop(), name.split(': ').pop()), area: t.area, priority: t.priority, owner: t.owner, description: t.description, dueDate: due && due < today ? today : due, project: name, projectDate: dp.value, checklist: (t.checklist || []).map((c) => ({ id: C.uid(), text: c.text, done: false })) });
+      }
+      dp.value = '';
+      view.open = name;
+      H.toast(`Projeto "${name}" criado com ${p.list.length} etapas`);
+      return H.render();
+    }
     const mv = e.target.closest && e.target.closest('[data-proj-move]');
     if (!mv || !mv.value) return;
     const p = projects().find((x) => x.name === mv.dataset.projMove);

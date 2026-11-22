@@ -55,6 +55,16 @@ export function abResult(ab) {
   const verdict = conf >= 95 && !few ? (pb > pa ? '✅ B venceu de verdade.' : '❌ B perdeu de verdade: fique com A.') : conf >= 80 ? '⏳ Tendência, mas ainda não é conclusivo: deixe rodar mais.' : '🤷 Sem diferença real até agora (pode ser sorte).';
   return `<div class="ab-res"><span>A: <b>${f(pa)}</b></span><span>B: <b>${f(pb)}</b></span><span>Diferença: <b class="${lift >= 0 ? 'is-good' : 'is-bad'}">${lift >= 0 ? '+' : ''}${lift.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</b></span><span>Confiança: <b>${conf.toLocaleString('pt-BR')}%</b></span></div><p class="ab-verdict">${verdict}${few ? ' Poucas conversões ainda (menos de 100 somadas).' : ''}</p>`;
 }
+/** Tamanho de amostra por variante (95% de confiança, 80% de poder). */
+export function sampleSize(ss) {
+  if (!ss) return '';
+  const p1 = Number(ss.base) / 100, lift = Number(ss.lift) / 100;
+  if (!(p1 > 0 && p1 < 1 && lift > 0)) return '<p class="hint">Preencha a taxa atual e a melhora.</p>';
+  const p2 = Math.min(0.99, p1 * (1 + lift));
+  const za = 1.96, zb = 0.8416;
+  const n = Math.ceil(Math.pow(za * Math.sqrt(2 * ((p1 + p2) / 2) * (1 - (p1 + p2) / 2)) + zb * Math.sqrt(p1 * (1 - p1) + p2 * (1 - p2)), 2) / Math.pow(p2 - p1, 2));
+  return `<p class="ab-verdict">${n.toLocaleString('pt-BR')} pessoas em cada versão (${(n * 2).toLocaleString('pt-BR')} no total).</p><p class="hint">Para sair de ${(p1 * 100).toLocaleString('pt-BR')}% para ${(p2 * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%. Se a base for menor, teste uma mudança mais ousada (melhora maior).</p>`;
+}
 function card(x) {
   const ice = C.iceScore(x);
   return `<article class="card idea-card st-${x.status}" data-idea="${esc(x.id)}">
@@ -107,6 +117,10 @@ export function renderGrowth() {
         <strong>B (teste)</strong><input class="input" type="number" min="0" data-ab="nb" value="${view.ab?.nb ?? ''}" placeholder="ex.: 1180"><input class="input" type="number" min="0" data-ab="cb" value="${view.ab?.cb ?? ''}" placeholder="ex.: 52">
       </div>
       <div id="abOut">${abResult(view.ab)}</div>
+      <div class="ab-sample"><strong>Quantas pessoas eu preciso?</strong>
+        <label>Taxa atual (%)<input class="input" type="number" step="0.1" min="0.1" data-ss="base" value="${view.ss?.base ?? ''}" placeholder="ex.: 3"></label>
+        <label>Melhora que quero detectar (%)<input class="input" type="number" step="1" min="1" data-ss="lift" value="${view.ss?.lift ?? ''}" placeholder="ex.: 20"></label>
+        <div id="ssOut">${sampleSize(view.ss)}</div></div>
       <p class="hint">Use para e-mail (aberturas ou cliques), landing page (cadastros), cupom ou anúncio. Regra prática: só declare vencedor com 95% de confiança e pelo menos 100 conversões somadas.</p>
     </details>
     <div class="idea-list">${list.map(card).join('') || `<p class="hint">${open ? 'Nenhuma ideia ainda. Toque em "Sugerir com IA" ou anote a sua.' : 'Nenhum teste concluído ainda.'}</p>`}</div>`;
@@ -153,6 +167,13 @@ async function submitIdea(e) {
 
 export function initGrowth(helpers) {
   document.addEventListener('input', (e) => {
+    const sk = e.target.dataset && e.target.dataset.ss;
+    if (sk) {
+      view.ss = Object.assign({}, view.ss, { [sk]: e.target.value });
+      const o = document.getElementById('ssOut');
+      if (o) o.innerHTML = sampleSize(view.ss);
+      return;
+    }
     const f = e.target.dataset && e.target.dataset.ab;
     if (!f) return;
     view.ab = Object.assign({}, view.ab, { [f]: e.target.value });

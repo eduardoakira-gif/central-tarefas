@@ -100,6 +100,20 @@ function ideas() {
 }
 
 const weekStart = () => C.weekStart(new Date());
+const HOOKS = [
+  'O que ninguém conta sobre [vender camisa de esports no Brasil]:',
+  'Erramos em [ação]. Aqui está o que aprendi:',
+  'Em [X] dias, [resultado]. O que fizemos diferente:',
+  '3 coisas que a [T1 / FURIA / Karmine] faz e o Brasil ainda não copiou:',
+  'Bastidor de um dia de jogo no Fluxo W7M (que a torcida não vê):',
+  'Pare de tratar torcedor como seguidor. Trate como [membro].',
+  'A pergunta que mais ouço sobre [sócio-torcedor] e a resposta curta:',
+  'Se eu começasse hoje no B2C de esports, faria só isto:',
+  'O jogo acabou às [hora]. O trabalho do B2C começou aí:',
+  'Comunidade não é número de seguidores. É [isto].',
+  'Antes e depois: [ação] no primeiro mês x agora.',
+  'Um print, uma lição: [contexto do print].',
+];
 function weekCount() {
   const ws = weekStart();
   const we = C.addDays(ws, 6);
@@ -155,6 +169,10 @@ export function renderBrand() {
       <p class="hint">É a frase que guia tudo: bio dos perfis, o que você posta e o que você não posta. Ser relevante = ser lembrado por um assunto. O seu: <strong>comunidade e receita no esport</strong>.</p>
     </section>
 
+    <details class="card report-card hooks"><summary><strong>Banco de ganchos</strong><span class="hint">primeira linha que para o scroll · toque para copiar</span></summary>
+      <div class="hook-list">${HOOKS.map((h, i) => `<button type="button" class="hook" data-hook="${i}">${esc(h)}</button>`).join('')}</div>
+      <p class="hint">Troque o que está entre colchetes. Gancho bom é específico: número, nome, bastidor ou erro real. Nada de número interno ou contrato sem aprovação.</p>
+    </details>
     ${renderStories()}
     ${renderX()}
 
@@ -302,6 +320,8 @@ export function initBrand(helpers) {
   H = helpers;
   document.addEventListener('click', async (e) => {
     if (document.body.dataset.screen !== 'app') return;
+    const hk = e.target.closest('[data-hook]');
+    if (hk) return H.copy(HOOKS[Number(hk.dataset.hook)], 'Gancho copiado');
     const f = e.target.closest('[data-brand-filter]');
     if (f) {
       state.filter = f.dataset.brandFilter;

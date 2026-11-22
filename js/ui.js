@@ -3,7 +3,7 @@
  * Funções que geram HTML a partir do estado. Não guardam estado nem gravam
  * dados; os eventos são tratados em app.js por delegação.
  */
-import { STATUS_FILTERS, applyFilters, computeStats } from './tasks.js';
+import { STATUS_FILTERS, applyFilters, computeStats, Tasks } from './tasks.js';
 
 const C = window.Core;
 const pad = C.pad;
@@ -144,6 +144,10 @@ export function taskCard(t, now, areaMap, mode = '') {
   if (focused) badges.push('<span class="badge badge-focus">★ Foco da semana</span>');
   const planned = !done && t.plannedFor === C.toDateKey(now);
   if (planned) badges.push('<span class="badge badge-today">☀ Hoje</span>');
+  if (!done && t.dependsOn) {
+    const dep = Tasks.get(t.dependsOn);
+    if (dep && dep.status !== 'done' && !dep.deletedAt) badges.push(`<span class="badge badge-dep" title="Só dá para fazer depois de: ${esc(dep.title)}">🔗 Depende de: ${esc(dep.title.slice(0, 28))}${dep.title.length > 28 ? '…' : ''}</span>`);
+  }
   if (!done && t.status === 'doing') {
     const lastAct = (t.comments || []).reduce((a, x) => (String(x.at) > a ? String(x.at) : a), String(t.createdAt || ''));
     const idle = Math.floor((Date.now() - Date.parse(lastAct)) / 86400000);
@@ -488,7 +492,8 @@ export function renderAgenda(all, now, areas, offset = 0, events = []) {
       continue;
     }
     any = true;
-    html += section('day', label, list, now, areaMap);
+    const heavy = list.length > 6 && list.some((t) => t.priority !== 'urgent' && t.status !== 'waiting');
+    html += section('day', label, list, now, areaMap, heavy ? `<button type="button" class="chip chip-sm agenda-spread" data-agenda-spread="${day}" title="Move as menos prioritárias para os próximos dias úteis mais leves">Dia pesado (${list.length}): distribuir</button>` : '');
   }
   const noDate = open.filter((t) => !dateOf(t)).length;
   html += `<p class="hint agenda-foot">${noDate ? `${noDate} ${noDate === 1 ? 'tarefa aberta não tem' : 'tarefas abertas não têm'} prazo e não aparece${noDate === 1 ? '' : 'm'} aqui. ` : ''}Use o ícone de calendário em cada tarefa para adicioná-la ao Google Agenda.</p>`;
@@ -587,6 +592,7 @@ export function renderReport(all, now, areas, days = 30) {
 
   return `<div class="report-periods" role="group" aria-label="Período">
       ${[7, 30, 90].map((d) => `<button type="button" class="chip" data-report-days="${d}" aria-pressed="${d === days}">Últimos ${d} dias</button>`).join('')}
+      <button type="button" class="chip" data-report-csv="${days}">⬇ Exportar planilha</button>
     </div>
     <div class="kpis">
       ${kpi('Concluídas', done.length)}

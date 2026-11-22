@@ -116,7 +116,7 @@ const S = {
   dirty: false,
   ready: false,
   three: null, // { renderer, scene, camera, ortho, controls, meshes:Map }
-  undo: [], redo: [], last: '', lastPush: 0, eye: false,
+  undo: [], redo: [], last: '', lastPush: 0, eye: false, measure: false, mpts: [],
 };
 
 const layouts = () => (Sync.layouts || []).filter((l) => !l.deletedAt).sort((a, b) => (b.base - a.base) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
@@ -240,10 +240,11 @@ export function renderSpaces() {
       <button type="button" class="btn btn-sm" data-sp="labels" aria-pressed="${S.labels}">Nomes</button>
       <button type="button" class="btn btn-sm" data-sp="undo" ${S.undo.length ? '' : 'disabled'} aria-label="Desfazer" title="Desfazer">↶</button>
       <button type="button" class="btn btn-sm" data-sp="redo" ${S.redo.length ? '' : 'disabled'} aria-label="Refazer" title="Refazer">↷</button>
+      <button type="button" class="btn btn-sm" data-sp="measure" aria-pressed="${S.measure}" title="Medir distância: toque em dois pontos do piso">📏</button>
       <button type="button" class="btn btn-sm" data-sp="eye" aria-pressed="${S.eye}" title="Vista de quem chega pela porta (1,7 m)">👁</button>
       <button type="button" class="btn btn-sm" data-sp="fit" title="Centralizar">⌖</button>
     </div>
-    <div class="sp-hint" id="spHint">${sel ? 'Arraste o item para mover. Use os botões abaixo para girar, copiar ou apagar.' : 'Gire com um dedo, aproxime com dois. Toque num item para selecionar.'}</div>
+    <div class="sp-hint" id="spHint">${S.measure ? (S.mpts.length === 2 ? `Distância: <b>${Math.hypot(S.mpts[0].x - S.mpts[1].x, S.mpts[0].z - S.mpts[1].z).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} m</b>. Toque em outro ponto para medir de novo.` : S.mpts.length ? 'Agora toque no segundo ponto.' : 'Régua: toque no primeiro ponto do piso.') : sel ? 'Arraste o item para mover. Use os botões abaixo para girar, copiar ou apagar.' : 'Gire com um dedo, aproxime com dois. Toque num item para selecionar.'}</div>
   </div>
   ${sel ? `<section class="card sp-sel">
     <div class="sp-sel-head"><strong>${esc(spec(sel).name)}</strong><button type="button" class="icon-btn" data-sp="unsel" aria-label="Fechar">×</button></div>
@@ -515,6 +516,22 @@ function itemObject(it) {
   return g;
 }
 
+function drawMeasure() {
+  if (!S.three) return;
+  if (!S.three.measure) { S.three.measure = new T.Group(); S.three.scene.add(S.three.measure); }
+  const g = S.three.measure;
+  disposeGroup(g);
+  if (!S.measure) return;
+  for (const p of S.mpts) { const dot = new T.Mesh(new T.SphereGeometry(0.09, 12, 8), new T.MeshBasicMaterial({ color: '#ef4444' })); dot.position.set(p.x, 0.06, p.z); g.add(dot); }
+  if (S.mpts.length === 2) {
+    const [a, b] = S.mpts;
+    const geo = new T.BufferGeometry().setFromPoints([new T.Vector3(a.x, 0.06, a.z), new T.Vector3(b.x, 0.06, b.z)]);
+    g.add(new T.Line(geo, new T.LineBasicMaterial({ color: '#ef4444' })));
+    const lb = labelSprite(Math.hypot(a.x - b.x, a.z - b.z).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' m');
+    lb.position.set((a.x + b.x) / 2, 0.5, (a.z + b.z) / 2);
+    g.add(lb);
+  }
+}
 function disposeGroup(grp) {
   grp.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
@@ -601,6 +618,17 @@ function bindPointer() {
     if (o) o.position.set(drag.it.x, 0, drag.it.z);
   });
   const up = (e) => {
+    if (S.measure && down && !drag && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 8) {
+      down = null;
+      setNdc(e);
+      if (ray.ray.intersectPlane(plane, hitPt)) {
+        const p = { x: Math.round(hitPt.x * 20) / 20, z: Math.round(hitPt.z * 20) / 20 };
+        S.mpts = S.mpts.length >= 2 ? [p] : S.mpts.concat(p);
+        drawMeasure();
+        H.render();
+      }
+      return;
+    }
     if (drag) {
       S.three.controls.enabled = true;
       if (drag.moved) commit(editable());
@@ -858,6 +886,7 @@ export function initSpaces(helpers) {
     if (a === 'view') { S.view = S.view === 'plan' ? '3d' : 'plan'; fitOrtho(); return H.render(); }
     if (a === 'labels') { S.labels = !S.labels; return H.render(); }
     if (a === 'fit') { S.eye = false; fit(); return H.render(); }
+    if (a === 'measure') { S.measure = !S.measure; S.mpts = []; drawMeasure(); return H.render(); }
     if (a === 'eye') {
       S.eye = !S.eye;
       S.view = '3d';

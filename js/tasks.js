@@ -55,6 +55,12 @@ export const Tasks = {
   /** Conclui. Se for recorrente, cria a próxima ocorrência e a devolve. */
   async complete(id) {
     const t = await this.update(id, { status: 'done' });
+    // libera as tarefas que dependiam desta
+    if (t) {
+      const freed = this.all().filter((x) => x.dependsOn === id && x.status !== 'done' && !x.deletedAt);
+      for (const x of freed) await this.update(x.id, { comments: (x.comments || []).concat({ id: C.uid(), text: `Liberada: "${t.title}" foi concluída`, at: nowIso() }) });
+      if (freed.length) window.dispatchEvent(new CustomEvent('ct-unblocked', { detail: freed.map((x) => x.title) }));
+    }
     if (!t || !t.recurrence) return { task: t, next: null };
     const next = await this.create({
       title: t.title,

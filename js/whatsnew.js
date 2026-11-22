@@ -9,6 +9,18 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.4', 'Mais uma rodada forte', [
+    'Tarefas: dependência na ficha ("Depende de"). O card mostra 🔗 enquanto a outra não termina e, ao concluir, a dependente é liberada com aviso e registro no andamento.',
+    'Agenda: dias com mais de 6 tarefas ganham o botão Distribuir, que move as menos prioritárias para os próximos dias úteis mais leves.',
+    'Mapa 3D: régua 📏 para medir a distância entre dois pontos do piso (ex.: palco até a primeira fileira).',
+    'Financeiro: gráfico de saídas previstas por semana (8 semanas), destacando a semana de maior pagamento.',
+    'Marca pessoal: banco de 12 ganchos para a primeira linha dos posts, com 1 toque para copiar.',
+    'Inferno Roxo: voluntário aprovado ganha o botão Boas-vindas, com mensagem pronta com setor, missão e coordenador.',
+    'Growth: calculadora de quantas pessoas o teste precisa para ser confiável.',
+    'Relatório: exportar planilha das tarefas do período (com marcações e última nota).',
+    'Projetos: Duplicar para outra data copia todas as etapas com os mesmos intervalos.',
+    'Status semanal: botão PDF para mandar ou imprimir.',
+  ]],
   ['9.3', 'Melhorias fortes em cada ferramenta', [
     'Ficha da tarefa: blocos de foco de 15, 25 ou 50 min com cronômetro; ao terminar, o tempo entra no andamento e a ficha soma o tempo investido.',
     'Painel B2C: tendência do próximo mês em cada indicador (pelos últimos meses) e se bate a meta.',

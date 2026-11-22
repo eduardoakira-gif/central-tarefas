@@ -93,6 +93,7 @@ function render() {
       ${t.link ? `<a class="pill" href="${esc(/^https?:\/\//.test(t.link) ? t.link : 'https://' + t.link)}" target="_blank" rel="noopener">🔗 Abrir link</a>` : ''}
       ${t.waitingFor ? `<span class="pill">⏳ ${esc(t.waitingFor)}</span>` : ''}
     </div>
+    <label class="dt-dep">🔗 Depende de <select data-dt-dep aria-label="Depende de"><option value="">nenhuma tarefa</option>${Tasks.all().filter((x) => x.id !== t.id && x.status !== 'done').slice(0, 80).map((x) => `<option value="${esc(x.id)}"${t.dependsOn === x.id ? ' selected' : ''}>${esc(x.title.slice(0, 60))}</option>`).join('')}${t.dependsOn && !Tasks.all().some((x) => x.id === t.dependsOn && x.status !== 'done') ? `<option value="${esc(t.dependsOn)}" selected>(já concluída)</option>` : ''}</select></label>
     <div class="dt-quickdue" role="group" aria-label="Prazo rápido">${[['Hoje', today], ['Amanhã', C.addDays(today, 1)], ['+3 dias', C.addDays(today, 3)], ['+1 semana', C.addDays(today, 7)]].map(([n, d]) => `<button type="button" data-dt-due="${d}" aria-pressed="${t.dueDate === d}">${n}</button>`).join('')}${t.dueDate ? '<button type="button" data-dt-due="">Sem prazo</button>' : ''}</div>
     <div class="dt-status" role="group" aria-label="Situação">${statuses.map(([k, n]) => `<button type="button" data-dt-status="${k}" aria-pressed="${t.status === k}">${n}</button>`).join('')}</div>`;
 
@@ -223,6 +224,15 @@ export function initDetail(helpers) {
     }
   });
   dlg.addEventListener('change', async (e) => {
+    if (e.target.matches('[data-dt-dep]')) {
+      const t = Tasks.get(openId);
+      if (!t) return;
+      const v = e.target.value || null;
+      const dep = v && Tasks.get(v);
+      if (dep && dep.dependsOn === t.id) { H.toast('Essa tarefa já depende desta. Escolha outra.'); return render(); }
+      await Tasks.update(t.id, { dependsOn: v });
+      return addLog(dep ? `Situação: depende de "${dep.title}"` : 'Situação: sem dependência');
+    }
     const ck = e.target.closest('[data-dt-check]');
     if (!ck) return;
     const t = Tasks.get(openId);

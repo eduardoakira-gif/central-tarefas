@@ -1805,3 +1805,21 @@ body[data-route="tasks"] #taskList.is-selecting { padding-bottom: 130px; }
 .ab-res { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
 .ab-res .is-good { color: var(--green); } .ab-res .is-bad { color: var(--red); }
 .ab-verdict { margin: 6px 0 0; font-weight: 600; }
+
+/* v9.4 */
+.badge-dep { background: color-mix(in srgb, var(--primary) 12%, var(--surface)); color: var(--primary); }
+.dt-dep { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 13px; color: var(--text-2); }
+.dt-dep select { flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; background: var(--surface); color: var(--text); font: inherit; font-size: 13px; }
+.agenda-spread { margin-left: 8px; text-transform: none; letter-spacing: 0; font-weight: 600; color: color-mix(in srgb, var(--amber) 75%, var(--text)); }
+.cf-bars { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; height: 150px; align-items: end; }
+.cf-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 3px; }
+.cf-bar { width: 100%; max-width: 38px; background: color-mix(in srgb, var(--primary) 40%, var(--surface)); border-radius: 6px 6px 2px 2px; }
+.cf-col.is-peak .cf-bar { background: var(--primary); }
+.cf-v { font-size: 10.5px; font-weight: 600; color: var(--text-2); white-space: nowrap; }
+.cf-l { font-size: 11px; color: var(--muted); }
+.hooks summary { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; cursor: pointer; }
+.hook-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.hook { text-align: left; border: 1px solid var(--border); background: var(--surface); border-radius: 10px; padding: 9px 12px; font: inherit; font-size: 14px; color: var(--text); cursor: pointer; }
+.hook:active { background: var(--surface-2); }
+.ab-sample { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 10px; }
+.ab-sample label { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--text-2); }
