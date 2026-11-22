@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "8.9.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "9.2.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -534,6 +534,14 @@ function ownerScore(all: any[], today: string) {
 function ownerAlerts(tasks: any[], bills: any[], metrics: any[], s: Settings, today: string) {
   const lines: string[] = [];
   let urgent = 0;
+  // Em andamento sem nota nem marcação há 7+ dias (ficha da tarefa)
+  const idle = tasks.filter((t: any) => t && !t.deletedAt && t.status === "doing").filter((t: any) => {
+    const last = (Array.isArray(t.comments) ? t.comments : []).reduce((m: string, c: any) => (String(c?.at ?? "") > m ? String(c.at) : m), String(t.createdAt ?? ""));
+    return last && Date.now() - Date.parse(last) >= 7 * 86400000;
+  });
+  if (idle.length) lines.push(`${plural(idle.length, "tarefa em andamento parada", "tarefas em andamento paradas")} há 7+ dias sem nota: ${idle.slice(0, 3).map((t: any) => t.title).join("; ")}${idle.length > 3 ? "…" : ""}.`);
+  const blocked = tasks.filter((t: any) => t && !t.deletedAt && t.status !== "done" && Array.isArray(t.tags) && t.tags.includes("Bloqueado"));
+  if (blocked.length) lines.push(`${plural(blocked.length, "tarefa bloqueada", "tarefas bloqueadas")}: ${blocked.slice(0, 3).map((t: any) => t.title).join("; ")}. Quem destrava?`);
   const open = bills.filter((b) => b && !b.paidAt && !b.deletedAt);
   if (s.billsReminder) {
     const overdue = open.filter((b) => b.dueDate && b.dueDate < today);

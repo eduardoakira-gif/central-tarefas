@@ -9,6 +9,13 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.2', 'Seleção múltipla e alertas', [
+    'Tarefas: toque em ☑ Selecionar e marque várias de uma vez para concluir, pôr no plano de hoje, adiar (amanhã ou +1 semana), mudar prioridade, mover de área ou mandar para a lixeira.',
+    'Tarefas: filtros rápidos Paradas (em andamento sem nota há 7+ dias) e Bloqueadas (marcação Bloqueado). Só aparecem quando há alguma.',
+    'Notificação: o resumo do dia avisa das tarefas paradas e das bloqueadas.',
+    'Mapa 3D: botão 👁 mostra a vista de quem chega pela porta, na altura dos olhos (1,7 m).',
+    'Mapa 3D: escolha a cor de cada item (ex.: cor do patrocinador no totem e no backdrop).',
+  ]],
   ['9.1', 'Rodada avançada nas ferramentas', [
     'Growth: cada teste mostra quantos dias faltam, o checklist e a última nota, com atalho para a ficha. Ao marcar Validou ou Não validou, a tarefa do teste é concluída com o aprendizado.',
     'CRM: ranking dos assuntos que mais abriram e o de menor abertura, para repetir o padrão campeão.',

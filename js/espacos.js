@@ -116,7 +116,7 @@ const S = {
   dirty: false,
   ready: false,
   three: null, // { renderer, scene, camera, ortho, controls, meshes:Map }
-  undo: [], redo: [], last: '', lastPush: 0,
+  undo: [], redo: [], last: '', lastPush: 0, eye: false,
 };
 
 const layouts = () => (Sync.layouts || []).filter((l) => !l.deletedAt).sort((a, b) => (b.base - a.base) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
@@ -203,6 +203,7 @@ export function renderSpaces() {
       <button type="button" class="btn btn-sm" data-sp="labels" aria-pressed="${S.labels}">Nomes</button>
       <button type="button" class="btn btn-sm" data-sp="undo" ${S.undo.length ? '' : 'disabled'} aria-label="Desfazer" title="Desfazer">↶</button>
       <button type="button" class="btn btn-sm" data-sp="redo" ${S.redo.length ? '' : 'disabled'} aria-label="Refazer" title="Refazer">↷</button>
+      <button type="button" class="btn btn-sm" data-sp="eye" aria-pressed="${S.eye}" title="Vista de quem chega pela porta (1,7 m)">👁</button>
       <button type="button" class="btn btn-sm" data-sp="fit" title="Centralizar">⌖</button>
     </div>
     <div class="sp-hint" id="spHint">${sel ? 'Arraste o item para mover. Use os botões abaixo para girar, copiar ou apagar.' : 'Gire com um dedo, aproxime com dois. Toque num item para selecionar.'}</div>
@@ -211,6 +212,7 @@ export function renderSpaces() {
     <div class="sp-sel-head"><strong>${esc(spec(sel).name)}</strong><button type="button" class="icon-btn" data-sp="unsel" aria-label="Fechar">×</button></div>
     <div class="sp-form-row">
       <label>Nome no mapa<input class="input" data-sp-field="label" maxlength="40" value="${esc(sel.label || '')}" placeholder="${esc(spec(sel).name)}"></label>
+      <label class="sp-color">Cor<input type="color" data-sp-field="color" value="${sel.color || spec(sel).color}"></label>
       ${spec(sel).resize ? `<label>Largura (m)<input class="input" type="number" step="0.1" min="0.1" max="40" data-sp-field="w" value="${dims(sel).w}"></label><label>Profund. (m)<input class="input" type="number" step="0.05" min="0.05" max="40" data-sp-field="d" value="${dims(sel).d}"></label>` : ''}
     </div>
     <div class="btn-row sp-sel-btns">
@@ -300,7 +302,7 @@ function initScene() {
   const controls = new OC(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.maxPolarAngle = Math.PI / 2.05;
-  controls.minDistance = 3;
+  controls.minDistance = 0.5;
   controls.maxDistance = 120;
   const room = new T.Group();
   const items = new T.Group();
@@ -733,6 +735,7 @@ function onField(e) {
     const it = l.items.find((i) => i.id === S.sel);
     if (!it) return;
     if (f === 'label') it.label = e.target.value.slice(0, 40);
+    else if (f === 'color') it.color = /^#[0-9a-f]{6}$/i.test(e.target.value) ? e.target.value : null;
     else { const v = parseFloat(String(e.target.value).replace(',', '.')); if (v > 0) it[f] = Math.min(40, v); }
     commit(l);
     if (S.three) buildScene(l);
@@ -809,7 +812,19 @@ export function initSpaces(helpers) {
     const it = S.sel && l.items.find((i) => i.id === S.sel);
     if (a === 'view') { S.view = S.view === 'plan' ? '3d' : 'plan'; fitOrtho(); return H.render(); }
     if (a === 'labels') { S.labels = !S.labels; return H.render(); }
-    if (a === 'fit') { fit(); return; }
+    if (a === 'fit') { S.eye = false; fit(); return H.render(); }
+    if (a === 'eye') {
+      S.eye = !S.eye;
+      S.view = '3d';
+      if (S.eye) {
+        const door = l.items.find((i) => i.type === 'porta') || { x: 0, z: l.room.d / 2 };
+        const { camera, controls } = S.three;
+        camera.position.set(door.x, 1.7, Math.min(l.room.d / 2 - 0.3, door.z - 0.3));
+        controls.target.set(door.x * 0.3, 1.4, 0);
+        controls.update();
+      } else fit();
+      return H.render();
+    }
     if (a === 'undo') return restore(l, S.undo, S.redo);
     if (a === 'redo') return restore(l, S.redo, S.undo);
     if (a === 'unsel') { S.sel = null; return H.render(); }

@@ -300,7 +300,7 @@ export function renderAreas(stats, activeArea, areas) {
 }
 
 export function renderStatusChips(stats, active) {
-  return STATUS_FILTERS.map(
+  return STATUS_FILTERS.filter((f) => !['idle', 'blocked'].includes(f.id) || stats.byFilter[f.id] || active === f.id).map(
     (f) => `<button type="button" class="chip" data-filter-status="${f.id}" aria-pressed="${active === f.id}">
       ${f.name}<span class="chip-count">${stats.byFilter[f.id]}</span></button>`
   ).join('');

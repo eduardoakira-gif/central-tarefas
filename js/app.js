@@ -37,7 +37,7 @@ import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged, openLayout } from './espacos.js';
 
-export const APP_VERSION = '9.1.0';
+export const APP_VERSION = '9.2.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -49,6 +49,8 @@ const state = {
   route: 'tasks',
   noteId: null,
   filter: { status: 'all', area: null, query: '', owner: '' },
+  selecting: false,
+  sel: new Set(),
   history: { query: '', area: '', tab: 'done' },
   notesQuery: '',
   agendaOffset: 0,
@@ -308,7 +310,59 @@ function renderTasks() {
   $('#layoutToggle').innerHTML = layoutToggle();
   $('#statusFilters').hidden = board;
   $('#taskList').innerHTML = board ? renderKanban(state.filter, now, areas()) : d.list;
+  if (!board) $('#statusFilters').insertAdjacentHTML('beforeend', `<button type="button" class="chip chip-select" data-select-mode aria-pressed="${state.selecting}">${state.selecting ? '✕ Sair da seleção' : '☑ Selecionar'}</button>`);
+  paintSelection();
   document.title = (d.stats.overdue ? `(${d.stats.overdue}) ` : '') + Sync.central.name;
+}
+
+// -----------------------------------------------------------------------------
+// Seleção múltipla
+// -----------------------------------------------------------------------------
+function paintSelection() {
+  const list = $('#taskList');
+  if (!list) return;
+  list.classList.toggle('is-selecting', state.selecting);
+  for (const id of [...state.sel]) if (!Tasks.get(id)) state.sel.delete(id);
+  $$('article.task', list).forEach((a) => a.classList.toggle('is-selected', state.sel.has(a.dataset.id)));
+  let bar = $('#bulkBar');
+  if (!state.selecting || state.route !== 'tasks') { if (bar) bar.hidden = true; return; }
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'bulkBar';
+    bar.className = 'bulk-bar';
+    document.body.appendChild(bar);
+  }
+  const n = state.sel.size;
+  bar.hidden = false;
+  bar.innerHTML = `<div class="bulk-top"><strong>${n} selecionada${n === 1 ? '' : 's'}</strong><button type="button" class="link-btn" data-bulk="all">Selecionar todas visíveis</button><button type="button" class="link-btn" data-bulk="none">Limpar</button></div>
+    <div class="bulk-actions">
+      <button type="button" class="btn btn-sm btn-primary" data-bulk="done" ${n ? '' : 'disabled'}>✓ Concluir</button>
+      <button type="button" class="btn btn-sm" data-bulk="today" ${n ? '' : 'disabled'}>☀ Hoje</button>
+      <button type="button" class="btn btn-sm" data-bulk="d1" ${n ? '' : 'disabled'}>Amanhã</button>
+      <button type="button" class="btn btn-sm" data-bulk="d7" ${n ? '' : 'disabled'}>+1 semana</button>
+      <select class="select select-sm" data-bulk-prio ${n ? '' : 'disabled'} aria-label="Prioridade"><option value="">Prioridade…</option>${C.PRIORITIES.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+      <select class="select select-sm" data-bulk-area ${n ? '' : 'disabled'} aria-label="Área"><option value="">Mover para área…</option>${areas().map((a) => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}</select>
+      <button type="button" class="btn btn-sm btn-danger" data-bulk="delete" ${n ? '' : 'disabled'}>Lixeira</button>
+    </div>`;
+}
+async function bulk(action, value) {
+  const ids = [...state.sel].filter((id) => Tasks.get(id));
+  if (!ids.length) return;
+  const today = C.toDateKey(new Date());
+  if (action === 'delete' && !(await confirmDialog({ title: `Mover ${ids.length} tarefa${ids.length > 1 ? 's' : ''} para a lixeira?`, message: 'Dá para restaurar pelo Histórico.', confirmLabel: 'Mover' }))) return;
+  for (const id of ids) {
+    if (action === 'done') await Tasks.complete(id);
+    else if (action === 'today') await Tasks.update(id, { plannedFor: today });
+    else if (action === 'd1') await Tasks.update(id, { dueDate: C.addDays(today, 1) });
+    else if (action === 'd7') await Tasks.update(id, { dueDate: C.addDays(today, 7) });
+    else if (action === 'prio') await Tasks.update(id, { priority: value });
+    else if (action === 'area') await Tasks.update(id, { area: value });
+    else if (action === 'delete') await Tasks.remove(id);
+  }
+  const label = { done: 'concluídas', today: 'no plano de hoje', d1: 'para amanhã', d7: 'para daqui a 1 semana', prio: 'com nova prioridade', area: 'movidas de área', delete: 'na lixeira' }[action];
+  state.sel.clear();
+  toast(`${ids.length} tarefa${ids.length > 1 ? 's' : ''} ${label}`);
+  renderAll();
 }
 
 function renderHistory() {
@@ -529,6 +583,7 @@ function route() {
 }
 
 function showView() {
+  if (state.route !== 'tasks' && $('#bulkBar')) $('#bulkBar').hidden = true;
   const viewName = state.route === 'areas' ? 'area' : state.route;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== viewName));
   const r = state.route === 'note' ? 'notes' : state.route === 'area' ? 'areas' : state.route;
@@ -1608,6 +1663,27 @@ function bindEvents() {
 
   document.addEventListener('click', (e) => {
     if (document.body.dataset.screen !== 'app') return;
+    if (e.target.closest('[data-select-mode]')) {
+      state.selecting = !state.selecting;
+      state.sel.clear();
+      return renderTasks();
+    }
+    const bk = e.target.closest('[data-bulk]');
+    if (bk) {
+      const a = bk.dataset.bulk;
+      if (a === 'all') { $$('#taskList article.task').forEach((x) => state.sel.add(x.dataset.id)); return paintSelection(); }
+      if (a === 'none') { state.sel.clear(); return paintSelection(); }
+      return bulk(a);
+    }
+    if (state.selecting && state.route === 'tasks') {
+      const sc = e.target.closest('#taskList article.task');
+      if (sc && !e.target.closest('a')) {
+        e.preventDefault();
+        e.stopPropagation();
+        state.sel.has(sc.dataset.id) ? state.sel.delete(sc.dataset.id) : state.sel.add(sc.dataset.id);
+        return paintSelection();
+      }
+    }
     const actionEl = e.target.closest('[data-action]');
     if (actionEl) {
       const card = actionEl.closest('[data-id]');
@@ -1660,6 +1736,10 @@ function bindEvents() {
     if (e.target.matches('.area-name-input')) renameArea(e.target.closest('[data-area-id]').dataset.areaId, e.target.value);
   });
 
+  document.addEventListener('change', (e) => {
+    if (e.target.matches('[data-bulk-prio]') && e.target.value) bulk('prio', e.target.value);
+    if (e.target.matches('[data-bulk-area]') && e.target.value) bulk('area', e.target.value);
+  });
   let searchTimer;
   $('#search').addEventListener('input', (e) => {
     clearTimeout(searchTimer);

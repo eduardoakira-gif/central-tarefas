@@ -148,8 +148,16 @@ export const STATUS_FILTERS = [
   { id: 'doing', name: 'Em andamento' },
   { id: 'waiting', name: 'Aguardando retorno' },
   { id: 'urgent', name: 'Urgentes' },
+  { id: 'idle', name: 'Paradas' },
+  { id: 'blocked', name: 'Bloqueadas' },
   { id: 'done', name: 'Concluídas' },
 ];
+/** Em andamento sem nota nem marcação há 7 dias ou mais. */
+export function isIdle(t, now = new Date()) {
+  if (t.status !== 'doing') return false;
+  const last = (t.comments || []).reduce((a, x) => (String(x.at) > a ? String(x.at) : a), String(t.createdAt || ''));
+  return (now.getTime() - Date.parse(last)) / 86400000 >= 7;
+}
 
 export function matchesStatusFilter(t, filter, now) {
   const open = t.status !== 'done';
@@ -161,6 +169,8 @@ export function matchesStatusFilter(t, filter, now) {
     case 'doing':
     case 'waiting': return t.status === filter;
     case 'urgent': return open && t.priority === 'urgent';
+    case 'idle': return isIdle(t, now);
+    case 'blocked': return open && (t.tags || []).includes('Bloqueado');
     case 'done': return t.status === 'done';
     default: return true;
   }
