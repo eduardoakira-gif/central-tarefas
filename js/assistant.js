@@ -6,6 +6,7 @@
  */
 import { Sync } from './sync.js';
 import { Tasks } from './tasks.js';
+import { Notes } from './notes.js';
 import { esc } from './ui.js';
 import { micButton } from './myday.js';
 import { PLAYBOOKS, createProject } from './playbooks.js';
@@ -242,7 +243,7 @@ export function renderAssistant() {
     .map((m, i) => divider(m) + (
       m.role === 'user'
         ? `<div class="msg msg-user"><p>${esc(m.content)}</p></div>`
-        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${projectsBlock(m, i)}${TTS && !m.error ? `<button type="button" class="link-btn link-muted msg-speak" data-chat="speak" data-mi="${i}">${speakingIdx === i ? '■ Parar' : '🔊 Ouvir'}</button>` : ''}${actionsBlock(m, i)}${suggestions(m, i)}</div>`)
+        : `<div class="msg msg-ai${m.error ? ' is-error' : ''}">${md(m.content)}${projectsBlock(m, i)}<div class="msg-tools">${TTS && !m.error ? `<button type="button" class="link-btn link-muted msg-speak" data-chat="speak" data-mi="${i}">${speakingIdx === i ? '■ Parar' : '🔊 Ouvir'}</button>` : ''}${!m.error ? `<button type="button" class="link-btn link-muted" data-chat="savenote" data-mi="${i}">${m.savedNote ? '✓ Salva em Notas' : '📝 Salvar como nota'}</button><button type="button" class="link-btn link-muted" data-chat="copy" data-mi="${i}">Copiar</button>` : ''}</div>${actionsBlock(m, i)}${suggestions(m, i)}</div>`)
     )
     .join('');
   const stale = A.messages.length && lastDay && lastDay < today
@@ -323,6 +324,19 @@ export function initAssistant(helpers) {
     if (!el) return;
     const a = el.dataset.chat;
     if (a === 'prompt') return send(PROMPTS[Number(el.dataset.i)][1]);
+    if (a === 'savenote' || a === 'copy') {
+      const m = A.messages[Number(el.dataset.mi)];
+      if (!m) return;
+      if (a === 'copy') { try { await navigator.clipboard.writeText(m.content); H.toast('Resposta copiada'); } catch { H.toast('Não consegui copiar.'); } return; }
+      if (m.savedNote) return (location.hash = '#/notas/' + m.savedNote);
+      const q = A.messages.slice(0, Number(el.dataset.mi)).reverse().find((x) => x.role === 'user');
+      const title = ('Assistente: ' + (q ? q.content : 'resposta')).replace(/\s+/g, ' ').slice(0, 90);
+      const n = await Notes.create({ title, date: C.toDateKey(new Date()), participants: 'Assistente', body: (q ? 'Pergunta: ' + q.content + '\n\n' : '') + m.content.replace(/\*\*/g, '') });
+      m.savedNote = n.id;
+      await saveChat();
+      H.toast('Salva em Notas de reunião');
+      return H.render();
+    }
     if (a === 'speak') {
       const m = A.messages[Number(el.dataset.mi)];
       return m && speak(m.content, Number(el.dataset.mi));

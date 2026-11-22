@@ -9,6 +9,18 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.3', 'Melhorias fortes em cada ferramenta', [
+    'Ficha da tarefa: blocos de foco de 15, 25 ou 50 min com cronômetro; ao terminar, o tempo entra no andamento e a ficha soma o tempo investido.',
+    'Painel B2C: tendência do próximo mês em cada indicador (pelos últimos meses) e se bate a meta.',
+    'Financeiro: alerta de NF possivelmente duplicada (mesmo fornecedor, número, vencimento e valor).',
+    'CRM: nota de 0 a 100 do assunto antes de enviar, com o que melhorar.',
+    'Radar: Resumo da semana com as 8 notícias mais relevantes e as lições, pronto para mandar.',
+    'Projetos: Mudar dia D empurra todas as etapas abertas junto.',
+    'Notas de reunião: modelos de ata (alinhamento semanal, 1:1, patrocinador, fornecedor e pós-evento).',
+    'Mapa 3D: checagem de segurança (itens fora da sala, sobrepostos e portas ou saídas obstruídas), também no PDF.',
+    'Assistente: salvar a resposta como nota e copiar com 1 toque.',
+    'Growth: calculadora de teste A/B com diferença, confiança e veredito.',
+  ]],
   ['9.2', 'Seleção múltipla e alertas', [
     'Tarefas: toque em ☑ Selecionar e marque várias de uma vez para concluir, pôr no plano de hoje, adiar (amanhã ou +1 semana), mudar prioridade, mover de área ou mandar para a lixeira.',
     'Tarefas: filtros rápidos Paradas (em andamento sem nota há 7+ dias) e Bloqueadas (marcação Bloqueado). Só aparecem quando há alguma.',

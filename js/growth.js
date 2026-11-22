@@ -39,6 +39,22 @@ function testLine(x) {
   const n = (t.comments || []).filter((c) => c && c.text && !/^(Marcou|Desmarcou|Situação|Passo concluído)/.test(c.text)).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
   return `<div class="idea-test${left != null && left < 0 ? ' is-late' : ''}"><span>🧪 ${left == null ? 'Sem prazo' : left < 0 ? `Prazo do teste venceu há ${-left} dia${left === -1 ? '' : 's'}: registre o resultado` : left === 0 ? 'Último dia do teste' : `Faltam ${left} dia${left === 1 ? '' : 's'} de teste`}${ck.length ? ` · checklist ${ck.filter((c) => c.done).length}/${ck.length}` : ''}</span>${n ? `<span class="hint">↳ ${esc(n.text.replace(/\s+/g, ' ').slice(0, 110))}</span>` : ''}<button type="button" class="link-btn" data-g="opentest">Abrir o teste</button></div>`;
 }
+/** Teste de duas proporções (z) com confiança bicaudal. */
+export function abResult(ab) {
+  if (!ab) return '';
+  const na = +ab.na, ca = +ab.ca, nb = +ab.nb, cb = +ab.cb;
+  if (!(na > 0 && nb > 0) || ca < 0 || cb < 0 || ca > na || cb > nb) return '<p class="hint">Preencha pessoas e conversões de A e B.</p>';
+  const pa = ca / na, pb = cb / nb, p = (ca + cb) / (na + nb);
+  const se = Math.sqrt(p * (1 - p) * (1 / na + 1 / nb));
+  const z = se ? (pb - pa) / se : 0;
+  const cdf = (x) => { const t = 1 / (1 + 0.2316419 * Math.abs(x)); const d = 0.3989423 * Math.exp((-x * x) / 2); const q = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))); return x > 0 ? 1 - q : q; };
+  const conf = Math.round((1 - 2 * (1 - cdf(Math.abs(z)))) * 1000) / 10;
+  const lift = pa ? ((pb - pa) / pa) * 100 : 0;
+  const f = (v) => (v * 100).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + '%';
+  const few = ca + cb < 100;
+  const verdict = conf >= 95 && !few ? (pb > pa ? '✅ B venceu de verdade.' : '❌ B perdeu de verdade: fique com A.') : conf >= 80 ? '⏳ Tendência, mas ainda não é conclusivo: deixe rodar mais.' : '🤷 Sem diferença real até agora (pode ser sorte).';
+  return `<div class="ab-res"><span>A: <b>${f(pa)}</b></span><span>B: <b>${f(pb)}</b></span><span>Diferença: <b class="${lift >= 0 ? 'is-good' : 'is-bad'}">${lift >= 0 ? '+' : ''}${lift.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%</b></span><span>Confiança: <b>${conf.toLocaleString('pt-BR')}%</b></span></div><p class="ab-verdict">${verdict}${few ? ' Poucas conversões ainda (menos de 100 somadas).' : ''}</p>`;
+}
 function card(x) {
   const ice = C.iceScore(x);
   return `<article class="card idea-card st-${x.status}" data-idea="${esc(x.id)}">
@@ -84,6 +100,15 @@ export function renderGrowth() {
     <div class="chips"><button type="button" class="chip" data-g-status="aberto" aria-pressed="${open}">Backlog e testes</button><button type="button" class="chip" data-g-status="fechado" aria-pressed="${!open}">Aprendizados</button>
       ${pillars.map((p) => `<button type="button" class="chip" data-g-pillar="${p}" aria-pressed="${view.pillar === p}">${p === 'todos' ? 'Todos' : esc(pillarName(p))}</button>`).join('')}</div>
     ${sugg}
+    <details class="card ab-calc"${view.ab ? ' open' : ''}><summary><strong>Calculadora de teste A/B</strong><span class="hint">o resultado é real ou foi sorte?</span></summary>
+      <div class="ab-grid">
+        <span></span><span class="hint">Pessoas</span><span class="hint">Conversões</span>
+        <strong>A (atual)</strong><input class="input" type="number" min="0" data-ab="na" value="${view.ab?.na ?? ''}" placeholder="ex.: 1200"><input class="input" type="number" min="0" data-ab="ca" value="${view.ab?.ca ?? ''}" placeholder="ex.: 36">
+        <strong>B (teste)</strong><input class="input" type="number" min="0" data-ab="nb" value="${view.ab?.nb ?? ''}" placeholder="ex.: 1180"><input class="input" type="number" min="0" data-ab="cb" value="${view.ab?.cb ?? ''}" placeholder="ex.: 52">
+      </div>
+      <div id="abOut">${abResult(view.ab)}</div>
+      <p class="hint">Use para e-mail (aberturas ou cliques), landing page (cadastros), cupom ou anúncio. Regra prática: só declare vencedor com 95% de confiança e pelo menos 100 conversões somadas.</p>
+    </details>
     <div class="idea-list">${list.map(card).join('') || `<p class="hint">${open ? 'Nenhuma ideia ainda. Toque em "Sugerir com IA" ou anote a sua.' : 'Nenhum teste concluído ainda.'}</p>`}</div>`;
 }
 
@@ -127,6 +152,13 @@ async function submitIdea(e) {
 }
 
 export function initGrowth(helpers) {
+  document.addEventListener('input', (e) => {
+    const f = e.target.dataset && e.target.dataset.ab;
+    if (!f) return;
+    view.ab = Object.assign({}, view.ab, { [f]: e.target.value });
+    const out = document.getElementById('abOut');
+    if (out) out.innerHTML = abResult(view.ab);
+  });
   H = helpers;
   $('#ideaForm').addEventListener('submit', submitIdea);
   $('#ideaDelete').addEventListener('click', async () => {

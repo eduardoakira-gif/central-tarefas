@@ -1780,3 +1780,28 @@ body[data-route="spaces"] .fab { display: none; }
 body[data-route="tasks"] #taskList.is-selecting { padding-bottom: 130px; }
 .sp-color { flex: 0 0 70px !important; min-width: 70px !important; }
 .sp-color input { height: 40px; width: 100%; border: 1px solid var(--border); border-radius: 10px; padding: 2px; background: var(--surface); }
+
+/* v9.3 */
+.dt-timer { display: flex; align-items: center; gap: 14px; }
+.dt-timer strong { font-size: 34px; font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+.kpi-trend { margin: 4px 0 0; font-size: 12px; color: var(--text-2); }
+.kpi-trend .is-bad { color: var(--red); }
+.crm-subj { display: flex; flex-direction: column; gap: 8px; }
+.subj-score { display: inline-flex; align-items: baseline; gap: 2px; font-size: 13px; }
+.subj-score b { font-size: 28px; }
+.subj-score.s-ok b { color: var(--green); } .subj-score.s-mid b { color: var(--amber); } .subj-score.s-bad b { color: var(--red); }
+#crmSubjectScore ul { margin: 6px 0 0; padding-left: 18px; color: var(--text-2); }
+.proj-move { position: relative; }
+.proj-move input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; }
+.note-tpls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin: 4px 0 8px; }
+.msg-tools { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
+.sp-issues { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
+.sp-issues li.lv-bad { color: var(--red); } .sp-issues li.lv-warn { color: color-mix(in srgb, var(--amber) 75%, var(--text)); }
+.sp-issues .link-plain { color: inherit; text-align: left; }
+.sp-check-card { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ab-calc { margin: 12px 0; }
+.ab-calc summary { display: flex; gap: 10px; align-items: baseline; cursor: pointer; flex-wrap: wrap; }
+.ab-grid { display: grid; grid-template-columns: auto 1fr 1fr; gap: 6px 8px; align-items: center; margin: 10px 0; }
+.ab-res { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+.ab-res .is-good { color: var(--green); } .ab-res .is-bad { color: var(--red); }
+.ab-verdict { margin: 6px 0 0; font-weight: 600; }

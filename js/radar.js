@@ -150,6 +150,7 @@ export function renderRadar() {
   return `<div class="radar-status">
       <span>Última busca: <strong>${ago(R.status.lastAt)}</strong>${next && next > new Date() ? ` · próxima ${C.toDateKey(next) === C.toDateKey(new Date()) ? 'hoje' : 'amanhã'} por volta de ${next.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}</span>
       <div class="btn-row">
+        <button type="button" class="btn btn-sm" data-radar="week">Resumo da semana</button>
         <button type="button" class="btn btn-sm" data-radar="case" id="radarCase">Gerar estudo de caso</button>
         <button type="button" class="btn btn-sm" data-radar="run" id="radarRun">Buscar agora</button>
       </div>
@@ -226,6 +227,13 @@ async function onAction(action, el) {
       const now = new Date().toISOString();
       await Sync.upsert('ideas', C.normalizeIdea({ title: (it.lesson || it.title).split(/[.:]/)[0].slice(0, 120), hypothesis: `Inspirado em ${it.org}: ${it.lesson || it.summary}`, metric: '', pillar, impact: Math.min(10, (it.relevance || 3) * 2), confidence: 5, ease: 5, createdAt: now, updatedAt: now }));
       return H.toast('Ideia criada no Growth. Ajuste a hipótese e as notas ICE.', { label: 'Abrir', fn: () => (location.hash = '#/growth') });
+    }
+    case 'week': {
+      const since = Date.now() - 7 * 86400000;
+      const wk = R.items.filter((x) => Date.parse(x.createdAt) >= since && x.category !== 'Estudo de caso').sort((a, b) => b.relevance - a.relevance || String(b.createdAt).localeCompare(String(a.createdAt))).slice(0, 8);
+      if (!wk.length) return H.toast('Nada no radar nos últimos 7 dias.');
+      const text = [`*Radar da semana – o que as orgs fizeram (${new Date().toLocaleDateString('pt-BR')})*`, '', ...wk.map((x, i) => `${i + 1}. *${x.org}*: ${x.title}${x.lesson ? `\n   💡 ${x.lesson}` : ''}\n   ${x.url}`)].join('\n');
+      return shareText(text, H.toast, 'Radar da semana');
     }
     case 'share': {
       const it = R.items.find((x) => x.id === (el.closest('[data-radar-id]') || {}).dataset?.radarId);

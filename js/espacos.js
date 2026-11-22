@@ -171,6 +171,43 @@ function editable() {
 }
 
 // -----------------------------------------------------------------------------
+// Checagem do layout: fora da sala, itens sobrepostos e saídas obstruídas
+// -----------------------------------------------------------------------------
+function extents(it) {
+  const { w, d } = dims(it);
+  const r = ((it.rot || 0) * Math.PI) / 180;
+  return { ex: (Math.abs(w * Math.cos(r)) + Math.abs(d * Math.sin(r))) / 2, ez: (Math.abs(w * Math.sin(r)) + Math.abs(d * Math.cos(r))) / 2 };
+}
+const SEATING = ['cadeira', 'fileira', 'pufe', 'sofa'];
+const TABLES = ['mesa', 'redonda', 'bistro', 'bancada', 'setup', 'mesa_tecnica', 'console', 'bar', 'buffet', 'credenciamento'];
+export function checkLayout(l) {
+  const out = [];
+  const name = (i) => i.label || spec(i).name;
+  const solid = l.items.filter((i) => !spec(i).flat && !spec(i).screen);
+  for (const i of l.items) {
+    const { ex, ez } = extents(i);
+    if (Math.abs(i.x) + ex > l.room.w / 2 + 0.05 || Math.abs(i.z) + ez > l.room.d / 2 + 0.05) out.push({ level: 'bad', id: i.id, text: `${name(i)} está saindo da sala.` });
+  }
+  for (let a = 0; a < solid.length; a++) for (let b = a + 1; b < solid.length; b++) {
+    const A = solid[a], B = solid[b];
+    if ((SEATING.includes(A.type) && TABLES.includes(B.type)) || (SEATING.includes(B.type) && TABLES.includes(A.type))) continue;
+    if (A.type === 'ativacao' || B.type === 'ativacao' || (A.type === 'palco') !== (B.type === 'palco') && ['som', 'camera', 'mesa', 'totem'].includes(A.type === 'palco' ? B.type : A.type)) continue;
+    const ea = extents(A), eb = extents(B);
+    const ox = ea.ex + eb.ex - Math.abs(A.x - B.x), oz = ea.ez + eb.ez - Math.abs(A.z - B.z);
+    if (ox > 0.08 && oz > 0.08) out.push({ level: 'warn', id: B.id, text: `${name(A)} e ${name(B)} estão sobrepostos.` });
+  }
+  const exits = l.items.filter((i) => i.type === 'porta' || i.type === 'saida');
+  for (const x of exits) {
+    const { ex, ez } = extents(x);
+    const block = solid.filter((i) => { const e = extents(i); return Math.abs(i.x - x.x) < ex + e.ex + 1 && Math.abs(i.z - x.z) < ez + e.ez + 1; });
+    if (block.length) out.push({ level: 'bad', id: block[0].id, text: `${name(x)} com obstáculo a menos de 1 m: ${block.slice(0, 3).map(name).join(', ')}.` });
+  }
+  const area = l.room.w * l.room.d;
+  if (!l.base && area > 100 && !l.items.some((i) => i.type === 'saida')) out.push({ level: 'warn', id: null, text: 'Nenhuma saída de emergência marcada. Em eventos com público, marque e deixe livre.' });
+  return out.slice(0, 12);
+}
+
+// -----------------------------------------------------------------------------
 // Tela
 // -----------------------------------------------------------------------------
 export function renderSpaces() {
@@ -242,6 +279,11 @@ export function renderSpaces() {
     <label class="sp-check"><input type="checkbox" data-sp-layout="base" ${l.base ? 'checked' : ''}> Esta é a base do escritório (os novos eventos copiam paredes, colunas e portas dela)</label>
     ${Object.keys(counts).length ? `<div class="sp-counts">${Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span>${n}× ${esc((CATALOG[k] || {}).name || k)}</span>`).join('')}</div>` : ''}
   </section>
+  ${(() => {
+    const issues = checkLayout(l);
+    return `<section class="card sp-check-card"><div class="dt-sec-head"><h3>Checagem de segurança</h3><span class="hint">${issues.length ? issues.length + ' ponto' + (issues.length > 1 ? 's' : '') + ' para revisar' : 'tudo certo'}</span></div>
+      ${issues.length ? `<ul class="sp-issues">${issues.map((x) => `<li class="lv-${x.level}">${x.id ? `<button type="button" class="link-plain" data-sp-issue="${esc(x.id)}">${esc(x.text)}</button>` : esc(x.text)}</li>`).join('')}</ul>` : '<p class="hint">Nada fora da sala, sem sobreposição e saídas livres.</p>'}</section>`;
+  })()}
   <section class="card sp-dl">
     <div class="dt-sec-head"><h3>Baixar e compartilhar</h3></div>
     <div class="btn-row">
@@ -678,6 +720,7 @@ function pdfFor(l) {
   <h1>${esc(l.name)}</h1><p class="s">${l.eventDate ? l.eventDate.split('-').reverse().join('/') + ' · ' : ''}Sala ${l.room.w} × ${l.room.d} m (${(l.room.w * l.room.d).toFixed(0)} m²) · ${l.items.length} itens · ${seats} lugares · Fluxo W7M</p>
   <div class="grid"><img src="${plan}" alt="Planta"><div><img src="${img3d}" alt="Vista 3D">
   <table><thead><tr><th>Qtd</th><th>Item</th><th>Medida (m)</th></tr></thead><tbody>${rows.map((r) => `<tr><td class="n">${r.n}</td><td>${esc(r.name)}</td><td>${esc(r.size)}</td></tr>`).join('')}</tbody></table>
+  ${(() => { const iss = checkLayout(l); return iss.length ? `<div class="notes"><strong>Pontos para revisar na montagem</strong>\n${iss.map((x) => '• ' + esc(x.text)).join('\n')}</div>` : ''; })()}
   ${l.notes ? `<div class="notes"><strong>Observações de montagem</strong>\n${esc(l.notes)}</div>` : ''}</div></div>
   <script>window.onload=()=>setTimeout(()=>window.print(),400)<\/script></body></html>`);
   w.document.close();
@@ -786,6 +829,8 @@ export function initSpaces(helpers) {
     }
   });
   root.addEventListener('click', async (e) => {
+    const iss = e.target.closest('[data-sp-issue]');
+    if (iss) { S.sel = iss.dataset.spIssue; H.render(); document.querySelector('.sp-stage')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); return; }
     const add = e.target.closest('[data-sp-add]');
     const l = editable();
     if (add && l) {

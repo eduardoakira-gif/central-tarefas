@@ -198,6 +198,13 @@
           <label class="field"><span class="label">Data</span><input type="date" class="input" id="noteDate"></label>
           <label class="field"><span class="label">Participantes</span><input class="input" id="noteParticipants" maxlength="500" placeholder="Quem estava na reunião" autocomplete="off"></label>
         </div>
+        <div class="note-tpls" aria-label="Modelos"><span class="hint">Modelo:</span>
+          <button type="button" class="chip chip-sm" data-note-tpl="semanal">Alinhamento semanal</button>
+          <button type="button" class="chip chip-sm" data-note-tpl="11">1:1</button>
+          <button type="button" class="chip chip-sm" data-note-tpl="patro">Patrocinador</button>
+          <button type="button" class="chip chip-sm" data-note-tpl="forn">Fornecedor</button>
+          <button type="button" class="chip chip-sm" data-note-tpl="evento">Pós-evento</button>
+        </div>
         <textarea class="input note-body" id="noteBody" placeholder="Anote tudo o que foi falado: decisões, pendências, prazos, quem ficou de fazer o quê…" aria-label="Anotações"></textarea>
         <div class="note-actions">
           <button class="btn btn-primary btn-lg" type="button" data-action="extract" id="extractBtn">
@@ -727,6 +734,7 @@
       <div class="dialog-body">
         <div id="dtHead"></div>
         <p class="dt-desc" id="dtDesc" hidden></p>
+        <section class="dt-sec" id="dtFocus"></section>
         <section class="dt-sec" id="dtTags"></section>
         <section class="dt-sec">
           <div id="dtCheck"></div>

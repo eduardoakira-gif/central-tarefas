@@ -37,7 +37,7 @@ import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged, openLayout } from './espacos.js';
 
-export const APP_VERSION = '9.2.0';
+export const APP_VERSION = '9.3.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1768,6 +1768,23 @@ function bindEvents() {
 
   // editor de notas (salva sozinho)
   ['#noteTitle', '#noteParticipants', '#noteBody'].forEach((sel) => $(sel).addEventListener('input', scheduleNoteSave));
+  const NOTE_TPLS = {
+    semanal: ['Alinhamento semanal', 'Resultados da semana (por pilar):\n- \n\nO que travou:\n- \n\nPrioridades da próxima semana:\n1. \n2. \n3. \n\nDecisões:\n- \n\nQuem faz o quê (até quando):\n- '],
+    11: ['1:1', 'Como a pessoa está:\n\nEntregas desde a última conversa:\n- \n\nBloqueios e como eu ajudo:\n- \n\nPróximas entregas e prazos:\n- \n\nDesenvolvimento (aprender ou testar nas próximas 2 semanas):\n- \n\nCombinados:\n- '],
+    patro: ['Reunião com patrocinador', 'Patrocinador:\nObjetivo da marca (awareness, venda, leads):\n\nEntregas combinadas no contrato:\n- \n\nO que já foi entregue e números:\n- \n\nNovas ideias de ativação:\n- \n\nPróximos passos (quem e quando):\n- \n\nNão divulgar sem aprovação:\n- '],
+    forn: ['Reunião com fornecedor', 'Fornecedor:\nO que vamos comprar ou contratar:\n\nQuantidades, tamanhos e especificação:\n- \n\nPreço, condição de pagamento e faturamento:\n- \n\nPrazo de produção e entrega:\n\nPendências:\n- '],
+    evento: ['Pós-evento', 'Evento:\nPúblico (presentes x esperado):\nReceita (ingresso, merch, patrocínio):\nNPS / feedback:\n\nO que funcionou:\n- \n\nO que não funcionou:\n- \n\nO que muda no próximo:\n- \n\nConteúdo captado para as redes:\n- '],
+  };
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-note-tpl]');
+    if (!b) return;
+    const [title, body] = NOTE_TPLS[b.dataset.noteTpl];
+    const ta = $('#noteBody');
+    ta.value = ta.value.trim() ? ta.value.replace(/\s+$/, '') + '\n\n' + body : body;
+    if (!$('#noteTitle').value.trim()) $('#noteTitle').value = title;
+    scheduleNoteSave();
+    ta.focus();
+  });
   $('#noteDate').addEventListener('change', scheduleNoteSave);
   window.addEventListener('pagehide', saveNoteNow);
 

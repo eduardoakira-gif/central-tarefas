@@ -119,6 +119,11 @@ export const Okrs = {
   remove: (id) => Sync.remove('okrs', id),
 };
 
+const normSup = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+function dupOf(b) {
+  if (!b.number) return null;
+  return Bills.all().find((o) => o.id !== b.id && normSup(o.supplier) === normSup(b.supplier) && String(o.number) === String(b.number) && o.dueDate === b.dueDate && Math.abs((Number(o.amount) || 0) - (Number(b.amount) || 0)) < 0.01) || null;
+}
 export const Bills = {
   all: () => live(Sync.bills),
   get: (id) => Sync.bills.find((b) => b.id === id) || null,
@@ -242,6 +247,17 @@ function spark(m, ym) {
   return `<svg class="spark" viewBox="-2 0 84 24" aria-hidden="true"><polyline points="${line}" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/><circle cx="${last[0] * 16}" cy="${y(last[1])}" r="2.4" fill="currentColor"/></svg>`;
 }
 
+/** Tendência: regressão linear dos últimos 3 a 6 meses projetada para o próximo mês. */
+function trendLine(m, ym) {
+  const pts = Array.from({ length: 6 }, (_, i) => [i, m.values[addMonths(ym, i - 5)]]).filter((p) => p[1] != null);
+  if (pts.length < 3) return '';
+  const n = pts.length, sx = pts.reduce((a, p) => a + p[0], 0), sy = pts.reduce((a, p) => a + p[1], 0);
+  const sxx = pts.reduce((a, p) => a + p[0] * p[0], 0), sxy = pts.reduce((a, p) => a + p[0] * p[1], 0);
+  const slope = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1);
+  const next = Math.max(0, (sy - slope * sx) / n + slope * 6);
+  const hits = m.target != null ? (m.direction === 'down' ? next <= m.target : next >= m.target) : null;
+  return `<p class="kpi-trend" title="Projeção pela tendência dos últimos ${n} meses">Tendência ${monthShort(addMonths(ym, 1))}: <b>${fmt(m, Math.round(next * 100) / 100, true)}</b>${hits == null ? '' : hits ? ' · bate a meta' : ' · <span class="is-bad">abaixo da meta</span>'}</p>`;
+}
 export function metricCard(m, ym, entry) {
   const v = m.values[ym];
   const prev = m.values[addMonths(ym, -1)];
@@ -262,6 +278,7 @@ export function metricCard(m, ym, entry) {
       ${m.target != null ? `<span>Meta ${fmt(m, m.target, true)}</span>` : '<button type="button" class="link-muted meta-btn" data-b2c="edit-metric">Definir meta</button>'}
       ${delta}
     </div>
+    ${entry ? '' : trendLine(m, ym)}
     ${st.pct != null ? `<span class="kpi-bar"><i style="width:${Math.min(100, st.pct * 100)}%"></i></span>` : ''}
   </article>`;
 }
@@ -432,6 +449,7 @@ function billRow(b, now) {
   return `<div class="bill-row${late ? ' is-late' : soon ? ' is-soon' : ''}" data-bill-id="${esc(b.id)}">
     <button type="button" class="bill-main" data-b2c="edit-bill">
       <strong>${esc(b.supplier || 'Fornecedor')}</strong>
+      ${dupOf(b) ? '<span class="badge badge-overdue" title="Mesmo fornecedor, número, vencimento e valor de outra NF">⚠ Possível duplicada</span>' : ''}
       <span class="bill-meta">NF ${esc(b.number || 's/n')} · ${MONTHS[Number(b.competence.slice(5)) - 1].slice(0, 3)}/${b.competence.slice(2, 4)}${b.scheduledFor ? ' · agendada ' + dateBr(b.scheduledFor) : ''}${b.paidAt ? ' · paga ' + dateBr(b.paidAt) : ''}</span>
     </button>
     <span class="bill-amount">${money(b.amount)}</span>

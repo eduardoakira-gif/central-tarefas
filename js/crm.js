@@ -116,6 +116,11 @@ export function renderCrm() {
       <div class="closing-head"><h2>Campanhas</h2><button type="button" class="btn btn-primary btn-sm" data-crm-new>Registrar envio</button></div>
       ${rows ? `<div class="crm-list">${rows}</div>` : '<p class="hint">Registre cada envio do RD Station (entregues, aberturas e cliques ficam no relatório da campanha). Com 3 envios o diagnóstico aparece.</p>'}
     </section>
+    <section class="card report-card crm-subj">
+      <h2>Testar assunto antes de enviar</h2>
+      <input class="input" id="crmSubject" maxlength="150" placeholder="Cole o assunto da próxima newsletter" autocomplete="off" aria-label="Assunto">
+      <div id="crmSubjectScore" class="hint">A nota sai na hora, com o que melhorar.</div>
+    </section>
     <section class="card report-card">
       <h2>Checklist antes de enviar</h2>
       <ul class="checklist-static">${CHECKLIST.map((c) => `<li>${esc(c)}</li>`).join('')}</ul>
@@ -155,7 +160,34 @@ async function submit(e) {
   H.toast(editing ? 'Envio atualizado' : 'Envio registrado');
 }
 
+/** Nota do assunto (heurística de e-mail marketing esportivo). */
+export function subjectScore(s) {
+  const t = String(s || '').trim();
+  if (!t) return null;
+  const tips = [];
+  let p = 50;
+  const len = t.length;
+  if (len >= 25 && len <= 50) p += 15; else if (len < 15) { p -= 10; tips.push('Curto demais: diga o benefício ou a novidade.'); } else if (len > 60) { p -= 15; tips.push(`Longo (${len} caracteres): no celular corta perto de 40. Leve o essencial para o começo.`); } else p += 5;
+  const low = t.toLowerCase();
+  if (/(nobru|fluxo|w7m|free fire|valorant|lol|cs2|kings|inferno|r6|rainbow|fortnite|ea fc|mobile legends)/i.test(t)) p += 10; else tips.push('Cite modalidade, jogador, creator ou o Fluxo W7M: aumenta abertura de fã.');
+  if (/(^|[^a-zà-ú])(você|voce|seu|sua|seus|suas|vc)(?![a-zà-ú])/i.test(low) || /\{|nome/i.test(low)) p += 8; else tips.push('Fale com a pessoa ("você", "seu") ou personalize com o nome.');
+  if (/(hoje|agora|últim|so até|só até|amanhã|48h|24h|acaba|encerra|vagas)/i.test(low)) p += 8; else tips.push('Dê um motivo para abrir agora (prazo, vagas, hoje).');
+  if (/(grátis|gratis|desconto|cupom|exclusiv|pré-venda|pre-venda|sorteio|ganhe|benefício)/i.test(low)) p += 7;
+  if (/\d/.test(t)) p += 4;
+  if (/[\u{1F300}-\u{1FAFF}]/u.test(t)) p += 3;
+  if (/!{2,}|\?{2,}/.test(t)) { p -= 10; tips.push('Evite "!!" ou "??": cai em spam e parece grito.'); }
+  if (t === t.toUpperCase() && /[A-Z]/.test(t)) { p -= 15; tips.push('Tudo em maiúsculas cai em spam.'); }
+  if (/(newsletter|boletim|informativo|edição)/i.test(low)) { p -= 8; tips.push('"Newsletter/edição" no assunto não dá motivo para abrir: troque pela notícia principal.'); }
+  return { score: Math.max(0, Math.min(100, p)), tips: tips.slice(0, 4) };
+}
 export function initCrm(helpers) {
+  document.addEventListener('input', (e) => {
+    if (e.target.id !== 'crmSubject') return;
+    const r = subjectScore(e.target.value);
+    const out = document.getElementById('crmSubjectScore');
+    if (!out) return;
+    out.innerHTML = r ? `<div class="subj-score s-${r.score >= 75 ? 'ok' : r.score >= 55 ? 'mid' : 'bad'}"><b>${r.score}</b><span>/100</span></div>${r.tips.length ? `<ul>${r.tips.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '<p>Assunto forte. Faça o teste A/B contra uma segunda versão.</p>'}` : 'A nota sai na hora, com o que melhorar.';
+  });
   H = helpers;
   document.addEventListener('click', (e) => {
     if (document.body.dataset.screen !== 'app') return;

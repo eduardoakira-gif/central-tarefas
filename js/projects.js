@@ -61,7 +61,7 @@ function card(p) {
     <span class="kpi-bar"><i style="width:${p.pct}%"></i></span>
     ${!p.finished && !isOpen && p.open[0] ? `<p class="proj-next"><span class="label">Próxima etapa</span> ${esc(p.open[0].title)}${p.open[0].dueDate ? ` <span class="hint">· ${dm(p.open[0].dueDate)}</span>` : ''}</p>` : ''}
     ${isOpen ? `<ul class="proj-steps">${p.list.slice().sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')).map(li).join('')}</ul>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button>${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button>${p.dday && !p.finished ? `<label class="btn btn-sm proj-move" title="Muda o dia D e empurra todas as etapas abertas junto">Mudar dia D<input type="date" data-proj-move="${esc(p.name)}" value="${p.dday}"></label>` : ''}${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
   </article>`;
 }
 
@@ -115,6 +115,19 @@ export function renderProjectsCard() {
 
 export function initProjects(helpers) {
   H = helpers;
+  document.addEventListener('change', async (e) => {
+    const mv = e.target.closest && e.target.closest('[data-proj-move]');
+    if (!mv || !mv.value) return;
+    const p = projects().find((x) => x.name === mv.dataset.projMove);
+    if (!p || !p.dday || mv.value === p.dday) return;
+    const delta = Math.round((C.fromDateKey(mv.value) - C.fromDateKey(p.dday)) / 86400000);
+    for (const t of p.list) {
+      const patch = { projectDate: mv.value };
+      if (t.status !== 'done' && t.dueDate) patch.dueDate = C.addDays(t.dueDate, delta);
+      await Tasks.update(t.id, patch);
+    }
+    H.toast(`Dia D ${delta > 0 ? 'adiado' : 'antecipado'} ${Math.abs(delta)} dia${Math.abs(delta) === 1 ? '' : 's'}; ${p.open.length} etapa${p.open.length === 1 ? '' : 's'} reprogramada${p.open.length === 1 ? '' : 's'}`);
+  });
   document.addEventListener('click', (e) => {
     if (document.body.dataset.screen !== 'app') return;
     const o = e.target.closest('[data-proj-open]');

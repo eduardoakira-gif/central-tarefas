@@ -13,6 +13,35 @@ const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
 let H = null;
 let openId = null;
+// Foco: um bloco por vez, guardado no aparelho (sobrevive a fechar a ficha)
+const focus = JSON.parse(localStorage.getItem('ct-focus') || 'null') || { id: null, start: 0, len: 0 };
+let tick = null;
+function clock() {
+  const left = Math.max(0, focus.start + focus.len * 60000 - Date.now());
+  return `${String(Math.floor(left / 60000)).padStart(2, '0')}:${String(Math.floor((left % 60000) / 1000)).padStart(2, '0')}`;
+}
+function runTick() {
+  clearInterval(tick);
+  if (!focus.id) return;
+  tick = setInterval(async () => {
+    const el = document.getElementById('dtClock');
+    if (el) el.textContent = clock();
+    if (Date.now() >= focus.start + focus.len * 60000) await stopFocus(true);
+  }, 1000);
+}
+async function stopFocus(finished) {
+  const t = Tasks.get(focus.id);
+  const used = Math.max(1, Math.round((Math.min(Date.now(), focus.start + focus.len * 60000) - focus.start) / 60000));
+  Object.assign(focus, { id: null, start: 0, len: 0 });
+  localStorage.removeItem('ct-focus');
+  clearInterval(tick);
+  if (t) await Tasks.update(t.id, { comments: (t.comments || []).concat({ id: C.uid(), text: `Foco: ${used} min${finished ? '' : ' (interrompido)'}`, at: new Date().toISOString() }) });
+  if (finished) {
+    H && H.toast(`Bloco de foco concluído: ${t ? t.title : ''}`);
+    try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch {}
+  }
+  render();
+}
 
 // Marcações prontas para o dia a dia do B2C (dá para criar as suas)
 export const PRESET_TAGS = ['Orçamento pedido', 'Orçamento recebido', 'Aguardando aprovação', 'Aprovado', 'Aguardando fornecedor', 'Em produção', 'Contratado', 'Pago', 'Divulgado', 'Bloqueado'];
@@ -78,11 +107,16 @@ function render() {
     <div class="dt-checks">${(t.checklist || []).map((c) => `<label class="dt-check${c.done ? ' is-done' : ''}"><input type="checkbox" data-dt-check="${esc(c.id)}" ${c.done ? 'checked' : ''}><span>${esc(c.text)}</span><button type="button" class="icon-btn" data-dt-uncheck="${esc(c.id)}" aria-label="Remover passo">×</button></label>`).join('')}</div>`;
 
   $('#dtLog').innerHTML = log.length
-    ? log.map((c) => `<div class="dt-entry${/^(Marcou|Desmarcou|Situação|Concluiu|Passo concluído)/.test(c.text) ? ' is-auto' : ''}"><span class="dt-when">${when(c.at)}</span><p>${esc(c.text)}</p><button type="button" class="icon-btn" data-dt-del="${esc(c.id)}" aria-label="Apagar nota">×</button></div>`).join('')
+    ? log.map((c) => `<div class="dt-entry${/^(Marcou|Desmarcou|Situação|Concluiu|Passo concluído|Foco:)/.test(c.text) ? ' is-auto' : ''}"><span class="dt-when">${when(c.at)}</span><p>${esc(c.text)}</p><button type="button" class="icon-btn" data-dt-del="${esc(c.id)}" aria-label="Apagar nota">×</button></div>`).join('')
     : '<p class="hint">Nenhuma nota ainda. Registre cada passo: com quem falou, o que ficou combinado, o próximo passo.</p>';
   $('#dtDesc').hidden = !t.description;
   $('#dtDesc').textContent = t.description || '';
   $('#dtDone').textContent = t.status === 'done' ? 'Reabrir' : '✓ Concluir';
+  const mins = (t.comments || []).reduce((a, c) => { const m = /^Foco: (\d+) min/.exec(c.text || ''); return a + (m ? Number(m[1]) : 0); }, 0);
+  const running = focus.id === t.id;
+  $('#dtFocus').innerHTML = `<div class="dt-sec-head"><h3>Foco</h3><span class="hint">${mins ? `Tempo investido: ${mins >= 60 ? Math.floor(mins / 60) + 'h' + String(mins % 60).padStart(2, '0') : mins + ' min'}` : 'Blocos de foco sem distração'}</span></div>
+    ${running ? `<div class="dt-timer"><strong id="dtClock">${clock()}</strong><button type="button" class="btn" data-dt="focus-stop">Parar e registrar</button></div>`
+      : `<div class="btn-row">${[15, 25, 50].map((m) => `<button type="button" class="btn btn-sm" data-dt-focus="${m}">▶ ${m} min</button>`).join('')}</div>`}`;
 }
 
 async function addLog(text) {
@@ -106,6 +140,7 @@ export function refreshDetail() {
 
 export function initDetail(helpers) {
   H = helpers;
+  runTick();
   const dlg = $('#detailDialog');
   dlg.addEventListener('close', () => (openId = null));
   dlg.addEventListener('click', async (e) => {
@@ -118,6 +153,14 @@ export function initDetail(helpers) {
       if (v === 'done') await Tasks.complete(t.id);
       else await Tasks.update(t.id, { status: v });
       return addLog('Situação: ' + { pending: 'Pendente', doing: 'Em andamento', waiting: 'Aguardando', done: 'Concluída' }[v]);
+    }
+    const fc = e.target.closest('[data-dt-focus]');
+    if (fc) {
+      if (focus.id && focus.id !== t.id) await stopFocus(false);
+      Object.assign(focus, { id: t.id, start: Date.now(), len: Number(fc.dataset.dtFocus) });
+      localStorage.setItem('ct-focus', JSON.stringify(focus));
+      runTick();
+      return render();
     }
     const du = e.target.closest('[data-dt-due]');
     if (du) {
@@ -155,6 +198,7 @@ export function initDetail(helpers) {
       await Tasks.complete(t.id);
       return H.toast('Concluída');
     }
+    if (a === 'focus-stop') return stopFocus(false);
     if (a === 'share') {
       const ck = t.checklist || [];
       const notes = (t.comments || []).filter((c) => !/^(Marcou|Desmarcou|Situação|Passo concluído)/.test(c.text))
