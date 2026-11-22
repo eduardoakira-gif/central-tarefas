@@ -157,3 +157,13 @@ alter table public.metrics enable row level security;
 alter table public.okrs    enable row level security;
 alter table public.bills   enable row level security;
 alter table public.radar   enable row level security;
+
+-- v8.8: layouts de evento do escritório (mapa 3D)
+create table if not exists public.layouts (
+  central_id  text not null references public.centrals(id) on delete cascade,
+  id          text not null,
+  data        jsonb not null,
+  updated_at  timestamptz not null,
+  primary key (central_id, id)
+);
+alter table public.layouts enable row level security;

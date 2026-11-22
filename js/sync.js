@@ -14,8 +14,8 @@ import { Local } from './storage.js';
 
 const C = window.Core;
 const BASE = ['tasks', 'notes'];
-const V4 = ['metrics', 'okrs', 'bills', 'campaigns', 'posts', 'crew', 'ideas', 'applicants'];
-const LATE = ['ideas', 'applicants']; // só são enviadas quando o servidor confirma que guarda // só são enviadas quando o servidor já foi atualizado
+const V4 = ['metrics', 'okrs', 'bills', 'campaigns', 'posts', 'crew', 'ideas', 'applicants', 'layouts'];
+const LATE = ['ideas', 'applicants', 'layouts']; // só são enviadas quando o servidor confirma que guarda // só são enviadas quando o servidor já foi atualizado
 const COLLECTIONS = BASE.concat(V4);
 const NORMALIZE = {
   notes: (x) => C.normalizeNote(x),
@@ -27,6 +27,7 @@ const NORMALIZE = {
   crew: (x) => C.normalizeCrew(x),
   ideas: (x) => C.normalizeIdea(x),
   applicants: (x) => C.normalizeApplicant(x),
+  layouts: (x) => C.normalizeLayout(x),
 };
 const changeListeners = new Set();
 const statusListeners = new Set();
@@ -46,6 +47,7 @@ export const Sync = {
   crew: [],
   ideas: [],
   applicants: [],
+  layouts: [],
   serverIdeas: false, // servidor 5.9+ guarda ideias
   serverColls: [], // coleções novas que o servidor já devolve
   serverVersion: 0, // 4 = servidor com Painel B2C, Financeiro, Radar e Assistente
@@ -103,7 +105,7 @@ export const Sync = {
     return COLLECTIONS.filter((c) => !LATE.includes(c) || this.serverColls.includes(c));
   },
   extra() {
-    return { metrics: this.metrics, okrs: this.okrs, bills: this.bills, campaigns: this.campaigns, posts: this.posts, crew: this.crew, ideas: this.ideas, applicants: this.applicants, serverIdeas: this.serverIdeas, serverColls: this.serverColls, serverVersion: this.serverVersion };
+    return { metrics: this.metrics, okrs: this.okrs, bills: this.bills, campaigns: this.campaigns, posts: this.posts, crew: this.crew, ideas: this.ideas, applicants: this.applicants, layouts: this.layouts, serverIdeas: this.serverIdeas, serverColls: this.serverColls, serverVersion: this.serverVersion };
   },
 
   /** Abre a central: mostra o cache na hora e depois atualiza pelo servidor. */

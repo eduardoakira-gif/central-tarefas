@@ -620,6 +620,34 @@
     };
   }
 
+  // Layouts de evento do escritório (mapa 3D)
+  function normalizeLayout(x) {
+    const now = new Date().toISOString();
+    const str = (v) => (v == null ? '' : String(v));
+    const n = (v, d, lo, hi) => { const k = Number(v); return Number.isFinite(k) ? Math.max(lo, Math.min(hi, k)) : d; };
+    const room = x.room || {};
+    return {
+      id: str(x.id) || uid(),
+      name: str(x.name).trim().slice(0, 80) || 'Layout',
+      kind: str(x.kind).slice(0, 30) || 'livre',
+      eventDate: /^\d{4}-\d{2}-\d{2}$/.test(x.eventDate || '') ? x.eventDate : null,
+      room: { w: n(room.w, 20, 4, 80), d: n(room.d, 12, 4, 80), h: n(room.h, 3, 2.2, 10) },
+      items: (Array.isArray(x.items) ? x.items : []).slice(0, 600).map((it) => ({
+        id: str(it.id) || uid(),
+        type: str(it.type).slice(0, 30),
+        label: str(it.label).slice(0, 40),
+        x: n(it.x, 0, -100, 100), z: n(it.z, 0, -100, 100), rot: n(it.rot, 0, -720, 720),
+        w: it.w == null ? null : n(it.w, 1, 0.1, 40), d: it.d == null ? null : n(it.d, 1, 0.05, 40),
+        color: /^#[0-9a-f]{6}$/i.test(it.color || '') ? it.color : null,
+      })).filter((it) => it.type),
+      notes: str(x.notes).slice(0, 3000),
+      base: !!x.base,
+      createdAt: x.createdAt || now,
+      updatedAt: x.updatedAt || now,
+      deletedAt: x.deletedAt || null,
+    };
+  }
+
   const IDEA_STATUS = ['ideia', 'testando', 'validada', 'descartada'];
   function normalizeIdea(x) {
     const now = new Date().toISOString();
@@ -764,7 +792,7 @@
     normalizeTask, classify, sortTasks, buildDigest,
     inWindow, isReminderDue, nextReminderAt,
     FUNNEL, FUNNEL_MAP, PILLARS, PILLAR_MAP, UNITS, kpiCatalog, normalizeMetric, normalizeOkr, normalizeBill,
-    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign, normalizePost, normalizeCrew, normalizeIdea, iceScore, IDEA_STATUS, normalizeApplicant,
+    quarterOf, quarterElapsed, krProgress, BILL_STAGES, billStage, normalizeCampaign, normalizePost, normalizeCrew, normalizeIdea, normalizeLayout, iceScore, IDEA_STATUS, normalizeApplicant,
     idb,
   };
 })(typeof self !== 'undefined' ? self : this);

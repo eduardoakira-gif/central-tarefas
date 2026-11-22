@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "8.6.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "8.8.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -73,8 +73,9 @@ const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
   crew: { table: "crew", maxSize: 20000 },
   ideas: { table: "ideas", maxSize: 20000 },
   applicants: { table: "applicants", maxSize: 8000 },
+  layouts: { table: "layouts", maxSize: 150000 },
 };
-const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "posts", "crew", "ideas", "applicants", "radar", "devices", "ai_usage"];
+const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "posts", "crew", "ideas", "applicants", "layouts", "radar", "devices", "ai_usage"];
 
 function newId(len = 24) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -1140,6 +1141,7 @@ async function handle(body: any, req: Request) {
         crew: await listItems("crew", central.id),
         ideas: await listItems("ideas", central.id),
         applicants: await listItems("applicants", central.id),
+        layouts: await listItems("layouts", central.id),
         version: SERVER_VERSION,
       };
     }

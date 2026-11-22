@@ -35,8 +35,9 @@ import { initProjects, renderProjects, renderProjectsCard, projectNames } from '
 import { initNfe, importFiles as importXml } from './nfe.js';
 import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
+import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged } from './espacos.js';
 
-export const APP_VERSION = '8.7.0';
+export const APP_VERSION = '8.8.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -409,6 +410,13 @@ function renderBoardView() {
 function renderLearnView() {
   keepFocus($('#learnBody'), renderLearn());
 }
+function renderSpacesView(force) {
+  const el = $('#spacesBody');
+  const active = document.activeElement;
+  if (!force && el.innerHTML && el.contains(active) && active.matches('input, textarea, select') && !spacesChanged()) return;
+  el.innerHTML = renderSpaces();
+  afterRenderSpaces();
+}
 function renderMore() {
   $('#appVersion').textContent = `Central de Tarefas ${APP_VERSION}` + (Sync.v4() ? '' : ' · servidor em atualização');
 }
@@ -447,6 +455,7 @@ function renderAll() {
   if (r === 'team') $('#teamBody').innerHTML = renderTeam();
   if (r === 'projects') $('#projectsBody').innerHTML = renderProjects();
   if (r === 'guide') $('#guideBody').innerHTML = renderGuide();
+  if (r === 'spaces') renderSpacesView(false);
   if ($('#taskDialog').open && state.editingId) renderComments();
   refreshDetail();
 }
@@ -471,7 +480,7 @@ function renderSyncStatus(status, err) {
 const ROUTES = {
   '/historico': 'history', '/config': 'settings', '/notas': 'notes', '/agenda': 'agenda', '/relatorio': 'report',
   '/painel': 'panel', '/financeiro': 'finance', '/radar': 'radar', '/assistente': 'assistant', '/mais': 'more',
-  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study', '/playbooks': 'playbooks', '/status': 'status', '/growth': 'growth', '/equipe': 'team', '/projetos': 'projects', '/guia': 'guide',
+  '/crm': 'crm', '/referencias': 'refs', '/aprender': 'learn', '/diretoria': 'board', '/areas': 'areas', '/marca': 'brand', '/estudos': 'study', '/playbooks': 'playbooks', '/status': 'status', '/growth': 'growth', '/equipe': 'team', '/projetos': 'projects', '/guia': 'guide', '/espacos': 'spaces',
 };
 
 function route() {
@@ -523,7 +532,7 @@ function showView() {
   const viewName = state.route === 'areas' ? 'area' : state.route;
   $$('.view').forEach((v) => (v.hidden = v.dataset.view !== viewName));
   const r = state.route === 'note' ? 'notes' : state.route === 'area' ? 'areas' : state.route;
-  const underMore = { nav: ['history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study', 'playbooks', 'growth', 'team', 'guide', 'brand', 'refs'], bottom: ['history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study', 'playbooks', 'status', 'growth', 'team', 'projects', 'guide'] };
+  const underMore = { nav: ['spaces', 'history', 'report', 'settings', 'crm', 'agenda', 'learn', 'board', 'notes', 'finance', 'study', 'playbooks', 'growth', 'team', 'guide', 'brand', 'refs'], bottom: ['spaces', 'history', 'report', 'settings', 'finance', 'notes', 'agenda', 'crm', 'refs', 'learn', 'board', 'panel', 'brand', 'study', 'playbooks', 'status', 'growth', 'team', 'projects', 'guide'] };
   const mark = (sel, list) =>
     $$(sel).forEach((a) => a.setAttribute('aria-current', a.dataset.route === r || (a.dataset.route === 'more' && list.includes(r)) ? 'page' : 'false'));
   mark('.nav a', underMore.nav);
@@ -1985,6 +1994,7 @@ async function openCentral(id) {
   initInferno(Object.assign({ ask: askAssistant }, helpers));
   initMyDay(Object.assign({ ask: askAssistant }, helpers));
   initDetail(Object.assign({ ask: askAssistant }, helpers));
+  initSpaces(Object.assign({}, helpers, { render: () => renderSpacesView(true), openDetail }));
   initPlaybooks(Object.assign({ ask: askAssistant }, helpers));
   initStatus(Object.assign({ ask: askAssistant }, helpers));
   initSearch(helpers);

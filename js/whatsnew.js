@@ -9,6 +9,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['8.8', 'Espaços e eventos em 3D', ['Novo: mapa 3D do escritório em Mais › Espaços e eventos. Crie a base da sala e monte cada evento por modelo (watch party, summit, campeonato, coquetel, ativação).', 'Arraste palco, telão, mesas, PCs, totens e mais; gire, duplique em linha e ajuste medidas. Veja em 3D ou em planta.', 'Baixe a imagem 3D, a planta com medidas, o PDF para fornecedor ou o arquivo do layout, e gere a tarefa de montagem com checklist.']],
   ['8.7', 'Andamento à vista', ['O card mostra a última nota do andamento, sem precisar abrir a tarefa.', 'Na ficha: prazo rápido (Hoje, Amanhã, +3 dias, +1 semana).', 'Botão Enviar na ficha: manda o andamento formatado pelo WhatsApp (situação, checklist e últimas notas).']],
   ['8.6', 'Assistente no dia certo', ['O Assistente sempre usa a data e a hora de Brasília e não trata conversa de ontem como se fosse de hoje.', 'Conversa separada por dia (Hoje, Ontem…) e atalho para começar a conversa do dia.', 'O Assistente lê as marcações e as últimas notas da ficha de cada tarefa.', 'Toque numa marcação do card para ver todas as tarefas com ela.']],
   ['8.5', 'Ficha da tarefa', ['Toque em qualquer tarefa: abre a ficha com marcações de andamento (Orçamento pedido, Aprovado, Pago… ou crie as suas), checklist com progresso e um diário de notas com data e hora.', 'As marcações aparecem no card e a IA lê o diário para sugerir o próximo passo.']],
