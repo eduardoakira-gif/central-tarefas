@@ -8,7 +8,7 @@
  */
 import { Sync } from './sync.js';
 import { Tasks } from './tasks.js';
-import { esc } from './ui.js';
+import { esc, downloadCsv } from './ui.js';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -321,6 +321,7 @@ export function renderSpaces() {
       <button type="button" class="btn" data-sp="png3d">Imagem 3D</button>
       <button type="button" class="btn" data-sp="pngplan">Planta com medidas</button>
       <button type="button" class="btn btn-primary" data-sp="pdf">PDF para fornecedor</button>
+      <button type="button" class="btn" data-sp="csv">Planilha de itens</button>
       <button type="button" class="btn" data-sp="json">Arquivo do layout</button>
       <label class="btn">Importar<input type="file" accept=".json,application/json" data-sp="import" hidden></label>
     </div>
@@ -974,6 +975,14 @@ export function initSpaces(helpers) {
     if (a === 'png3d') return download(shot3d(), fileName(l, 'png').replace('.png', '-3d.png'));
     if (a === 'pngplan') return download(planCanvas(l, 70).toDataURL('image/png'), fileName(l, 'png').replace('.png', '-planta.png'));
     if (a === 'pdf') return pdfFor(l);
+    if (a === 'csv') {
+      const rows = [['Qtd', 'Item', 'Medida (m)', 'Valor unitário', 'Total']];
+      let tot = 0;
+      itemList(l).forEach((r) => { const u = Number((l.prices || {})[r.type]) || 0; tot += u * r.n; rows.push([r.n, r.name, r.size, u ? String(u).replace('.', ',') : '', u ? String(u * r.n).replace('.', ',') : '']); });
+      if (tot) rows.push(['', 'Total estimado', '', '', String(tot).replace('.', ',')]);
+      downloadCsv(fileName(l, 'csv'), rows);
+      return H.toast('Planilha de itens baixada');
+    }
     if (a === 'json') {
       const blob = new Blob([JSON.stringify(Object.assign({ app: 'central-tarefas', tipo: 'layout' }, C.normalizeLayout(l)), null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);

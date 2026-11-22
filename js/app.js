@@ -38,7 +38,7 @@ import { initDetail, openDetail, refreshDetail } from './detail.js';
 import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged, openLayout } from './espacos.js';
 import { initTriage, triageList, openTriage } from './triage.js';
 
-export const APP_VERSION = '9.8.0';
+export const APP_VERSION = '9.9.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);

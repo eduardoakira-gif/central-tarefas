@@ -10,6 +10,13 @@ const pad = C.pad;
 
 const TAG_TONE = { Aprovado: 'ok', Pago: 'ok', Contratado: 'ok', Divulgado: 'ok', Bloqueado: 'bad', 'Aguardando aprovação': 'wait', 'Aguardando fornecedor': 'wait', 'Orçamento pedido': 'wait' };
 export const tagTone = (t) => TAG_TONE[t] || 'neutral';
+/** Sequência de uma recorrente: quantas ocorrências anteriores (mesmo título) foram concluídas no prazo, sem falhar. */
+export function streakOf(t) {
+  const prev = Tasks.all().filter((x) => x.id !== t.id && x.status === 'done' && x.recurrence && x.title === t.title && x.dueDate).sort((a, b) => b.dueDate.localeCompare(a.dueDate));
+  let n = 0;
+  for (const x of prev) { if (x.completedAt && C.toDateKey(new Date(x.completedAt)) <= x.dueDate) n++; else break; }
+  return n;
+}
 function noteAgo(iso) {
   const d = new Date(iso);
   if (isNaN(d)) return '';
@@ -144,6 +151,10 @@ export function taskCard(t, now, areaMap, mode = '') {
   if (focused) badges.push('<span class="badge badge-focus">★ Foco da semana</span>');
   const planned = !done && t.plannedFor === C.toDateKey(now);
   if (planned) badges.push('<span class="badge badge-today">☀ Hoje</span>');
+  if (!done && t.recurrence) {
+    const st = streakOf(t);
+    if (st >= 2) badges.push(`<span class="badge badge-streak" title="Vezes seguidas que você concluiu esta tarefa recorrente no prazo">🔥 ${st} seguidas</span>`);
+  }
   if (!done && t.estimate) badges.push(`<span class="badge badge-est">⏱ ${t.estimate >= 60 ? (t.estimate / 60).toLocaleString('pt-BR') + 'h' : t.estimate + 'min'}</span>`);
   if (!done && t.dependsOn) {
     const dep = Tasks.get(t.dependsOn);
@@ -305,7 +316,7 @@ export function renderAreas(stats, activeArea, areas) {
 }
 
 export function renderStatusChips(stats, active) {
-  return STATUS_FILTERS.filter((f) => !['idle', 'blocked'].includes(f.id) || stats.byFilter[f.id] || active === f.id).map(
+  return STATUS_FILTERS.filter((f) => !['idle', 'blocked', 'snoozed'].includes(f.id) || stats.byFilter[f.id] || active === f.id).map(
     (f) => `<button type="button" class="chip" data-filter-status="${f.id}" aria-pressed="${active === f.id}">
       ${f.name}<span class="chip-count">${stats.byFilter[f.id]}</span></button>`
   ).join('');

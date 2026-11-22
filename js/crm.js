@@ -103,6 +103,19 @@ export function renderCrm() {
       ${tile('Receita atribuída', brl.format(s.revenue || 0), 'nos envios registrados')}
     </div>
     ${(() => {
+      if (!list.length) return '';
+      const now = new Date();
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      const days = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const pad = (first.getDay() + 6) % 7;
+      const key = (d) => C.toDateKey(new Date(now.getFullYear(), now.getMonth(), d));
+      const byDay = {};
+      list.forEach((c) => (byDay[c.date] = (byDay[c.date] || []).concat(c)));
+      const todayK = C.toDateKey(now);
+      const cells = Array.from({ length: pad }, () => '<span></span>').concat(Array.from({ length: days }, (_, i) => { const k = key(i + 1); const l = byDay[k] || []; return `<span class="cal-d${l.length ? ' has' : ''}${k === todayK ? ' is-today' : ''}" title="${l.map((c) => esc(c.name)).join(' · ')}">${i + 1}${l.length ? `<i>${l.length > 1 ? l.length : ''}</i>` : ''}</span>`; }));
+      return `<section class="card report-card crm-cal"><h2>Envios em ${now.toLocaleDateString('pt-BR', { month: 'long' })}</h2><div class="cal-grid">${['S', 'T', 'Q', 'Q', 'S', 'S', 'D'].map((d) => `<b>${d}</b>`).join('')}${cells.join('')}</div><p class="hint">Bolinha = dia com envio. Evite dois envios para a mesma base em dias seguidos.</p></section>`;
+    })()}
+    ${(() => {
       const ds = list.map((c) => c.date).filter(Boolean).sort();
       if (ds.length < 2) return '';
       const gaps = ds.slice(1).map((d, i) => (C.fromDateKey(d) - C.fromDateKey(ds[i])) / 86400000);

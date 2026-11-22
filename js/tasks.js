@@ -155,6 +155,7 @@ export const STATUS_FILTERS = [
   { id: 'waiting', name: 'Aguardando retorno' },
   { id: 'urgent', name: 'Urgentes' },
   { id: 'idle', name: 'Paradas' },
+  { id: 'snoozed', name: 'Escondidas' },
   { id: 'blocked', name: 'Bloqueadas' },
   { id: 'done', name: 'Concluídas' },
 ];
@@ -177,6 +178,7 @@ export function matchesStatusFilter(t, filter, now) {
     case 'urgent': return open && t.priority === 'urgent';
     case 'idle': return isIdle(t, now);
     case 'blocked': return open && (t.tags || []).includes('Bloqueado');
+    case 'snoozed': return open && isSnoozed(t, now);
     case 'done': return t.status === 'done';
     default: return true;
   }
@@ -195,10 +197,15 @@ export function matchesSearch(t, query, areaMap) {
   return q.split(/\s+/).every((w) => hay.includes(w));
 }
 
+/** Escondida até uma data (some da lista até lá; a busca ainda acha). */
+export function isSnoozed(t, now = new Date()) {
+  return !!t.snoozeUntil && t.status !== 'done' && t.snoozeUntil > C.toDateKey(now);
+}
 export function applyFilters(list, { status = 'all', area = null, query = '', owner = '' }, now, areaMap) {
   const o = owner ? owner.toLowerCase() : '';
   return list.filter(
     (t) =>
+      (status === 'snoozed' || status === 'done' || query || !isSnoozed(t, now)) &&
       (!area || t.area === area) &&
       (!o || (t.owner || '').toLowerCase() === o) &&
       matchesStatusFilter(t, status, now) &&

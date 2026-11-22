@@ -9,6 +9,13 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.9', 'Mais ideias de outras ferramentas', [
+    'Ficha: Esconder até amanhã, segunda ou próximo mês (como o snooze do Linear e do Things). A tarefa some da lista até a data; o filtro Escondidas e a busca ainda acham.',
+    'Tarefas recorrentes: selo 🔥 com quantas vezes seguidas você concluiu no prazo (como o habit tracker do TickTick).',
+    'Projetos: Postar atualização com a saúde (🟢 no prazo, 🟡 em risco, 🔴 atrasado) e o que mudou, como o Project Updates do Linear. O card mostra a última e avisa quando passou de 7 dias.',
+    'Mapa 3D: Planilha de itens com quantidade, medida, valor unitário e total.',
+    'CRM: calendário do mês com os dias de envio.',
+  ]],
   ['9.8', 'Ideias de outras ferramentas + links dos cursos', [
     'Plano de estudo: todos os cursos e livros agora abrem a página direta (sem busca no Google). Os cursos do Google Ateliê Digital, que saiu do ar, foram trocados por HubSpot Academy e FGV.',
     'Tarefas: modo Matriz (urgente x importante), inspirado no TickTick: Fazer agora, Agendar, Delegar e Depois. ☆ marca como importante.',

@@ -96,6 +96,7 @@ function render() {
     <label class="dt-dep">🔗 Depende de <select data-dt-dep aria-label="Depende de"><option value="">nenhuma tarefa</option>${Tasks.all().filter((x) => x.id !== t.id && x.status !== 'done').slice(0, 80).map((x) => `<option value="${esc(x.id)}"${t.dependsOn === x.id ? ' selected' : ''}>${esc(x.title.slice(0, 60))}</option>`).join('')}${t.dependsOn && !Tasks.all().some((x) => x.id === t.dependsOn && x.status !== 'done') ? `<option value="${esc(t.dependsOn)}" selected>(já concluída)</option>` : ''}</select></label>
     <div class="dt-est" role="group" aria-label="Tempo estimado"><span class="hint">⏱ Estimativa</span>${[[15, '15 min'], [30, '30 min'], [60, '1h'], [120, '2h'], [240, '4h'], [480, '1 dia']].map(([m, n]) => `<button type="button" data-dt-est="${m}" aria-pressed="${t.estimate === m}">${n}</button>`).join('')}</div>
     <div class="dt-owner"><span class="hint">👤 Responsável</span><select data-dt-owner aria-label="Responsável"><option value="">Eu (Edu)</option>${[...new Set((((Sync.central && Sync.central.people) || []).map((p) => p.name)).concat(t.owner ? [t.owner] : []))].map((n) => `<option${t.owner === n ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+    <div class="dt-snooze"><span class="hint">🙈 Esconder até</span>${(() => { const td = C.toDateKey(new Date()); const mon = C.addDays(C.weekStart(new Date()), 7); const nm = (() => { const d = new Date(); return C.toDateKey(new Date(d.getFullYear(), d.getMonth() + 1, 1)); })(); return [['Amanhã', C.addDays(td, 1)], ['Segunda', mon], ['Próximo mês', nm]].map(([n, d]) => `<button type="button" data-dt-snooze="${d}" aria-pressed="${t.snoozeUntil === d}">${n}</button>`).join('') + (t.snoozeUntil && t.snoozeUntil > td ? `<button type="button" data-dt-snooze="">Mostrar já</button>` : ''); })()}</div>
     <div class="dt-quickdue" role="group" aria-label="Prazo rápido">${[['Hoje', today], ['Amanhã', C.addDays(today, 1)], ['+3 dias', C.addDays(today, 3)], ['+1 semana', C.addDays(today, 7)]].map(([n, d]) => `<button type="button" data-dt-due="${d}" aria-pressed="${t.dueDate === d}">${n}</button>`).join('')}${t.dueDate ? '<button type="button" data-dt-due="">Sem prazo</button>' : ''}</div>
     <div class="dt-status" role="group" aria-label="Situação">${statuses.map(([k, n]) => `<button type="button" data-dt-status="${k}" aria-pressed="${t.status === k}">${n}</button>`).join('')}</div>`;
 
@@ -164,6 +165,14 @@ export function initDetail(helpers) {
       localStorage.setItem('ct-focus', JSON.stringify(focus));
       runTick();
       return render();
+    }
+    const sz = e.target.closest('[data-dt-snooze]');
+    if (sz) {
+      const v = sz.dataset.dtSnooze || null;
+      await Tasks.update(t.id, { snoozeUntil: v });
+      await addLog(v ? `Situação: escondida até ${C.fromDateKey(v).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : 'Situação: de volta à lista');
+      if (v) H.toast('Escondida até ' + C.fromDateKey(v).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }) + '. Para ver, use o filtro Escondidas ou a busca.');
+      return;
     }
     const es = e.target.closest('[data-dt-est]');
     if (es) { const v = Number(es.dataset.dtEst); return Tasks.update(t.id, { estimate: t.estimate === v ? null : v }); }

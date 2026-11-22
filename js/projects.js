@@ -4,6 +4,7 @@
  * contagem para o dia D, próxima etapa, atrasos e quem está com o quê.
  */
 import { Tasks } from './tasks.js';
+import { Notes } from './notes.js';
 import { Sync } from './sync.js';
 import { esc } from './ui.js';
 import { saveAsPlaybook } from './playbooks.js';
@@ -47,6 +48,9 @@ function layoutFor(p) {
   const key = foldTxt(p.name.split(': ').pop());
   return (Sync.layouts || []).find((l) => !l.deletedAt && !l.base && ((p.dday && l.eventDate === p.dday) || (key.length > 3 && (foldTxt(l.name).includes(key) || key.includes(foldTxt(l.name))))));
 }
+function lastUpdate(name) {
+  return Notes.all().filter((n) => (n.title || '') === 'Atualização · ' + name).sort((a, b) => String(b.updatedAt || b.createdAt).localeCompare(String(a.updatedAt || a.createdAt)))[0] || null;
+}
 function card(p) {
   const today = C.toDateKey(new Date());
   const isOpen = view.open === p.name;
@@ -60,6 +64,13 @@ function card(p) {
     </button>
     <span class="kpi-bar"><i style="width:${p.pct}%"></i></span>
     ${!p.finished && !isOpen && p.open[0] ? `<p class="proj-next"><span class="label">Próxima etapa</span> ${esc(p.open[0].title)}${p.open[0].dueDate ? ` <span class="hint">· ${dm(p.open[0].dueDate)}</span>` : ''}</p>` : ''}
+    ${(() => {
+      const up = lastUpdate(p.name);
+      if (!up) return isOpen && !p.finished ? '<p class="hint proj-up-none">Sem atualização de status ainda. Poste uma por semana: saúde do projeto + o que mudou.</p>' : '';
+      const age = Math.floor((Date.now() - Date.parse(up.updatedAt || up.createdAt)) / 86400000);
+      const h = /🟢|no prazo/i.test(up.body) ? 'ok' : /🔴|atrasado/i.test(up.body) ? 'bad' : 'warn';
+      return `<div class="proj-update h-${h}"><span class="label">Última atualização · ${age === 0 ? 'hoje' : age === 1 ? 'ontem' : `há ${age} dias`}${age > 7 && !p.finished ? ' · <b>vencida</b>' : ''}</span><p>${esc(up.body.split('\n').slice(0, 3).join(' ').slice(0, 220))}</p>${isOpen ? `<a class="link-btn" href="#/notas/${esc(up.id)}">Ver histórico</a>` : ''}</div>`;
+    })()}
     ${isOpen ? (() => {
       const ws = C.weekStart(new Date());
       const thisW = p.done.filter((t) => t.completedAt && C.toDateKey(new Date(t.completedAt)) >= ws).length;
@@ -75,7 +86,7 @@ function card(p) {
       </div>`;
     })() : ''}
     ${isOpen ? `<ul class="proj-steps">${p.list.slice().sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')).map(li).join('')}</ul>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button><button type="button" class="btn btn-sm" data-proj-share="${esc(p.name)}">Enviar cronograma</button>${p.dday ? `<label class="btn btn-sm proj-move" title="Copia todas as etapas para um novo dia D, com os mesmos intervalos">Duplicar para outra data<input type="date" data-proj-dup="${esc(p.name)}"></label>` : ''}${p.dday && !p.finished ? `<label class="btn btn-sm proj-move" title="Muda o dia D e empurra todas as etapas abertas junto">Mudar dia D<input type="date" data-proj-move="${esc(p.name)}" value="${p.dday}"></label>` : ''}${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-open-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button><button type="button" class="btn btn-sm" data-proj-share="${esc(p.name)}">Enviar cronograma</button><button type="button" class="btn btn-sm" data-proj-update="${esc(p.name)}">Postar atualização</button>${p.dday ? `<label class="btn btn-sm proj-move" title="Copia todas as etapas para um novo dia D, com os mesmos intervalos">Duplicar para outra data<input type="date" data-proj-dup="${esc(p.name)}"></label>` : ''}${p.dday && !p.finished ? `<label class="btn btn-sm proj-move" title="Muda o dia D e empurra todas as etapas abertas junto">Mudar dia D<input type="date" data-proj-move="${esc(p.name)}" value="${p.dday}"></label>` : ''}${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-open-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
   </article>`;
 }
 
@@ -161,7 +172,7 @@ export function initProjects(helpers) {
     }
     H.toast(`Dia D ${delta > 0 ? 'adiado' : 'antecipado'} ${Math.abs(delta)} dia${Math.abs(delta) === 1 ? '' : 's'}; ${p.open.length} etapa${p.open.length === 1 ? '' : 's'} reprogramada${p.open.length === 1 ? '' : 's'}`);
   });
-  document.addEventListener('click', (e) => {
+  document.addEventListener('click', async (e) => {
     if (document.body.dataset.screen !== 'app') return;
     const o = e.target.closest('[data-proj-open]');
     if (o) view.open = o.dataset.projOpen;
@@ -177,6 +188,21 @@ export function initProjects(helpers) {
       const p = projects().find((x) => x.name === add.dataset.projAdd);
       const area = p && p.list[0] ? p.list[0].area : undefined;
       return H.openTaskDialog({ project: add.dataset.projAdd, projectDate: p && p.dday, area });
+    }
+    const pu = e.target.closest('[data-proj-update]');
+    if (pu) {
+      const p = projects().find((x) => x.name === pu.dataset.projUpdate);
+      if (!p) return;
+      const hs = (prompt('Saúde do projeto: 1 = 🟢 no prazo, 2 = 🟡 em risco, 3 = 🔴 atrasado', p.late.length ? '3' : '1') || '').trim();
+      if (!hs) return;
+      const health = { 1: '🟢 No prazo', 2: '🟡 Em risco', 3: '🔴 Atrasado' }[hs[0]] || '🟡 Em risco';
+      const txt = (prompt('O que mudou e o próximo passo (curto):') || '').trim();
+      const line = `${new Date().toLocaleDateString('pt-BR')} · ${health} · ${p.pct}% (${p.done.length}/${p.list.length})${p.late.length ? ` · ${p.late.length} atrasada(s)` : ''}${txt ? '\n' + txt : ''}`;
+      const prev = lastUpdate(p.name);
+      if (prev) await Notes.update(prev.id, { body: line + '\n\n———\n\n' + (prev.body || ''), date: C.toDateKey(new Date()) });
+      else await Notes.create({ title: 'Atualização · ' + p.name, date: C.toDateKey(new Date()), participants: 'Projeto', body: line });
+      H.toast('Atualização postada');
+      return H.render();
     }
     const sh = e.target.closest('[data-proj-share]');
     if (sh) {

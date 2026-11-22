@@ -1890,3 +1890,17 @@ body[data-route="tasks"] #taskList.is-selecting { padding-bottom: 130px; }
 .proj-insights strong { font-size: 20px; }
 .proj-insights .is-bad strong { color: var(--red); }
 .mx-card .kb-next.is-on { color: var(--amber); }
+
+/* v9.9 */
+.dt-snooze { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.dt-snooze button { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 99px; padding: 3px 9px; font-size: 12.5px; cursor: pointer; }
+.dt-snooze button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); font-weight: 600; }
+.badge-streak { background: color-mix(in srgb, var(--amber) 16%, var(--surface)); color: color-mix(in srgb, var(--amber) 75%, var(--text)); }
+.proj-update { border-left: 3px solid var(--amber); background: var(--surface-2); border-radius: 0 10px 10px 0; padding: 8px 10px; margin: 8px 0; }
+.proj-update.h-ok { border-color: var(--green); } .proj-update.h-bad { border-color: var(--red); }
+.proj-update p { margin: 4px 0 0; font-size: 13.5px; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 12.5px; }
+.cal-grid b { color: var(--muted); font-weight: 600; font-size: 11px; }
+.cal-d { position: relative; padding: 6px 0 10px; border-radius: 8px; background: var(--surface-2); }
+.cal-d.is-today { outline: 2px solid var(--primary); }
+.cal-d.has i { position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%); min-width: 7px; height: 7px; border-radius: 99px; background: var(--primary); font-style: normal; font-size: 9px; color: #fff; line-height: 7px; padding: 0 2px; }
