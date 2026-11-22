@@ -1699,3 +1699,10 @@ a.btn { text-decoration: none; }
 .chat-day { display: flex; align-items: center; gap: 10px; margin: 6px 0; color: var(--muted); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .chat-day::before, .chat-day::after { content: ""; flex: 1; height: 1px; background: var(--border); }
 .chat-stale { align-self: center; font-size: 13px; color: var(--text-2); background: var(--surface-2); border-radius: 99px; padding: 6px 14px; text-align: center; }
+
+/* v8.7 */
+.task-lastnote { margin: 4px 0 0; font-size: 12.5px; color: var(--text-2); line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.task-lastnote span { color: var(--muted); }
+.dt-quickdue { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.dt-quickdue button { border: 1px solid var(--border); background: var(--surface); color: var(--text-2); border-radius: 99px; padding: 4px 10px; font-size: 12.5px; cursor: pointer; }
+.dt-quickdue button[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); font-weight: 600; }

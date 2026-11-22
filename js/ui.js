@@ -10,6 +10,15 @@ const pad = C.pad;
 
 const TAG_TONE = { Aprovado: 'ok', Pago: 'ok', Contratado: 'ok', Divulgado: 'ok', Bloqueado: 'bad', 'Aguardando aprovação': 'wait', 'Aguardando fornecedor': 'wait', 'Orçamento pedido': 'wait' };
 export const tagTone = (t) => TAG_TONE[t] || 'neutral';
+function noteAgo(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  const today = window.Core.toDateKey(new Date());
+  const k = window.Core.toDateKey(d);
+  if (k === today) return 'hoje ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  if (k === window.Core.addDays(today, -1)) return 'ontem';
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
 export const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
@@ -124,6 +133,11 @@ export function taskCard(t, now, areaMap, mode = '') {
   else if (c.overdue) badges.push('<span class="badge badge-overdue">Atrasada</span>');
 
   const meta = [];
+  const lastNote = (t.comments || []).filter((c) => c && c.text && !/^(Marcou|Desmarcou|Situação|Passo concluído)/.test(c.text))
+    .reduce((a, c) => (!a || String(c.at) > String(a.at) ? c : a), null);
+  const noteLine = lastNote && mode !== 'trash'
+    ? `<p class="task-lastnote" title="Última nota do andamento">📝 ${esc(lastNote.text.replace(/\s+/g, ' ').slice(0, 90))}${lastNote.text.length > 90 ? '…' : ''} <span>· ${esc(noteAgo(lastNote.at))}</span></p>`
+    : '';
   const tagRow = (t.tags || []).length
     ? `<div class="task-tags">${t.tags.map((x) => `<button type="button" class="dt-chip is-mini tone-${tagTone(x)}" data-action="tag" data-tag="${esc(x)}" title="Ver todas com esta marcação">${esc(x)}</button>`).join('')}</div>`
     : '';
@@ -198,7 +212,7 @@ export function taskCard(t, now, areaMap, mode = '') {
       ${waitLine}
       ${doneLine}
       ${trashLine}
-      ${tagRow}
+      ${tagRow}${noteLine}
       <div class="task-meta">${meta.join('')}</div>
     </div>
     <div class="task-actions">${actions}</div>

@@ -62,6 +62,7 @@ function render() {
       ${t.owner ? `<span class="pill">👤 ${esc(t.owner)}</span>` : ''}
       ${t.project ? `<span class="pill">📁 ${esc(t.project)}</span>` : ''}
     </div>
+    <div class="dt-quickdue" role="group" aria-label="Prazo rápido">${[['Hoje', today], ['Amanhã', C.addDays(today, 1)], ['+3 dias', C.addDays(today, 3)], ['+1 semana', C.addDays(today, 7)]].map(([n, d]) => `<button type="button" data-dt-due="${d}" aria-pressed="${t.dueDate === d}">${n}</button>`).join('')}${t.dueDate ? '<button type="button" data-dt-due="">Sem prazo</button>' : ''}</div>
     <div class="dt-status" role="group" aria-label="Situação">${statuses.map(([k, n]) => `<button type="button" data-dt-status="${k}" aria-pressed="${t.status === k}">${n}</button>`).join('')}</div>`;
 
   $('#dtTags').innerHTML = `
@@ -116,6 +117,13 @@ export function initDetail(helpers) {
       else await Tasks.update(t.id, { status: v });
       return addLog('Situação: ' + { pending: 'Pendente', doing: 'Em andamento', waiting: 'Aguardando', done: 'Concluída' }[v]);
     }
+    const du = e.target.closest('[data-dt-due]');
+    if (du) {
+      const v = du.dataset.dtDue || null;
+      if (v === (t.dueDate || null)) return;
+      await Tasks.update(t.id, { dueDate: v });
+      return addLog(v ? 'Situação: prazo para ' + C.fromDateKey(v).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : 'Situação: sem prazo');
+    }
     const tg = e.target.closest('[data-dt-tag]');
     if (tg) {
       const x = tg.dataset.dtTag;
@@ -144,6 +152,19 @@ export function initDetail(helpers) {
       if (t.status === 'done') return Tasks.update(t.id, { status: t.prevStatus && t.prevStatus !== 'done' ? t.prevStatus : 'pending' });
       await Tasks.complete(t.id);
       return H.toast('Concluída');
+    }
+    if (a === 'share') {
+      const ck = t.checklist || [];
+      const notes = (t.comments || []).filter((c) => !/^(Marcou|Desmarcou|Situação|Passo concluído)/.test(c.text))
+        .sort((x, y) => String(y.at).localeCompare(String(x.at))).slice(0, 5);
+      const st = { pending: 'Pendente', doing: 'Em andamento', waiting: 'Aguardando', done: 'Concluída' }[t.status] || '';
+      const text = [`*${t.title}*`, `Situação: ${st}${t.dueDate ? ' · prazo ' + C.fromDateKey(t.dueDate).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : ''}`,
+        (t.tags || []).length ? 'Marcações: ' + t.tags.join(', ') : '',
+        ck.length ? `Checklist ${ck.filter((c) => c.done).length}/${ck.length}:\n` + ck.map((c) => (c.done ? '✅ ' : '⬜ ') + c.text).join('\n') : '',
+        notes.length ? 'Andamento:\n' + notes.map((c) => `• ${when(c.at)}: ${c.text}`).join('\n') : ''].filter(Boolean).join('\n\n');
+      if (navigator.share) { try { await navigator.share({ text }); return; } catch (err) { if (err && err.name === 'AbortError') return; } }
+      try { await navigator.clipboard.writeText(text); H.toast('Andamento copiado. É só colar no WhatsApp.'); } catch { H.toast('Não consegui copiar.'); }
+      return;
     }
     if (a === 'edit') {
       dlg.close();

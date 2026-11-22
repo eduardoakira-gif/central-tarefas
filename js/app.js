@@ -36,7 +36,7 @@ import { initNfe, importFiles as importXml } from './nfe.js';
 import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 
-export const APP_VERSION = '8.6.0';
+export const APP_VERSION = '8.7.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
