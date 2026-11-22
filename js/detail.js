@@ -61,6 +61,8 @@ function render() {
       <span class="pill">⚑ ${esc((C.PRIORITY_MAP[t.priority] || {}).name || 'Normal')}</span>
       ${t.owner ? `<span class="pill">👤 ${esc(t.owner)}</span>` : ''}
       ${t.project ? `<span class="pill">📁 ${esc(t.project)}</span>` : ''}
+      ${t.link ? `<a class="pill" href="${esc(/^https?:\/\//.test(t.link) ? t.link : 'https://' + t.link)}" target="_blank" rel="noopener">🔗 Abrir link</a>` : ''}
+      ${t.waitingFor ? `<span class="pill">⏳ ${esc(t.waitingFor)}</span>` : ''}
     </div>
     <div class="dt-quickdue" role="group" aria-label="Prazo rápido">${[['Hoje', today], ['Amanhã', C.addDays(today, 1)], ['+3 dias', C.addDays(today, 3)], ['+1 semana', C.addDays(today, 7)]].map(([n, d]) => `<button type="button" data-dt-due="${d}" aria-pressed="${t.dueDate === d}">${n}</button>`).join('')}${t.dueDate ? '<button type="button" data-dt-due="">Sem prazo</button>' : ''}</div>
     <div class="dt-status" role="group" aria-label="Situação">${statuses.map(([k, n]) => `<button type="button" data-dt-status="${k}" aria-pressed="${t.status === k}">${n}</button>`).join('')}</div>`;

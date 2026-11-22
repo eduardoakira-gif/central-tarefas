@@ -17,6 +17,8 @@ const kv = { get: (k) => C.idb.get('kv', k), set: (k, v) => C.idb.put('kv', v, k
 const PROMPTS = [
   ['Planejar meu dia', 'Planeje meu dia: escolha de 3 a 5 tarefas para hoje (use propor_acoes com a ação "hoje"), em ordem, com o motivo de cada uma. Priorize atrasadas, foco da semana e o que gera receita. Se algo deveria ser adiado, repriorizado, delegado para alguém da equipe ou já está concluído, proponha também.'],
   ['Briefing do dia', 'Me dá o briefing do dia como dono: o que está atrasado, o que travou, as 3 prioridades de hoje em ordem e o que eu devo cobrar de quem.'],
+  ['Andamento das tarefas', 'Olhe as marcações e as últimas notas do andamento das minhas tarefas: o que está parado há dias, o que está bloqueado, o que está esperando fornecedor ou aprovação e quem eu preciso cobrar. Proponha as ações (adiar, repriorizar, delegar ou concluir) e escreva as mensagens de cobrança.'],
+  ['Planejar o próximo evento', 'Pegue o próximo evento montado no mapa 3D do escritório e monte o plano: checklist de montagem e fornecedores (pelos itens do layout), cronograma até o dia, divulgação para a torcida, ativação de patrocinador e o que medir. Sugira as tarefas com prazo.'],
   ['O que faço primeiro?', 'Olhando minhas demandas agora, o que eu faço primeiro e por quê? Seja direto.'],
   ['Como estão meus KPIs?', 'Analise meus indicadores e OKRs do Painel B2C: onde estou bem, onde estou mal e quais 3 ações movem mais o resultado este mês.'],
   ['Plano da semana', 'Monte meu plano da semana priorizando Comunidade, depois Sócio-Torcedor, Merchan e CRM. Sugira as tarefas.'],

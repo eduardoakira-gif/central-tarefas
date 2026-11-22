@@ -129,6 +129,11 @@ export function taskCard(t, now, areaMap, mode = '') {
   if (focused) badges.push('<span class="badge badge-focus">★ Foco da semana</span>');
   const planned = !done && t.plannedFor === C.toDateKey(now);
   if (planned) badges.push('<span class="badge badge-today">☀ Hoje</span>');
+  if (!done && t.status === 'doing') {
+    const lastAct = (t.comments || []).reduce((a, x) => (String(x.at) > a ? String(x.at) : a), String(t.createdAt || ''));
+    const idle = Math.floor((Date.now() - Date.parse(lastAct)) / 86400000);
+    if (idle >= 7) badges.push(`<span class="badge badge-idle" title="Em andamento sem nota nem marcação há ${idle} dias">Parada há ${idle} dias</span>`);
+  }
   if (c.followUpDue) badges.push(`<span class="badge badge-follow">${c.overdue ? 'Cobrança atrasada' : 'Cobrar retorno hoje'}</span>`);
   else if (c.overdue) badges.push('<span class="badge badge-overdue">Atrasada</span>');
 
@@ -437,7 +442,7 @@ export function renderTrash(trash, now, areas) {
 // -----------------------------------------------------------------------------
 // Agenda (próximos 7 dias)
 // -----------------------------------------------------------------------------
-export function renderAgenda(all, now, areas, offset = 0) {
+export function renderAgenda(all, now, areas, offset = 0, events = []) {
   const areaMap = areaMapOf(areas);
   const today = C.toDateKey(now);
   const start = C.addDays(today, offset * 7);
@@ -459,7 +464,9 @@ export function renderAgenda(all, now, areas, offset = 0) {
   let any = false;
   for (const day of days) {
     const list = C.sortTasks(open.filter((t) => dateOf(t) === day && !(day === today && C.classify(t, now).overdue)), now);
-    const label = relativeDay(day, now);
+    const evs = events.filter((e) => !e.deletedAt && !e.base && e.eventDate === day);
+    const evHtml = evs.map((e) => `<a class="agenda-event" href="#/espacos" data-layout="${esc(e.id)}">🎪 ${esc(e.name)} <span>${e.items.length} ${e.items.length === 1 ? "item" : "itens"} no mapa 3D</span></a>`).join('');
+    const label = relativeDay(day, now) + evHtml;
     const isWeekend = [0, 6].includes(C.fromDateKey(day).getDay());
     if (!list.length) {
       html += `<section class="group agenda-day is-empty${isWeekend ? ' is-weekend' : ''}"><h2 class="group-title">${label}</h2><p class="agenda-free">Nada agendado.</p></section>`;
@@ -572,6 +579,7 @@ export function renderReport(all, now, areas, days = 30) {
       ${kpi('No prazo', pct === null ? '–' : pct + '%', withDue.length ? `${onTime} de ${withDue.length} com prazo` : 'sem tarefas com prazo')}
       ${kpi('Tempo médio', avg === null ? '–' : avg < 1 ? 'menos de 1 dia' : Math.round(avg) + (Math.round(avg) === 1 ? ' dia' : ' dias'), 'da criação à conclusão')}
       ${kpi('Atrasadas agora', overdueNow)}
+      ${(() => { const notes = all.flatMap((t) => (t.comments || []).filter((c) => c && c.text && inPeriod(c.at) && !/^(Marcou|Desmarcou|Situação|Passo concluído)/.test(c.text))); const idle = all.filter((t) => t.status === 'doing' && (Date.now() - Date.parse((t.comments || []).reduce((a, x) => (String(x.at) > a ? String(x.at) : a), String(t.createdAt || '')))) / 86400000 >= 7).length; return kpi('Andamento registrado', notes.length, `notas nas fichas${idle ? ` · ${idle} parada${idle > 1 ? 's' : ''} há 7+ dias` : ''}`); })()}
     </div>
     ${funnelCard(all, now)}
     <section class="card report-card">

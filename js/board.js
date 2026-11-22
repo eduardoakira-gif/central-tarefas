@@ -120,6 +120,12 @@ export function boardText(ym) {
     for (const i of x.learned) lines.push(`- ${i.status === 'validada' ? 'Validado' : 'Não validou'}: ${i.title}${i.result ? ' – ' + i.result : ''}`);
     for (const i of x.tests) lines.push(`- Em teste: ${i.title}${i.metric ? ' (métrica: ' + i.metric + ')' : ''}`);
   }
+  const today = C.toDateKey(new Date());
+  const evs = (Sync.layouts || []).filter((l) => !l.deletedAt && !l.base && l.eventDate && l.eventDate >= today).sort((a, b) => a.eventDate.localeCompare(b.eventDate)).slice(0, 6);
+  if (evs.length) {
+    lines.push('', 'PRÓXIMOS EVENTOS NO ESCRITÓRIO');
+    for (const l of evs) { const seats = l.items.reduce((a, i) => a + ((i.type === 'fileira' && 6) || (i.type === 'bancada' && 5) || (i.type === 'sofa' && 3) || (['cadeira', 'pufe', 'setup'].includes(i.type) && 1) || 0), 0); lines.push(`- ${C.fromDateKey(l.eventDate).toLocaleDateString('pt-BR')}: ${l.name}${seats ? ` (${seats} lugares sentados)` : ''}`); }
+  }
   if (x.score != null) lines.push('', `EXECUÇÃO: média do scorecard do dono no mês ${x.score}/100`);
   if (view.decisions.trim()) lines.push('', 'DECISÕES E PEDIDOS PARA A DIRETORIA', view.decisions.trim());
   return lines.join('\n');

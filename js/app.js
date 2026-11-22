@@ -35,9 +35,9 @@ import { initProjects, renderProjects, renderProjectsCard, projectNames } from '
 import { initNfe, importFiles as importXml } from './nfe.js';
 import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
-import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged } from './espacos.js';
+import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged, openLayout } from './espacos.js';
 
-export const APP_VERSION = '8.9.0';
+export const APP_VERSION = '9.0.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -348,7 +348,7 @@ function renderNote() {
 }
 
 function renderAgenda() {
-  $('#agendaList').innerHTML = UI.renderAgenda(Tasks.all(), new Date(), areas(), state.agendaOffset);
+  $('#agendaList').innerHTML = UI.renderAgenda(Tasks.all(), new Date(), areas(), state.agendaOffset, Sync.layouts || []);
 }
 
 function renderReport() {
@@ -1178,6 +1178,14 @@ async function handleAction(action, id, el) {
       location.hash = '#/notas/' + nid;
       return;
     }
+    case 'share-note': {
+      const n = Notes.get(state.noteId);
+      if (!n) return;
+      const text = [`*${n.title || 'Reunião'}*`, [n.date ? C.fromDateKey(n.date).toLocaleDateString('pt-BR') : '', n.participants].filter(Boolean).join(' · '), n.body].filter(Boolean).join('\n\n');
+      if (navigator.share) { try { await navigator.share({ title: n.title || 'Nota', text }); return; } catch (err) { if (err && err.name === 'AbortError') return; } }
+      try { await navigator.clipboard.writeText(text); toast('Nota copiada. É só colar no WhatsApp ou no e-mail.'); } catch { toast('Não consegui copiar.'); }
+      return;
+    }
     case 'delete-note': {
       const ok = await confirmDialog({
         title: 'Excluir esta nota?',
@@ -1606,6 +1614,8 @@ function bindEvents() {
       handleAction(actionEl.dataset.action, card && card.dataset.id, actionEl);
       return;
     }
+    const lay = e.target.closest('[data-layout]');
+    if (lay) { e.preventDefault(); return openLayout(lay.dataset.layout); }
     const bodyCard = e.target.closest('article.task .task-main, article.kb-card');
     if (bodyCard && !e.target.closest('a, button, input, select, label, textarea')) {
       const card = bodyCard.closest('[data-id]');

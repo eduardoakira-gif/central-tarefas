@@ -4,6 +4,7 @@
  * contagem para o dia D, próxima etapa, atrasos e quem está com o quê.
  */
 import { Tasks } from './tasks.js';
+import { Sync } from './sync.js';
 import { esc } from './ui.js';
 import { saveAsPlaybook } from './playbooks.js';
 
@@ -40,6 +41,12 @@ function countdown(dday) {
   return n > 0 ? `D-${n}` : n === 0 ? 'Dia D é hoje' : `D+${-n}`;
 }
 
+const foldTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+/** Layout do mapa 3D ligado ao projeto (mesmo dia D ou nome parecido). */
+function layoutFor(p) {
+  const key = foldTxt(p.name.split(': ').pop());
+  return (Sync.layouts || []).find((l) => !l.deletedAt && !l.base && ((p.dday && l.eventDate === p.dday) || (key.length > 3 && (foldTxt(l.name).includes(key) || key.includes(foldTxt(l.name))))));
+}
 function card(p) {
   const today = C.toDateKey(new Date());
   const isOpen = view.open === p.name;
@@ -54,7 +61,7 @@ function card(p) {
     <span class="kpi-bar"><i style="width:${p.pct}%"></i></span>
     ${!p.finished && !isOpen && p.open[0] ? `<p class="proj-next"><span class="label">Próxima etapa</span> ${esc(p.open[0].title)}${p.open[0].dueDate ? ` <span class="hint">· ${dm(p.open[0].dueDate)}</span>` : ''}</p>` : ''}
     ${isOpen ? `<ul class="proj-steps">${p.list.slice().sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999')).map(li).join('')}</ul>
-      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button>${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
+      <div class="btn-row"><button type="button" class="btn btn-sm" data-proj-add="${esc(p.name)}">Adicionar etapa</button><button type="button" class="btn btn-sm" data-proj-ai="${esc(p.name)}">Revisar com IA</button>${(() => { const lay = layoutFor(p); return lay ? `<a class="btn btn-sm" href="#/espacos" data-layout="${esc(lay.id)}">🎪 Mapa 3D</a>` : ''; })()}${p.dday ? `<button type="button" class="btn btn-sm" data-proj-save="${esc(p.name)}">Salvar como playbook</button>` : ''}</div>` : ''}
   </article>`;
 }
 

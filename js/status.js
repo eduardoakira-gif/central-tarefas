@@ -89,6 +89,13 @@ export function scorecard(offset = view.offset) {
   return { score, grade, metrics: m, tip: tips[worst.id], mon, sun, empty };
 }
 
+const AUTO_NOTE = /^(Marcou|Desmarcou|Situação|Passo concluído)/;
+/** Última nota do andamento feita na semana (para dar contexto ao gestor). */
+function weekNote(t, mon, sun) {
+  const n = (t.comments || []).filter((c) => c && c.text && !AUTO_NOTE.test(c.text) && C.toDateKey(new Date(c.at)) >= mon && C.toDateKey(new Date(c.at)) <= sun)
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
+  return n ? n.text.replace(/\s+/g, ' ').slice(0, 120) : '';
+}
 export function statusText() {
   const d = data();
   const L = [];
@@ -98,7 +105,9 @@ export function statusText() {
   L.push(`✅ Entregas (${d.done.length})`);
   if (!d.done.length) L.push('• Nenhuma entrega registrada na semana.');
   for (const [a, list] of Object.entries(d.byArea)) L.push(`${a}:`, ...list.map((t) => `• ${t.title}`));
-  if (d.doing.length) L.push('', '🔄 Em andamento', ...d.doing.slice(0, 8).map((t) => `• ${t.title}${t.dueDate ? ` (prazo ${dm(t.dueDate)})` : ''}`));
+  if (d.doing.length) L.push('', '🔄 Em andamento', ...d.doing.slice(0, 8).map((t) => { const n = weekNote(t, d.mon, d.sun); return `• ${t.title}${t.dueDate ? ` (prazo ${dm(t.dueDate)})` : ''}${n ? `\n   ↳ ${n}` : ''}`; }));
+  const blocked = d.doing.concat(d.waiting).filter((t) => (t.tags || []).includes('Bloqueado'));
+  if (blocked.length) L.push('', '🚧 Bloqueadas (preciso de ajuda)', ...blocked.map((t) => `• ${t.title}${weekNote(t, d.mon, d.sun) ? ' – ' + weekNote(t, d.mon, d.sun) : ''}`));
   if (d.waiting.length) L.push('', '⏳ Aguardando', ...d.waiting.slice(0, 8).map((t) => `• ${t.title}${t.waitingFor || t.owner ? ` – com ${t.waitingFor || t.owner}` : ''}`));
   if (d.late.length) L.push('', '⚠️ Riscos e atrasos', ...d.late.slice(0, 6).map((t) => `• ${t.title} (venceu ${dm(t.dueDate)})`));
   if (d.next.length) L.push('', '📅 Próxima semana', ...d.next.slice(0, 8).map((t) => `• ${dm(t.dueDate)} – ${t.title}`));
@@ -110,7 +119,7 @@ export function statusText() {
 export function renderStatus() {
   const d = data();
   const sec = (title, items, empty) => `<section class="card status-sec"><h2>${title}</h2>${items.length ? `<ul>${items.join('')}</ul>` : `<p class="hint">${empty}</p>`}</section>`;
-  const li = (t, extra = '') => `<li data-id="${esc(t.id)}"><button type="button" class="link-plain" data-action="edit">${esc(t.title)}</button>${extra ? ` <span class="hint">${extra}</span>` : ''}</li>`;
+  const li = (t, extra = '') => `<li data-id="${esc(t.id)}"><button type="button" class="link-plain" data-action="open">${esc(t.title)}</button>${extra ? ` <span class="hint">${extra}</span>` : ''}</li>`;
   return `<div class="status-head">
       <div class="seg"><button type="button" class="btn btn-sm" data-status="prev" aria-label="Semana anterior">‹</button><strong>${dm(d.mon)} a ${dm(d.sun)}</strong><button type="button" class="btn btn-sm" data-status="next" ${view.offset >= 0 ? 'disabled' : ''} aria-label="Próxima semana">›</button></div>
       <div class="btn-row"><button type="button" class="btn btn-sm" data-status="copy">Copiar</button><button type="button" class="btn btn-sm" data-status="wa">WhatsApp</button><button type="button" class="btn btn-sm" data-status="mail">E-mail</button><button type="button" class="btn btn-sm btn-primary" data-status="ai">Reescrever com IA</button></div>
@@ -128,7 +137,7 @@ export function renderStatus() {
     <div class="status-kpis"><span><strong>${d.done.length}</strong> ${d.done.length === 1 ? 'entrega' : 'entregas'}</span><span><strong>${d.doing.length}</strong> em andamento</span><span><strong>${d.waiting.length}</strong> aguardando</span><span class="${d.late.length ? 'is-bad' : ''}"><strong>${d.late.length}</strong> ${d.late.length === 1 ? 'atrasada' : 'atrasadas'}</span></div>
     <div class="status-grid">
       ${sec('✅ Entregas', Object.entries(d.byArea).flatMap(([a, list]) => list.map((t) => li(t, a))), 'Nenhuma tarefa concluída nesta semana.')}
-      ${sec('🔄 Em andamento e foco', d.doing.slice(0, 10).map((t) => li(t, t.dueDate ? 'prazo ' + dm(t.dueDate) : '')), 'Nada marcado como em andamento ou foco da semana.')}
+      ${sec('🔄 Em andamento e foco', d.doing.slice(0, 10).map((t) => li(t, [t.dueDate ? 'prazo ' + dm(t.dueDate) : '', weekNote(t, d.mon, d.sun) ? '↳ ' + esc(weekNote(t, d.mon, d.sun)) : ''].filter(Boolean).join(' · '))), 'Nada marcado como em andamento ou foco da semana.')}
       ${sec('⏳ Aguardando', d.waiting.slice(0, 10).map((t) => li(t, t.waitingFor || t.owner || '')), 'Nada aguardando retorno.')}
       ${sec('⚠️ Riscos e atrasos', d.late.slice(0, 10).map((t) => li(t, 'venceu ' + dm(t.dueDate))), 'Sem atrasos. 👏')}
       ${sec('📅 Próxima semana', d.next.slice(0, 10).map((t) => li(t, dm(t.dueDate))), 'Sem prazos na próxima semana.')}

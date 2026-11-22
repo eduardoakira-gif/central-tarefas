@@ -9,6 +9,19 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.0', 'Melhorias em cada ferramenta', [
+    'Tarefas: selo "Parada há X dias" quando algo está em andamento sem nota nem marcação há 7 dias ou mais.',
+    'Ficha da tarefa: mostra o link da tarefa (abrir em 1 toque) e com quem está aguardando.',
+    'Status semanal: cada item em andamento leva a última nota da semana, e as tarefas marcadas como Bloqueado aparecem num bloco próprio.',
+    'Equipe e 1:1: a pauta traz os bloqueios da pessoa e a última nota de cada entrega.',
+    'Agenda: os eventos montados no mapa 3D aparecem no dia, com atalho para o layout.',
+    'Projetos: botão Mapa 3D quando existe um layout com o mesmo dia D ou nome.',
+    'Relatório da diretoria: bloco de próximos eventos no escritório, com lugares sentados.',
+    'Notas de reunião: botão Enviar nota (WhatsApp, e-mail ou copiar).',
+    'Relatório: indicador de andamento registrado (notas nas fichas) e quantas tarefas estão paradas.',
+    'Playbook de evento: etapa para montar o layout no mapa 3D e contratar fornecedores pelo PDF.',
+    'Assistente: atalhos Andamento das tarefas e Planejar o próximo evento.',
+  ]],
   ['8.9', 'Mapa 3D mais completo', ['Desfazer e refazer no mapa 3D (botões ↶ ↷; no computador, Ctrl+Z). No computador também: Delete apaga, R gira e as setas movem o item.', 'Lotação estimada do layout: lugares sentados, pessoas em pé e % do piso livre.', 'A busca geral acha os eventos do mapa 3D e as marcações das tarefas, e abre a ficha da tarefa.', 'O Assistente conhece os próximos eventos montados no mapa (itens, sala e observações) para planejar montagem, fornecedores e divulgação.']],
   ['8.8', 'Espaços e eventos em 3D', ['Novo: mapa 3D do escritório em Mais › Espaços e eventos. Crie a base da sala e monte cada evento por modelo (watch party, summit, campeonato, coquetel, ativação).', 'Arraste palco, telão, mesas, PCs, totens e mais; gire, duplique em linha e ajuste medidas. Veja em 3D ou em planta.', 'Baixe a imagem 3D, a planta com medidas, o PDF para fornecedor ou o arquivo do layout, e gere a tarefa de montagem com checklist.']],
   ['8.7', 'Andamento à vista', ['O card mostra a última nota do andamento, sem precisar abrir a tarefa.', 'Na ficha: prazo rápido (Hoje, Amanhã, +3 dias, +1 semana).', 'Botão Enviar na ficha: manda o andamento formatado pelo WhatsApp (situação, checklist e últimas notas).']],

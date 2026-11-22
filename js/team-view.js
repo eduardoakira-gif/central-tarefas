@@ -45,9 +45,12 @@ function agenda(name) {
   const h = (txt) => `${++i}. ${txt}`;
   L.push(h('Como você está? O que está tomando mais energia?'));
   if (d.done.length) L.push('', h('Reconhecer (últimos 14 dias):'), ...d.done.slice(0, 5).map((t) => `• ${t.title}`));
+  const lastNote = (t) => { const n = (t.comments || []).filter((c) => c && c.text && !/^(Marcou|Desmarcou|Situação|Passo concluído)/.test(c.text)).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0]; return n ? ` – última nota: ${n.text.replace(/\s+/g, ' ').slice(0, 90)}` : ''; };
+  const blocked = d.open.filter((t) => (t.tags || []).includes('Bloqueado'));
+  if (blocked.length) L.push('', h('Bloqueios (como eu ajudo?):'), ...blocked.map((t) => `• ${t.title}${lastNote(t)}`));
   if (d.late.length) L.push('', h('Destravar atrasos:'), ...d.late.map((t) => `• ${t.title} (venceu ${dm(t.dueDate)}) – o que travou? novo prazo?`));
   const rest = d.open.filter((t) => !d.late.includes(t)).slice(0, 6);
-  if (rest.length) L.push('', h('Próximas entregas:'), ...rest.map((t) => `• ${t.title}${t.dueDate ? ` (${dm(t.dueDate)})` : ' (sem prazo: definir)'}`));
+  if (rest.length) L.push('', h('Próximas entregas:'), ...rest.map((t) => `• ${t.title}${t.dueDate ? ` (${dm(t.dueDate)})` : ' (sem prazo: definir)'}${lastNote(t)}`));
   L.push('', h('O que você precisa de mim?'), h('Desenvolvimento: uma coisa para aprender ou testar nas próximas 2 semanas.'));
   return L.join('\n');
 }

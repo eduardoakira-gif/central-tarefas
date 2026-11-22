@@ -54,8 +54,9 @@ export const BUILTIN = [
     steps: [
       { d: -21, t: 'Definir local, capacidade, data e orçamento', p: 'high' },
       { d: -14, t: 'Abrir ingressos com benefício para sócio' },
+      { d: -12, t: 'Montar o layout no mapa 3D (Mais › Espaços) e conferir a lotação' },
       { d: -10, t: 'Divulgação: redes, Discord, WhatsApp e e-mail' },
-      { d: -7, t: 'Contratar fornecedores (som, telão, comida, segurança)' },
+      { d: -7, t: 'Contratar fornecedores pelo PDF do layout (som, telão, comida, segurança)' },
       { d: -5, t: 'Escalar os setores do Inferno Roxo (festa, logística, música)' },
       { d: -2, t: 'Checklist de logística e roteiro do dia', p: 'high' },
       { d: 0, t: 'Evento: captação de conteúdo e venda de merch no local', p: 'urgent' },
