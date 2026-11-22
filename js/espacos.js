@@ -116,13 +116,44 @@ const S = {
   dirty: false,
   ready: false,
   three: null, // { renderer, scene, camera, ortho, controls, meshes:Map }
+  undo: [], redo: [], last: '', lastPush: 0,
 };
 
 const layouts = () => (Sync.layouts || []).filter((l) => !l.deletedAt).sort((a, b) => (b.base - a.base) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
 const cur = () => S.id && (Sync.layouts || []).find((l) => l.id === S.id && !l.deletedAt);
 const available = () => Sync.v4() && (Sync.serverColls || []).includes('layouts');
 let saveTimer = null;
-function commit(l, now = false) {
+// Desfazer / refazer (por aparelho, até 50 passos)
+function track(l) {
+  const now = JSON.stringify({ room: l.room, items: l.items });
+  if (S.last && S.last !== now) {
+    if (!S.undo.length || Date.now() - S.lastPush > 800) S.undo.push(S.last);
+    S.lastPush = Date.now();
+    if (S.undo.length > 50) S.undo.shift();
+    S.redo = [];
+  }
+  S.last = now;
+}
+function restore(l, from, to) {
+  if (!from.length) return;
+  to.push(JSON.stringify({ room: l.room, items: l.items }));
+  const st = JSON.parse(from.pop());
+  l.room = st.room;
+  l.items = st.items;
+  if (S.sel && !l.items.some((i) => i.id === S.sel)) S.sel = null;
+  S.last = JSON.stringify({ room: l.room, items: l.items });
+  commit(l, true, false);
+  H.render();
+}
+export function openLayout(id) {
+  S.id = id;
+  S.sel = null;
+  mountedFor = null;
+  if (location.hash !== '#/espacos') location.hash = '#/espacos';
+  else H.render();
+}
+function commit(l, now = false, doTrack = true) {
+  if (doTrack) track(l);
   l.updatedAt = new Date().toISOString();
   S.dirty = true;
   clearTimeout(saveTimer);
@@ -158,6 +189,8 @@ export function renderSpaces() {
   let seats = 0;
   l.items.forEach((i) => { counts[i.type] = (counts[i.type] || 0) + 1; seats += spec(i).seats || 0; });
   const area = l.room.w * l.room.d;
+  const used = l.items.filter((i) => !spec(i).flat).reduce((a, i) => a + dims(i).w * dims(i).d, 0);
+  const standing = Math.max(0, Math.floor((area - used) * 1.5 * 0.7)); // 1,5 pessoa/m² em 70% da área livre (circulação)
   return `
   <div class="sp-top">
     <select class="select" id="spPick" aria-label="Layout">${list.map((x) => `<option value="${esc(x.id)}"${x.id === l.id ? ' selected' : ''}>${x.base ? '🏢 ' : ''}${esc(x.name)}${x.eventDate ? ' · ' + x.eventDate.slice(8, 10) + '/' + x.eventDate.slice(5, 7) : ''}</option>`).join('')}</select>
@@ -168,7 +201,9 @@ export function renderSpaces() {
     <div class="sp-tools">
       <button type="button" class="btn btn-sm" data-sp="view" aria-pressed="${S.view === 'plan'}">${S.view === 'plan' ? '3D' : 'Planta'}</button>
       <button type="button" class="btn btn-sm" data-sp="labels" aria-pressed="${S.labels}">Nomes</button>
-      <button type="button" class="btn btn-sm" data-sp="fit">Centralizar</button>
+      <button type="button" class="btn btn-sm" data-sp="undo" ${S.undo.length ? '' : 'disabled'} aria-label="Desfazer" title="Desfazer">↶</button>
+      <button type="button" class="btn btn-sm" data-sp="redo" ${S.redo.length ? '' : 'disabled'} aria-label="Refazer" title="Refazer">↷</button>
+      <button type="button" class="btn btn-sm" data-sp="fit" title="Centralizar">⌖</button>
     </div>
     <div class="sp-hint" id="spHint">${sel ? 'Arraste o item para mover. Use os botões abaixo para girar, copiar ou apagar.' : 'Gire com um dedo, aproxime com dois. Toque num item para selecionar.'}</div>
   </div>
@@ -190,7 +225,8 @@ export function renderSpaces() {
     ${GROUPS.map((g) => `<div class="sp-group"><span>${g}</span><div class="sp-chips">${Object.entries(CATALOG).filter(([, v]) => v.group === g).map(([k, v]) => `<button type="button" class="chip" data-sp-add="${k}"><i style="background:${v.color}"></i>${esc(v.name)}</button>`).join('')}</div></div>`).join('')}
   </section>
   <section class="card sp-info">
-    <div class="dt-sec-head"><h3>Evento</h3><span class="hint">${l.items.length} itens · ${seats} lugares · ${area.toFixed(0)} m²</span></div>
+    <div class="dt-sec-head"><h3>Evento</h3><span class="hint">${l.items.length} itens · ${area.toFixed(0)} m²</span></div>
+    <div class="sp-cap"><div><strong>${seats}</strong><span>lugares sentados</span></div><div><strong>~${standing}</strong><span>pessoas em pé (estimativa)</span></div><div><strong>${Math.round(((area - used) / area) * 100)}%</strong><span>do piso livre</span></div></div>
     <div class="sp-form-row">
       <label class="grow">Nome<input class="input" data-sp-layout="name" maxlength="80" value="${esc(l.name)}"></label>
       <label>Data<input class="input" type="date" data-sp-layout="eventDate" value="${l.eventDate || ''}"></label>
@@ -231,7 +267,7 @@ export function afterRenderSpaces() {
     if (!S.three) initScene();
     if (S.three.renderer.domElement.parentNode !== host) host.appendChild(S.three.renderer.domElement);
     resize();
-    if (mountedFor !== l.id) { mountedFor = l.id; buildScene(l); fit(); }
+    if (mountedFor !== l.id) { mountedFor = l.id; S.undo = []; S.redo = []; S.last = JSON.stringify({ room: l.room, items: l.items }); buildScene(l); fit(); }
     else buildScene(l);
   }).catch((err) => { host.innerHTML = `<p class="notice">Não consegui carregar o 3D neste aparelho (${esc(err.message)}).</p>`; });
 }
@@ -715,6 +751,22 @@ function onField(e) {
 export function initSpaces(helpers) {
   H = helpers;
   const root = document.querySelector('[data-view="spaces"]');
+  document.addEventListener('keydown', (e) => {
+    if (document.body.dataset.route !== 'spaces' || e.target.closest('input, textarea, select, dialog')) return;
+    const l = editable();
+    if (!l) return;
+    const it = S.sel && l.items.find((i) => i.id === S.sel);
+    const k = e.key.toLowerCase();
+    if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); return e.shiftKey ? restore(l, S.redo, S.undo) : restore(l, S.undo, S.redo); }
+    if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); return restore(l, S.redo, S.undo); }
+    if (!it) return;
+    if (k === 'delete' || k === 'backspace') { e.preventDefault(); l.items = l.items.filter((i) => i.id !== it.id); S.sel = null; commit(l, true); return H.render(); }
+    if (k === 'r') { it.rot = ((it.rot || 0) + (e.shiftKey ? -45 : 90)) % 360; commit(l); return buildScene(l); }
+    if (k === 'escape') { S.sel = null; return H.render(); }
+    const step = e.shiftKey ? 1 : 0.25;
+    const mv = { arrowleft: [-step, 0], arrowright: [step, 0], arrowup: [0, -step], arrowdown: [0, step] }[k];
+    if (mv) { e.preventDefault(); it.x += mv[0]; it.z += mv[1]; commit(l); buildScene(l); }
+  });
   root.addEventListener('input', (e) => { if (e.target.dataset.spField || (e.target.dataset.spLayout && e.target.type !== 'checkbox')) onField(e); });
   root.addEventListener('change', async (e) => {
     if (e.target.id === 'spPick') { S.id = e.target.value; S.sel = null; mountedFor = null; return H.render(); }
@@ -758,6 +810,8 @@ export function initSpaces(helpers) {
     if (a === 'view') { S.view = S.view === 'plan' ? '3d' : 'plan'; fitOrtho(); return H.render(); }
     if (a === 'labels') { S.labels = !S.labels; return H.render(); }
     if (a === 'fit') { fit(); return; }
+    if (a === 'undo') return restore(l, S.undo, S.redo);
+    if (a === 'redo') return restore(l, S.redo, S.undo);
     if (a === 'unsel') { S.sel = null; return H.render(); }
     if (a === 'rot' && it) { it.rot = ((it.rot || 0) + Number(b.dataset.deg)) % 360; commit(l); return buildScene(l); }
     if ((a === 'dup' || a === 'dup5') && it) {

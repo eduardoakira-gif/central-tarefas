@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "8.8.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "8.9.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -854,9 +854,9 @@ async function assistantContext(central: any) {
   const s = cleanSettings(central.settings);
   const { today, minutes } = localNow("America/Sao_Paulo");
   const dayBR = (iso: any) => (iso && Date.parse(iso) ? localNow("America/Sao_Paulo", new Date(iso)).today : "?");
-  const [tasks, metrics, okrs, bills, radar, campaigns, ideas] = await Promise.all([
+  const [tasks, metrics, okrs, bills, radar, campaigns, ideas, layouts] = await Promise.all([
     listItems("tasks", central.id), listItems("metrics", central.id), listItems("okrs", central.id),
-    listItems("bills", central.id), radarRecent(central.id, 25), listItems("campaigns", central.id), listItems("ideas", central.id),
+    listItems("bills", central.id), radarRecent(central.id, 25), listItems("campaigns", central.id), listItems("ideas", central.id), listItems("layouts", central.id),
   ]);
   const ice = (x: any) => Math.round(((Number(x.impact) + Number(x.confidence) + Number(x.ease)) / 3) * 10) / 10;
   const liveIdeas = ideas.filter((x: any) => x && !x.deletedAt);
@@ -865,6 +865,13 @@ async function assistantContext(central: any) {
     ...liveIdeas.filter((x: any) => x.status === "ideia").sort((a: any, b: any) => ice(b) - ice(a)).slice(0, 8).map((x: any) => `- ideia ICE ${ice(x)}: ${x.title}`),
     ...liveIdeas.filter((x: any) => ["validada", "descartada"].includes(x.status)).slice(-10).map((x: any) => `- ${x.status.toUpperCase()}: ${x.title}${x.result ? ` → aprendizado: ${x.result}` : ""}`),
   ];
+  const eventLines = layouts.filter((l: any) => l && !l.deletedAt && !l.base && (!l.eventDate || l.eventDate >= today))
+    .sort((a: any, b: any) => String(a.eventDate || "9").localeCompare(String(b.eventDate || "9"))).slice(0, 8)
+    .map((l: any) => {
+      const n: Record<string, number> = {};
+      (l.items || []).forEach((i: any) => (n[i.type] = (n[i.type] || 0) + 1));
+      return `- ${l.eventDate || "sem data"}: ${l.name} (sala ${l.room?.w}x${l.room?.d} m, ${(l.items || []).length} itens: ${Object.entries(n).slice(0, 8).map(([k, v]) => v + "x " + k).join(", ")})${l.notes ? " — " + String(l.notes).slice(0, 160) : ""}`;
+    });
   const pct = (a: number, b: number) => (b ? ((a / b) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + "%" : "–");
   const campLines = campaigns.filter((c: any) => c && !c.deletedAt).sort((a: any, b: any) => String(b.date).localeCompare(String(a.date))).slice(0, 15)
     .map((c: any) => `- ${c.date} "${c.name}"${c.subject ? ` (assunto: ${c.subject})` : ""}: entregues ${c.delivered}, abertura ${pct(c.opens, c.delivered)}, clique ${pct(c.clicks, c.delivered)}, descadastros ${c.unsubs ?? 0}` + (c.revenue ? `, receita ${money(Number(c.revenue))}` : ""));
@@ -941,7 +948,10 @@ Referência do setor esportivo: cerca de 22% de abertura e 3% de clique.
 ${radarLines.join("\n") || "- nada ainda"}
 
 ## Growth: experimentos (use os aprendizados; não proponha de novo o que já foi descartado)
-${ideaLines.join("\n") || "- nenhum ainda"}`;
+${ideaLines.join("\n") || "- nenhum ainda"}
+
+Eventos montados no mapa 3D do escritório (Espaços):
+${eventLines.join("\n") || "- nenhum"}`;
 }
 
 const PLAYBOOK_TOOL = {

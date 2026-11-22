@@ -7,6 +7,7 @@ import { Sync } from './sync.js';
 import { Tasks } from './tasks.js';
 import { esc } from './ui.js';
 import { PLAYBOOKS, openPlaybook } from './playbooks.js';
+import { openLayout } from './espacos.js';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -27,6 +28,7 @@ const PAGES = [
   ['Projetos', '#/projetos', 'projeto drop campanha evento dia d etapas cronograma'],
   ['Equipe e 1:1', '#/equipe', 'pessoas time one on one reuniao gestao xarpi yokota du'],
   ['Growth', '#/growth', 'experimentos ideias ice testes hipotese backlog'],
+  ['Espaços e eventos (3D)', '#/espacos', 'mapa escritorio layout planta palco watch party summit evento montagem'],
   ['Inferno Roxo', '#/area/inferno', 'torcida organizada setores voluntarios'],
 ];
 
@@ -43,13 +45,15 @@ function results(q) {
   const areas = (Sync.central && Sync.central.areas) || [];
   const areaName = (id) => (areas.find((a) => a.id === id) || { name: '' }).name;
   const tasks = Tasks.all()
-    .filter((t) => match([t.title, t.project, t.description, t.notes, t.owner, t.waitingFor, areaName(t.area), (t.comments || []).map((c) => c.text).join(' ')].join(' '), terms))
+    .filter((t) => match([t.title, t.project, t.description, t.notes, t.owner, t.waitingFor, areaName(t.area), (t.tags || []).join(' '), (t.comments || []).map((c) => c.text).join(' ')].join(' '), terms))
     .sort((a, b) => (a.status === 'done') - (b.status === 'done') || Date.parse(b.updatedAt) - Date.parse(a.updatedAt))
     .slice(0, 12);
   for (const t of tasks)
-    out.push({ group: 'Tarefas', title: t.title, sub: [areaName(t.area), t.status === 'done' ? 'concluída' : C.STATUS_MAP[t.status].name, t.dueDate ? 'prazo ' + C.fromDateKey(t.dueDate).toLocaleDateString('pt-BR') : '', t.owner].filter(Boolean).join(' · '), run: () => H.openTask(t.id), done: t.status === 'done' });
+    out.push({ group: 'Tarefas', title: t.title, sub: [areaName(t.area), t.status === 'done' ? 'concluída' : C.STATUS_MAP[t.status].name, t.dueDate ? 'prazo ' + C.fromDateKey(t.dueDate).toLocaleDateString('pt-BR') : '', t.owner].filter(Boolean).join(' · '), run: () => (H.openDetail ? H.openDetail(t.id) : H.openTask(t.id)), done: t.status === 'done' });
   for (const n of (Sync.notes || []).filter((n) => !n.deletedAt && match([n.title, n.body, n.participants].join(' '), terms)).slice(0, 6))
     out.push({ group: 'Notas', title: n.title || 'Nota sem título', sub: [n.date && C.fromDateKey(n.date).toLocaleDateString('pt-BR'), n.participants].filter(Boolean).join(' · '), run: () => (location.hash = '#/notas/' + n.id) });
+  for (const l of (Sync.layouts || []).filter((l) => !l.deletedAt && match([l.name, l.notes, 'evento layout mapa 3d', l.items.map((i) => i.label).join(' ')].join(' '), terms)).slice(0, 5))
+    out.push({ group: 'Eventos (mapa 3D)', title: l.name, sub: [l.eventDate && C.fromDateKey(l.eventDate).toLocaleDateString('pt-BR'), l.items.length + ' itens'].filter(Boolean).join(' · '), run: () => openLayout(l.id) });
   for (const p of (Sync.posts || []).filter((p) => match([p.title, p.text].join(' '), terms)).slice(0, 5))
     out.push({ group: 'Posts', title: p.title, sub: `${p.network} · ${p.status}`, run: () => (location.hash = '#/marca') });
   for (const [name, hash, kw] of PAGES.filter(([n, , k]) => match(n + ' ' + k, terms)).slice(0, 5))

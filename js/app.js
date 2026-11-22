@@ -37,7 +37,7 @@ import { renderGuide, maybeShowWhatsNew } from './whatsnew.js';
 import { initDetail, openDetail, refreshDetail } from './detail.js';
 import { initSpaces, renderSpaces, afterRenderSpaces, spacesChanged } from './espacos.js';
 
-export const APP_VERSION = '8.8.0';
+export const APP_VERSION = '8.9.0';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -1997,7 +1997,7 @@ async function openCentral(id) {
   initSpaces(Object.assign({}, helpers, { render: () => renderSpacesView(true), openDetail }));
   initPlaybooks(Object.assign({ ask: askAssistant }, helpers));
   initStatus(Object.assign({ ask: askAssistant }, helpers));
-  initSearch(helpers);
+  initSearch(Object.assign({}, helpers, { openDetail }));
   initKanban(helpers);
   initGrowth(helpers);
   initTeamView(Object.assign({ ask: askAssistant }, helpers));
