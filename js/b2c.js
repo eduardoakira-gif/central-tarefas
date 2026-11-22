@@ -5,7 +5,7 @@
  * Os dados ficam nas coleções metrics, okrs e bills, sincronizadas como as tarefas.
  */
 import { Sync } from './sync.js';
-import { esc } from './ui.js';
+import { esc, downloadCsv } from './ui.js';
 
 const C = window.Core;
 const $ = (sel, el = document) => el.querySelector(sel);
@@ -317,6 +317,7 @@ export function renderPanel() {
         ${metrics.length ? `<button type="button" class="btn${view.entry ? ' btn-primary' : ''}" data-b2c="toggle-entry">${view.entry ? 'Concluir lançamento' : 'Lançar valores do mês'}</button>` : ''}
         <button type="button" class="btn" data-b2c="new-metric">Novo indicador</button>
         <button type="button" class="btn" data-b2c="new-okr">Novo OKR</button>
+        ${metrics.length ? '<button type="button" class="btn" data-b2c="csv">Exportar planilha</button>' : ''}
       </div>
     </div>`;
 
@@ -720,6 +721,22 @@ async function submitBill(e) {
 // Eventos
 // -----------------------------------------------------------------------------
 async function onAction(action, el) {
+  if (action === 'csv') {
+    const ym = view.month || defaultMonth(new Date());
+    const prev = addMonths(ym, -1);
+    const pn = (id) => (C.PILLAR_MAP[id] || { name: id }).name;
+    const rows = [['Pilar', 'Indicador', 'Unidade', monthLabel(ym), monthLabel(prev), 'Meta', '% da meta']];
+    Metrics.all().forEach((m) => { const v = m.values[ym]; rows.push([pn(m.pillar), m.name, m.unit || '', v ?? '', m.values[prev] ?? '', m.target ?? '', v != null && m.target ? Math.round((v / m.target) * 100) + '%' : '']); });
+    downloadCsv(`painel-b2c-${ym}.csv`, rows);
+    return H.toast('Planilha do painel baixada');
+  }
+  if (action === 'bills-csv') {
+    const rows = [['Fornecedor', 'NF', 'Descrição', 'Valor', 'Vencimento', 'Competência', 'NF ok', 'XML ok', 'Enviada ao financeiro', 'Agendada para', 'Paga em']];
+    const d = (k) => (k ? C.fromDateKey(String(k).slice(0, 10)).toLocaleDateString('pt-BR') : '');
+    Bills.all().slice().sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || ''))).forEach((b) => rows.push([b.supplier, b.number, b.description, String(Number(b.amount) || 0).replace('.', ','), d(b.dueDate), b.competence || '', b.nfOk ? 'sim' : 'não', b.xmlOk ? 'sim' : 'não', d(b.sentAt), d(b.scheduledFor), d(b.paidAt)]));
+    downloadCsv(`financeiro-merchan-${C.toDateKey(new Date())}.csv`, rows);
+    return H.toast('Planilha das NFs baixada');
+  }
   const metricId = el.closest('[data-metric-id]') && el.closest('[data-metric-id]').dataset.metricId;
   const okrId = el.closest('[data-okr-id]') && el.closest('[data-okr-id]').dataset.okrId;
   const billId = el.closest('[data-bill-id]') && el.closest('[data-bill-id]').dataset.billId;

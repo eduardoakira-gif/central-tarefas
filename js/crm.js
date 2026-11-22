@@ -103,6 +103,15 @@ export function renderCrm() {
       ${tile('Receita atribuída', brl.format(s.revenue || 0), 'nos envios registrados')}
     </div>
     ${list.length ? `<section class="card report-card"><h2>Diagnóstico da sua newsletter</h2>${diag}</section>` : ''}
+    ${(() => {
+      const withS = list.filter((c) => c.subject && c.delivered >= 50).map((c) => ({ c, o: pct(c.opens, c.delivered), k: pct(c.clicks, c.delivered) })).filter((x) => x.o != null);
+      if (withS.length < 3) return '';
+      const best = withS.slice().sort((a, b) => b.o - a.o).slice(0, 3);
+      const worst = withS.slice().sort((a, b) => a.o - b.o)[0];
+      return `<section class="card report-card"><h2>Assuntos que mais abriram</h2>
+        <ol class="crm-best">${best.map((x) => `<li><strong>${esc(x.c.subject)}</strong><span class="hint">${fp(x.o)} de abertura · ${fp(x.k)} de clique · ${C.fromDateKey(x.c.date).toLocaleDateString('pt-BR')}</span></li>`).join('')}</ol>
+        <p class="hint">Menor abertura: “${esc(worst.c.subject)}” (${fp(worst.o)}). Repita o padrão dos assuntos campeões (nome, benefício, urgência) e teste A/B contra ele.</p></section>`;
+    })()}
     <section class="card report-card">
       <div class="closing-head"><h2>Campanhas</h2><button type="button" class="btn btn-primary btn-sm" data-crm-new>Registrar envio</button></div>
       ${rows ? `<div class="crm-list">${rows}</div>` : '<p class="hint">Registre cada envio do RD Station (entregues, aberturas e cliques ficam no relatório da campanha). Com 3 envios o diagnóstico aparece.</p>'}

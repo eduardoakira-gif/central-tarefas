@@ -29,6 +29,16 @@ function areaFor(pillar) {
   return (a || areas[0] || {}).id || null;
 }
 
+/** Andamento do teste (tarefa ligada): prazo, checklist e última nota. */
+function testLine(x) {
+  const t = x.taskId && Tasks.get(x.taskId);
+  if (!t) return '';
+  const today = C.toDateKey(new Date());
+  const left = t.dueDate ? Math.round((C.fromDateKey(t.dueDate) - C.fromDateKey(today)) / 86400000) : null;
+  const ck = t.checklist || [];
+  const n = (t.comments || []).filter((c) => c && c.text && !/^(Marcou|Desmarcou|Situação|Passo concluído)/.test(c.text)).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
+  return `<div class="idea-test${left != null && left < 0 ? ' is-late' : ''}"><span>🧪 ${left == null ? 'Sem prazo' : left < 0 ? `Prazo do teste venceu há ${-left} dia${left === -1 ? '' : 's'}: registre o resultado` : left === 0 ? 'Último dia do teste' : `Faltam ${left} dia${left === 1 ? '' : 's'} de teste`}${ck.length ? ` · checklist ${ck.filter((c) => c.done).length}/${ck.length}` : ''}</span>${n ? `<span class="hint">↳ ${esc(n.text.replace(/\s+/g, ' ').slice(0, 110))}</span>` : ''}<button type="button" class="link-btn" data-g="opentest">Abrir o teste</button></div>`;
+}
 function card(x) {
   const ice = C.iceScore(x);
   return `<article class="card idea-card st-${x.status}" data-idea="${esc(x.id)}">
@@ -37,6 +47,7 @@ function card(x) {
       <span class="hint">${esc(pillarName(x.pillar))} · ${STATUS_NAME[x.status]}${x.metric ? ' · ' + esc(x.metric) : ''}</span></div></div>
     ${x.hypothesis ? `<p class="idea-hyp">${esc(x.hypothesis)}</p>` : ''}
     <div class="ice-row">${['impact', 'confidence', 'ease'].map((k) => `<label>${{ impact: 'Impacto', confidence: 'Confiança', ease: 'Facilidade' }[k]}<input type="range" min="1" max="10" value="${x[k]}" data-ice="${k}" aria-label="${k}"><b>${x[k]}</b></label>`).join('')}</div>
+    ${x.status === 'testando' ? testLine(x) : ''}
     ${x.result ? `<p class="idea-result"><strong>Aprendizado:</strong> ${esc(x.result)}</p>` : ''}
     <div class="btn-row">
       ${x.status === 'ideia' ? '<button type="button" class="btn btn-sm btn-primary" data-g="test">Virar teste</button>' : ''}
@@ -151,10 +162,16 @@ export function initGrowth(helpers) {
       await save(Object.assign({}, x, { status: 'testando', taskId: t.id }));
       return H.toast('Teste criado como tarefa, com prazo de 2 semanas');
     }
+    if (a === 'opentest') return x.taskId && Tasks.get(x.taskId) ? H.openDetail(x.taskId) : H.toast('A tarefa do teste não existe mais.');
     if (a === 'won' || a === 'lost') {
       const result = prompt(a === 'won' ? 'O que validou? (números e o que vai virar rotina)' : 'O que aprendeu? (por que não funcionou)', x.result || '');
       if (result == null) return;
       await save(Object.assign({}, x, { status: a === 'won' ? 'validada' : 'descartada', result: result.trim() }));
+      const tt = x.taskId && Tasks.get(x.taskId);
+      if (tt && tt.status !== 'done') {
+        await Tasks.update(tt.id, { comments: (tt.comments || []).concat({ id: C.uid(), text: (a === 'won' ? 'Teste validou: ' : 'Teste não validou: ') + (result.trim() || '–'), at: new Date().toISOString() }) });
+        await Tasks.complete(tt.id);
+      }
       return H.toast(a === 'won' ? 'Validada. Vire rotina ou playbook.' : 'Aprendizado registrado');
     }
     if (a === 'drop') return save(Object.assign({}, x, { status: 'descartada' }));

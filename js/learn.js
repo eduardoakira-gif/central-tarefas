@@ -71,7 +71,7 @@ const T = [
 
 export const TOPICS = ['Funil', 'Métricas', 'Estratégia', 'CRM e conteúdo', 'Esports e fãs'];
 export const TERMS = T.map(([term, topic, what, example, say]) => ({ term, topic, what, example, say }));
-export const view = { topic: '', q: '' };
+export const view = { topic: '', q: '', train: null, show: false, score: 0, seen: 0 };
 
 const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -98,6 +98,11 @@ export function renderLearn() {
       <p><strong>No Fluxo W7M:</strong> ${esc(today.example)}</p>
       <p class="term-say">${esc(today.say)}</p>
     </section>
+    ${view.train != null ? (() => { const t = TERMS[view.train]; return `<section class="card learn-train">
+      <div class="dt-sec-head"><h3>Treino rápido</h3><span class="hint">${view.score} de ${view.seen} acertos</span></div>
+      <h2>${esc(t.term)}</h2>
+      ${view.show ? `<p>${esc(t.what)}</p><p><strong>No Fluxo W7M:</strong> ${esc(t.example)}</p><div class="btn-row"><button type="button" class="btn" data-learn-train="miss">Errei</button><button type="button" class="btn btn-primary" data-learn-train="hit">Acertei</button></div>` : `<p class="hint">Explique em voz alta o que é e dê um exemplo. Depois confira.</p><div class="btn-row"><button type="button" class="btn btn-primary" data-learn-train="show">Mostrar resposta</button><button type="button" class="btn" data-learn-train="stop">Parar</button></div>`}
+    </section>`; })() : '<div class="btn-row learn-train-start"><button type="button" class="btn" data-learn-train="start">🧠 Treinar termos (flashcards)</button></div>'}
     <div class="toolbar toolbar-history">
       <label class="search"><input id="learnSearch" type="search" placeholder="Buscar termo (ex.: churn, awareness)" autocomplete="off" value="${esc(view.q)}" aria-label="Buscar termo"></label>
     </div>
@@ -122,6 +127,16 @@ export function initLearn(H) {
     const t = e.target.closest('[data-learn-topic]');
     if (t) {
       view.topic = t.dataset.learnTopic;
+      return H.render();
+    }
+    const tr = e.target.closest('[data-learn-train]');
+    if (tr) {
+      const k = tr.dataset.learnTrain;
+      const pick = () => { const pool = TERMS.map((_, i) => i).filter((i) => (!view.topic || TERMS[i].topic === view.topic) && i !== view.train); return pool[Math.floor(Math.random() * pool.length)]; };
+      if (k === 'start') Object.assign(view, { train: pick(), show: false, score: 0, seen: 0 });
+      else if (k === 'show') view.show = true;
+      else if (k === 'stop') view.train = null;
+      else { view.seen++; if (k === 'hit') view.score++; view.train = pick(); view.show = false; }
       return H.render();
     }
     const a = e.target.closest('[data-learn-ask]');

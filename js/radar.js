@@ -6,9 +6,10 @@
  */
 import { Sync } from './sync.js';
 import { Local } from './storage.js';
-import { esc } from './ui.js';
+import { esc, shareText } from './ui.js';
 
 const C = window.Core;
+const fold = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 const $ = (sel, el = document) => el.querySelector(sel);
 const kv = { get: (k) => C.idb.get('kv', k), set: (k, v) => C.idb.put('kv', v, k) };
 
@@ -105,6 +106,7 @@ function card(it) {
       <div class="btn-row">
         <button type="button" class="btn btn-sm" data-radar="star">${it.starred ? '★ Salva' : '☆ Salvar referência'}</button>
         <button type="button" class="btn btn-sm" data-radar="task">Virar tarefa</button>
+        <button type="button" class="btn btn-sm" data-radar="share">Compartilhar</button>
         <button type="button" class="btn btn-sm" data-radar="idea">Virar ideia de growth</button>
         <button type="button" class="icon-btn" data-radar="delete" title="Remover" aria-label="Remover notícia">×</button>
       </div>
@@ -123,7 +125,8 @@ export function renderRadar() {
       <div class="btn-row"><button type="button" class="btn btn-primary" data-radar="enable">Ligar o radar</button></div>
     </section>`;
   }
-  const items = R.items.filter((it) => (!R.filter.cat || it.category === R.filter.cat) && (!R.filter.org || it.org === R.filter.org) && (!R.filter.starred || it.starred));
+  const rq = fold(R.filter.q || '');
+  const items = R.items.filter((it) => (!rq || fold([it.org, it.title, it.summary, it.lesson, it.category].join(' ')).includes(rq)) && (!R.filter.cat || it.category === R.filter.cat) && (!R.filter.org || it.org === R.filter.org) && (!R.filter.starred || it.starred));
   const cats = [...new Set(R.items.map((i) => i.category))].sort();
   const orgs = [...new Set(R.items.map((i) => i.org))].sort((a, b) => a.localeCompare(b));
   let next = null;
@@ -153,6 +156,7 @@ export function renderRadar() {
     </div>
     ${R.status.lastError ? `<p class="notice">A última busca falhou: ${esc(R.status.lastError)}</p>` : ''}
     <div class="toolbar radar-toolbar">
+      <label class="search radar-search"><input id="radarQ" type="search" placeholder="Buscar no radar (ex.: sócio, merch, Karmine)" autocomplete="off" value="${esc(R.filter.q || '')}" aria-label="Buscar no radar"></label>
       <div class="chips">
         <button type="button" class="chip" data-radar-cat="" aria-pressed="${!R.filter.cat && !R.filter.starred}">Todas <span class="chip-count">${R.items.length}</span></button>
         <button type="button" class="chip" data-radar="only-starred" aria-pressed="${R.filter.starred}">★ Salvas <span class="chip-count">${R.items.filter((i) => i.starred).length || ''}</span></button>
@@ -223,6 +227,11 @@ async function onAction(action, el) {
       await Sync.upsert('ideas', C.normalizeIdea({ title: (it.lesson || it.title).split(/[.:]/)[0].slice(0, 120), hypothesis: `Inspirado em ${it.org}: ${it.lesson || it.summary}`, metric: '', pillar, impact: Math.min(10, (it.relevance || 3) * 2), confidence: 5, ease: 5, createdAt: now, updatedAt: now }));
       return H.toast('Ideia criada no Growth. Ajuste a hipótese e as notas ICE.', { label: 'Abrir', fn: () => (location.hash = '#/growth') });
     }
+    case 'share': {
+      const it = R.items.find((x) => x.id === (el.closest('[data-radar-id]') || {}).dataset?.radarId);
+      if (!it) return;
+      return shareText(`*${it.org}: ${it.title}*\n${it.summary}${it.lesson ? '\n\n💡 ' + it.lesson : ''}\n${it.url}`, H.toast, it.title);
+    }
     case 'task':
       return H.openTaskDialog({
         title: `Estudar e aplicar: ${it.org} – ${it.title}`.slice(0, 200),
@@ -261,6 +270,12 @@ export function initRadar(helpers) {
       R.filter.starred = false;
       H.render();
     }
+  });
+  let qTimer = null;
+  document.addEventListener('input', (e) => {
+    if (e.target.id !== 'radarQ') return;
+    clearTimeout(qTimer);
+    qTimer = setTimeout(() => { R.filter.q = e.target.value; H.render(); }, 250);
   });
   document.addEventListener('change', (e) => {
     if (e.target.id === 'radarOrg') {

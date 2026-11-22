@@ -7,7 +7,7 @@
  */
 import { Sync } from './sync.js';
 import { Tasks } from './tasks.js';
-import { esc } from './ui.js';
+import { esc, shareText } from './ui.js';
 
 
 const vol = { token: null, filter: 'nova' };
@@ -122,6 +122,7 @@ export function renderInfernoStructure() {
       <div class="btn-row">
         <button type="button" class="btn btn-sm btn-primary" data-inferno="tasks">Criar tarefas da estruturação</button>
         <button type="button" class="btn btn-sm" data-inferno="ask">Direcionamento com IA</button>
+        <button type="button" class="btn btn-sm" data-inferno="report">Resumo para a presidência</button>
       </div>
     </div>
     <p>O Inferno Roxo já existe e tem Instagram. O próximo passo é virar uma organização: <strong>setores com coordenador, voluntários com função clara, governança e calendário</strong>. É o modelo da Dezorganizada Furiosa, das torcidas organizadas de futebol e das atléticas universitárias.</p>
@@ -234,6 +235,21 @@ export function initInferno(H) {
     const b = e.target.closest('[data-inferno]');
     if (!b) return;
     const a = b.dataset.inferno;
+    if (a === 'report') {
+      const L = [`*Inferno Roxo – andamento da estruturação (${new Date().toLocaleDateString('pt-BR')})*`, ''];
+      let vol = 0, goal = 0;
+      for (const [id, name, , , , , sug] of SECTORS) {
+        const c = crewOf(id);
+        vol += c.volunteers; goal += c.goal || sug;
+        L.push(`• ${name}: ${STATUS[c.status]} · ${c.coordinator ? 'coord. ' + c.coordinator : 'sem coordenador'} · ${c.volunteers}/${c.goal || sug} voluntários`);
+      }
+      const apps = (Sync.applicants || []).filter((x) => !x.deletedAt);
+      L.push('', `Voluntários: ${vol} de ${goal} (${goal ? Math.round((vol / goal) * 100) : 0}%)`);
+      if (apps.length) L.push(`Inscrições: ${apps.length} no total, ${apps.filter((x) => x.status === 'nova').length} novas para contatar, ${apps.filter((x) => x.status === 'aprovada').length} aprovadas`);
+      const missing = SECTORS.filter(([id]) => !crewOf(id).coordinator).map((x) => x[1]);
+      if (missing.length) L.push('', `Precisamos de coordenador para: ${missing.join(', ')}`);
+      return shareText(L.join('\n'), H.toast, 'Inferno Roxo');
+    }
     if (a === 'copy-form') return H.copy(FORM, 'Perguntas copiadas. Cole no Google Forms ou no Typeform.');
     if (a === 'vaga') {
       const s = SECTORS.find((x) => x[0] === b.dataset.id);

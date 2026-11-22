@@ -101,7 +101,7 @@ export function renderReferences() {
       </article>`
     )
     .join('');
-  return `<div class="chips ref-tabs">${tabs}</div>
+  return `<div class="chips ref-tabs"><label class="search ref-search"><input id="refSearch" type="search" placeholder="Buscar referência (ex.: sócio, drop, T1)" autocomplete="off" aria-label="Buscar referência"></label>${tabs}</div>
     <div class="chips ref-types">${types}</div>
     <div class="ref-grid">${cards || '<p class="hint">Nada com esse filtro.</p>'}</div>
     <section class="ref-radar">
@@ -114,6 +114,12 @@ export function renderReferences() {
 }
 
 export function initReferences(H) {
+  const fold = (x) => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  document.addEventListener('input', (e) => {
+    if (e.target.id !== 'refSearch') return;
+    const q = fold(e.target.value);
+    document.querySelectorAll('.ref-card[data-ref-i]').forEach((el) => { el.hidden = !!q && !fold(el.textContent).includes(q); });
+  });
   document.addEventListener('click', (e) => {
     if (document.body.dataset.screen !== 'app') return;
     const a = e.target.closest('[data-ref-area]');

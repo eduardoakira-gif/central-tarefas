@@ -5,6 +5,7 @@
  */
 import { esc } from './ui.js';
 import { Sync } from './sync.js';
+import { Tasks } from './tasks.js';
 
 const C = window.Core;
 const kv = { get: (k) => C.idb.get('kv', k), set: (k, v) => C.idb.put('kv', v, k) };
@@ -108,7 +109,7 @@ export function renderStudy() {
       <div class="card kpi"><span class="stat-label">Duração</span><span class="stat-num">12</span><span class="stat-sub">semanas, cerca de 1 módulo por semana</span></div>
     </div>
     <section class="card report-card">
-      <div class="closing-head"><h2>Próximos passos</h2><button type="button" class="btn btn-sm" data-study="ask">Montar meu cronograma com IA</button></div>
+      <div class="closing-head"><h2>Próximos passos</h2><div class="btn-row"><button type="button" class="btn btn-sm" data-study="ask">Montar meu cronograma com IA</button><button type="button" class="btn btn-sm" data-study="habit">Criar hábito semanal</button></div></div>
       ${next.length ? `<div class="bill-list">${next.map((x) => `<div class="post-row"><span class="post-net" style="--net:#7C3AED">${esc(x.type)}</span><span class="post-main"><strong>${esc(x.title)}</strong><span class="bill-meta">${esc(x.mod.name)}</span></span>${link(x)}</div>`).join('')}</div>` : '<p>Trilha completa. Parabéns! Peça ao Assistente a próxima trilha.</p>'}
       <p class="hint">Regra: estude e aplique na mesma semana. Todo módulo tem uma prática ligada à sua área.</p>
     </section>
@@ -141,12 +142,20 @@ export function initStudy(helpers) {
     H.render();
     if (c.checked) H.toast('Boa! Agora aplique na sua área esta semana.');
   });
-  document.addEventListener('click', (e) => {
+  document.addEventListener('click', async (e) => {
     if (document.body.dataset.screen !== 'app') return;
     const q = e.target.closest('[data-study-quiz]');
     if (q) {
       const m = MODULES.find((x) => x.id === q.dataset.studyQuiz);
       return H.ask(`Me teste sobre o módulo "${m.name}" do meu plano de estudo: faça 5 perguntas, uma por vez, do básico ao avançado, sempre ligadas ao meu trabalho no B2C do Fluxo W7M. Depois de cada resposta, corrija e explique. Comece pela primeira pergunta.`);
+    }
+    if (e.target.closest('[data-study="habit"]')) {
+      const has = Tasks.all().some((t) => t.status !== 'done' && t.recurrence && /^Estudar 30 min/.test(t.title));
+      if (has) return H.toast('O hábito de estudo já está nas suas tarefas.');
+      const nx = ALL.filter((x) => !state.done[x.key]).slice(0, 3);
+      const t = await Tasks.create({ title: 'Estudar 30 min (plano de estudo)', recurrence: 'weekdays', dueDate: C.toDateKey(new Date()), priority: 'normal', area: (Sync.central.areas[0] || {}).id, description: 'Hábito do plano de estudo: 30 minutos por dia útil. Marque o item em Mais › Plano de estudo quando terminar.', checklist: nx.map((x) => ({ id: C.uid(), text: x.title, done: false })) });
+      void t;
+      return H.toast('Hábito criado: aparece todo dia útil nas suas tarefas');
     }
     if (e.target.closest('[data-study="ask"]')) {
       return H.ask(`Monte meu cronograma de estudo das próximas 12 semanas com 3 horas por semana (30 minutos por dia útil), seguindo esta trilha: ${MODULES.map((m, i) => i + 1 + '. ' + m.name).join('; ')}. Para cada semana: o que estudar, a prática aplicada no meu trabalho e um post que eu posso fazer sobre o que aprendi para a minha marca pessoal.`);

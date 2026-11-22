@@ -158,6 +158,15 @@ export function renderBrand() {
     ${renderStories()}
     ${renderX()}
 
+    ${(() => {
+      const ws0 = weekStart();
+      const weeks = Array.from({ length: 8 }, (_, i) => C.addDays(ws0, -7 * (7 - i)));
+      const n = weeks.map((w) => all.filter((p) => p.status === 'publicado' && p.date >= w && p.date <= C.addDays(w, 6)).length);
+      let streak = 0;
+      for (let i = n.length - 1; i >= 0; i--) { if (n[i] > 0) streak++; else if (i === n.length - 1) continue; else break; }
+      return `<section class="card brand-streak"><div><strong>${streak} semana${streak === 1 ? '' : 's'} seguida${streak === 1 ? '' : 's'} postando</strong><span class="hint">Constância vence viral: o algoritmo e as pessoas lembram de quem aparece toda semana.</span></div>
+        <div class="streak-bars">${n.map((v, i) => `<span title="Semana de ${C.fromDateKey(weeks[i]).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}: ${v} post(s)" class="${v >= 4 ? 'is-full' : v ? 'is-some' : ''}"><i style="height:${Math.min(100, v * 25)}%"></i><b>${v}</b></span>`).join('')}</div></section>`;
+    })()}
     <div class="kpis kpis-4">
       <div class="card kpi"><span class="stat-label">Nesta semana</span><span class="stat-num">${wc.published}/${Math.max(wc.planned, 4)}</span><span class="stat-sub">posts publicados (meta: 4+)</span></div>
       ${metrics.slice(0, 3).map((m) => `<div class="card kpi"><span class="stat-label">${esc(m.name.replace('Seguidores no ', 'Seguidores · '))}</span><span class="stat-num">${m.values[ym] ?? '–'}</span><span class="stat-sub">${m.target != null ? 'meta ' + m.target : 'defina a meta no Painel'}</span></div>`).join('') || '<div class="card kpi"><span class="stat-label">Metas</span><span class="stat-num">–</span><span class="stat-sub">carregue os indicadores no Painel</span></div>'}

@@ -19,6 +19,21 @@ function noteAgo(iso) {
   if (k === window.Core.addDays(today, -1)) return 'ontem';
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
+/** Baixa uma planilha CSV (abre no Excel e no Google Planilhas, com acentos). */
+export function downloadCsv(name, rows) {
+  const cell = (v) => { const t = v == null ? '' : String(v); return /[";\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const csv = '\ufeff' + rows.map((r) => r.map(cell).join(';')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+/** Compartilhar (WhatsApp etc.) ou copiar, se o aparelho não tiver compartilhar. */
+export async function shareText(text, toast, title = '') {
+  if (navigator.share) { try { await navigator.share({ title, text }); return; } catch (err) { if (err && err.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(text); toast && toast('Copiado. É só colar no WhatsApp ou no e-mail.'); } catch { toast && toast('Não consegui copiar.'); }
+}
 export const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 

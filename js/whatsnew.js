@@ -9,6 +9,18 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['9.1', 'Rodada avançada nas ferramentas', [
+    'Growth: cada teste mostra quantos dias faltam, o checklist e a última nota, com atalho para a ficha. Ao marcar Validou ou Não validou, a tarefa do teste é concluída com o aprendizado.',
+    'CRM: ranking dos assuntos que mais abriram e o de menor abertura, para repetir o padrão campeão.',
+    'Radar: busca por palavra (organização, assunto, lição) e botão Compartilhar em cada notícia.',
+    'Painel B2C: exportar planilha do mês (valor, mês anterior, meta e % da meta).',
+    'Financeiro do Merchan: exportar planilha de todas as NFs para o financeiro.',
+    'Marca pessoal: constância das últimas 8 semanas e sequência de semanas postando.',
+    'Aprender marketing: treino com flashcards e placar de acertos.',
+    'Referências: busca por palavra dentro da área.',
+    'Inferno Roxo: resumo da estruturação para a presidência, pronto para mandar.',
+    'Plano de estudo: criar o hábito de 30 min por dia útil como tarefa recorrente.',
+  ]],
   ['9.0', 'Melhorias em cada ferramenta', [
     'Tarefas: selo "Parada há X dias" quando algo está em andamento sem nota nem marcação há 7 dias ou mais.',
     'Ficha da tarefa: mostra o link da tarefa (abrir em 1 toque) e com quem está aguardando.',
