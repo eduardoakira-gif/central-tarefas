@@ -315,6 +315,25 @@ export function renderSpaces() {
       <div class="sp-budget-rows">${rows.sort((a, b) => b[1] - a[1]).map(([k, n]) => `<label class="sp-budget-row"><span>${n}× ${esc((CATALOG[k] || {}).name || k)}</span><input class="input" type="number" min="0" step="1" inputmode="decimal" data-sp-price="${k}" value="${pr[k] ?? ''}" placeholder="R$ unid."><b>${pr[k] ? brl(pr[k] * n) : '–'}</b></label>`).join('')}</div>
       <p class="hint">Os valores ficam salvos no layout e vão para o PDF do fornecedor. Duplicar o layout leva os preços junto.</p></details>`;
   })()}
+  <section class="card sp-io">
+    <div class="dt-sec-head"><h3>Outras plataformas</h3><span class="hint">AutoCAD, SketchUp, Floorplanner, Blender, PDF</span></div>
+    <div class="sp-io-grid">
+      <div><span class="label">Importar</span>
+        <label class="btn btn-sm">🖼 Planta em imagem ou PDF<input type="file" accept="image/*,application/pdf" data-sp="imp-img" hidden></label>
+        <label class="btn btn-sm">📐 DXF (AutoCAD / SketchUp)<input type="file" accept=".dxf" data-sp="imp-dxf" hidden></label>
+        <label class="btn btn-sm">📄 Layout da Central (.json)<input type="file" accept=".json,application/json" data-sp="import" hidden></label>
+      </div>
+      <div><span class="label">Exportar</span>
+        <button type="button" class="btn btn-sm" data-sp="exp-dxf">📐 DXF (AutoCAD / SketchUp)</button>
+        <button type="button" class="btn btn-sm" data-sp="exp-glb">🧊 3D .glb (Blender, SketchUp, visualizadores)</button>
+        <button type="button" class="btn btn-sm" data-sp="exp-svg">✏️ SVG vetorial (Figma, Illustrator)</button>
+      </div>
+    </div>
+    ${l.floor ? `<div class="sp-floor"><span class="hint">Planta de fundo: <b>${esc(l.floor.name || 'imagem')}</b> · ${l.floor.w} × ${l.floor.d} m</span>
+      <label>Largura real (m)<input class="input" type="number" min="2" max="200" step="0.1" data-sp-floor="w" value="${l.floor.w}"></label>
+      <label>Transparência<input type="range" min="0.1" max="1" step="0.05" data-sp-floor="opacity" value="${l.floor.opacity}"></label>
+      <button type="button" class="btn btn-sm btn-danger" data-sp="floor-del">Remover planta</button></div>` : '<p class="hint">Dica: importe a planta do escritório (print do Floorplanner, PDF do arquiteto ou foto da planta) e monte os itens por cima, na escala certa.</p>'}
+  </section>
   <section class="card sp-dl">
     <div class="dt-sec-head"><h3>Baixar e compartilhar</h3></div>
     <div class="btn-row">
@@ -323,7 +342,6 @@ export function renderSpaces() {
       <button type="button" class="btn btn-primary" data-sp="pdf">PDF para fornecedor</button>
       <button type="button" class="btn" data-sp="csv">Planilha de itens</button>
       <button type="button" class="btn" data-sp="json">Arquivo do layout</button>
-      <label class="btn">Importar<input type="file" accept=".json,application/json" data-sp="import" hidden></label>
     </div>
     <div class="btn-row">
       <button type="button" class="btn" data-sp="task">Criar tarefa de montagem</button>
@@ -339,6 +357,7 @@ export function afterRenderSpaces() {
   const host = $('#spCanvas');
   const l = editable();
   if (!host || !l) return;
+  if (l.floor && l.floor.img && (!S.floorImg || S.floorImg.src !== l.floor.img)) { S.floorImg = new Image(); S.floorImg.src = l.floor.img; }
   ensureThree().then(() => {
     if (!S.three) initScene();
     if (S.three.renderer.domElement.parentNode !== host) host.appendChild(S.three.renderer.domElement);
@@ -534,7 +553,7 @@ function itemObject(it) {
   hit.position.y = (Math.max(h, 0.3) + (s.elev || 0)) / 2;
   hit.userData.hit = it.id;
   g.add(hit);
-  if (S.labels && !['cadeira', 'coluna', 'planta'].includes(it.type)) {
+  if (S.labels && !['cadeira', 'coluna', 'planta', 'parede'].includes(it.type)) {
     const lb = labelSprite(it.label || s.name);
     lb.position.y = (s.elev || 0) + h + 0.45;
     g.add(lb);
@@ -566,7 +585,7 @@ function drawMeasure() {
 function disposeGroup(grp) {
   grp.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
-    if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); }
+    if (o.material) { if (o.material.map && !o.userData.keep) o.material.map.dispose(); o.material.dispose(); }
   });
   grp.clear();
 }
@@ -580,6 +599,19 @@ function buildScene(l) {
   const floor = new T.Mesh(new T.PlaneGeometry(w, d), mat('#f7f7f9', { roughness: 0.95 }));
   floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; floor.userData.floor = true;
   room.add(floor);
+  if (l.floor && l.floor.img) {
+    const key = l.id + ':' + l.floor.img.length;
+    if (!S.floorTex || S.floorTex.key !== key) {
+      if (S.floorTex) S.floorTex.tex.dispose();
+      const tex = new T.TextureLoader().load(l.floor.img);
+      tex.colorSpace = T.SRGBColorSpace;
+      S.floorTex = { key, tex };
+    }
+    const fp = new T.Mesh(new T.PlaneGeometry(l.floor.w, l.floor.d), new T.MeshBasicMaterial({ map: S.floorTex.tex, transparent: true, opacity: l.floor.opacity, depthWrite: false }));
+    fp.rotation.x = -Math.PI / 2; fp.position.y = 0.002;
+    fp.userData.keep = true;
+    room.add(fp);
+  }
   const grid = new T.GridHelper(Math.max(w, d), Math.max(w, d), '#c9ccd6', '#e1e3ea');
   grid.scale.set(w / Math.max(w, d), 1, d / Math.max(w, d));
   grid.position.y = 0.003;
@@ -715,6 +747,11 @@ function planCanvas(l, px = 60) {
   g.fillText(`${l.name}${l.eventDate ? ' · ' + l.eventDate.split('-').reverse().join('/') : ''}`, ox, 38);
   g.font = '14px Inter, system-ui, sans-serif'; g.fillStyle = '#6b7280';
   g.fillText(`Sala ${l.room.w} × ${l.room.d} m · grade de 1 m · Fluxo W7M`, ox, 60);
+  if (l.floor && l.floor.img && S.floorImg && S.floorImg.src === l.floor.img && S.floorImg.complete) {
+    g.globalAlpha = Math.min(0.6, l.floor.opacity);
+    g.drawImage(S.floorImg, X(-l.floor.w / 2), Y(-l.floor.d / 2), l.floor.w * px, l.floor.d * px);
+    g.globalAlpha = 1;
+  }
   // grade
   g.strokeStyle = '#eceef3'; g.lineWidth = 1;
   for (let i = 0; i <= l.room.w; i++) { g.beginPath(); g.moveTo(ox + i * px, oy); g.lineTo(ox + i * px, oy + l.room.d * px); g.stroke(); }
@@ -744,7 +781,7 @@ function planCanvas(l, px = 60) {
   // nomes por cima
   g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '600 12px Inter, system-ui, sans-serif';
   for (const it of l.items) {
-    if (['cadeira', 'coluna', 'planta'].includes(it.type)) continue;
+    if (['cadeira', 'coluna', 'planta', 'parede'].includes(it.type)) continue;
     const t = it.label || spec(it).name;
     const tw = g.measureText(t).width + 10;
     g.fillStyle = 'rgba(255,255,255,.88)'; g.fillRect(X(it.x) - tw / 2, Y(it.z) - 9, tw, 18);
@@ -877,6 +914,17 @@ export function initSpaces(helpers) {
     if (mv) { e.preventDefault(); it.x += mv[0]; it.z += mv[1]; commit(l); buildScene(l); }
   });
   root.addEventListener('change', (e) => {
+    const fk = e.target.dataset && e.target.dataset.spFloor;
+    if (fk) {
+      const l = editable();
+      if (!l || !l.floor) return;
+      const v = parseFloat(String(e.target.value).replace(',', '.'));
+      if (!(v > 0)) return;
+      if (fk === 'w') { const ratio = l.floor.d / l.floor.w; l.floor = Object.assign({}, l.floor, { w: v, d: Math.round(v * ratio * 10) / 10 }); }
+      else l.floor = Object.assign({}, l.floor, { opacity: v });
+      commit(l, true, false);
+      return H.render();
+    }
     const pk = e.target.dataset && e.target.dataset.spPrice;
     if (!pk) return;
     const l = editable();
@@ -892,6 +940,27 @@ export function initSpaces(helpers) {
     if (e.target.id === 'spPick') { S.id = e.target.value; S.sel = null; mountedFor = null; return H.render(); }
     if (e.target.dataset.spLayout) { onField(e); if (['eventDate', 'base', 'name'].includes(e.target.dataset.spLayout)) H.render(); return; }
     if (e.target.dataset.spField) return H.render();
+    if (e.target.dataset.sp === 'imp-img' && e.target.files[0]) {
+      const l = editable();
+      try { H.toast('Lendo a planta…'); await importFloorImage(l, e.target.files[0]); commit(l, true); mountedFor = null; H.render(); H.toast('Planta importada. Monte os itens por cima; ajuste a largura real se precisar.'); }
+      catch (err) { H.toast('Não consegui importar: ' + err.message + (/pdf/i.test(e.target.files[0].type) ? ' (sem internet o PDF não abre; tente uma imagem)' : '')); }
+      e.target.value = '';
+      return;
+    }
+    if (e.target.dataset.sp === 'imp-dxf' && e.target.files[0]) {
+      const l = editable();
+      try {
+        const r = parseDxf(await e.target.files[0].text());
+        const keep = confirm(`DXF lido: ${r.walls.length} paredes, ${r.w.toFixed(1)} × ${r.d.toFixed(1)} m.\n\nOK = substituir as paredes atuais do layout\nCancelar = somar às atuais`);
+        if (keep) l.items = l.items.filter((i) => i.type !== 'parede');
+        l.room = Object.assign({}, l.room, { w: Math.max(4, Math.min(80, Math.ceil(r.w + 0.5))), d: Math.max(4, Math.min(80, Math.ceil(r.d + 0.5))) });
+        r.walls.forEach((s) => l.items.push(newItem('parede', Math.round(s.x * 100) / 100, Math.round(s.z * 100) / 100, { w: Math.round(s.len * 100) / 100, rot: Math.round(s.rot * 10) / 10 })));
+        commit(l, true); mountedFor = null; H.render();
+        H.toast(`${r.walls.length} paredes importadas do DXF`);
+      } catch (err) { H.toast('Não consegui ler o DXF: ' + err.message); }
+      e.target.value = '';
+      return;
+    }
     if (e.target.dataset.sp === 'import' && e.target.files[0]) {
       try {
         const data = JSON.parse(await e.target.files[0].text());
@@ -975,6 +1044,27 @@ export function initSpaces(helpers) {
     if (a === 'png3d') return download(shot3d(), fileName(l, 'png').replace('.png', '-3d.png'));
     if (a === 'pngplan') return download(planCanvas(l, 70).toDataURL('image/png'), fileName(l, 'png').replace('.png', '-planta.png'));
     if (a === 'pdf') return pdfFor(l);
+    if (a === 'exp-dxf') {
+      const url = URL.createObjectURL(new Blob([layoutToDxf(l)], { type: 'application/dxf' }));
+      download(url, fileName(l, 'dxf')); setTimeout(() => URL.revokeObjectURL(url), 2000);
+      return H.toast('DXF baixado (em metros, camadas por tipo de item)');
+    }
+    if (a === 'exp-svg') {
+      const url = URL.createObjectURL(new Blob([layoutToSvg(l)], { type: 'image/svg+xml' }));
+      download(url, fileName(l, 'svg')); setTimeout(() => URL.revokeObjectURL(url), 2000);
+      return H.toast('SVG baixado');
+    }
+    if (a === 'exp-glb') {
+      if (!S.three) return H.toast('Abra o mapa 3D primeiro.');
+      try {
+        H.toast('Gerando o 3D…');
+        const buf = await layoutToGlb();
+        const url = URL.createObjectURL(new Blob([buf], { type: 'model/gltf-binary' }));
+        download(url, fileName(l, 'glb')); setTimeout(() => URL.revokeObjectURL(url), 4000);
+        return H.toast('Arquivo 3D .glb baixado');
+      } catch (err) { return H.toast('Não consegui gerar o 3D: ' + err.message); }
+    }
+    if (a === 'floor-del') { l.floor = null; commit(l, true); return H.render(); }
     if (a === 'csv') {
       const rows = [['Qtd', 'Item', 'Medida (m)', 'Valor unitário', 'Total']];
       let tot = 0;
@@ -1013,4 +1103,133 @@ export function spacesChanged() {
   const l = cur();
   const c = l && local.get(l.id);
   return !S.dirty && l && c && String(l.updatedAt) > String(c.updatedAt);
+}
+
+// -----------------------------------------------------------------------------
+// Importar e exportar de outras plataformas
+// -----------------------------------------------------------------------------
+/** Reduz e comprime a imagem para caber no layout sincronizado (~300 KB). */
+async function compressImage(src) {
+  const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('imagem inválida')); i.src = src; });
+  let max = 1800, q = 0.72, out = '';
+  for (let k = 0; k < 6; k++) {
+    const sc = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+    const g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    g.drawImage(img, 0, 0, c.width, c.height);
+    out = c.toDataURL('image/jpeg', q);
+    if (out.length < 400000) return { data: out, ratio: c.height / c.width };
+    max *= 0.8; q = Math.max(0.45, q - 0.07);
+  }
+  throw new Error('imagem grande demais');
+}
+async function pdfToImage(file) {
+  const pdfjs = await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs';
+  const doc = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+  const page = await doc.getPage(1);
+  const vp = page.getViewport({ scale: 2 });
+  const c = document.createElement('canvas');
+  c.width = vp.width; c.height = vp.height;
+  await page.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+  return c.toDataURL('image/png');
+}
+export async function importFloorImage(l, file) {
+  const src = file.type === 'application/pdf' ? await pdfToImage(file) : await new Promise((ok) => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(file); });
+  const { data, ratio } = await compressImage(src);
+  const w = parseFloat(String(prompt('Qual a largura REAL da planta, em metros? (o lado horizontal da imagem)', String(l.room.w)) || '').replace(',', '.')) || l.room.w;
+  const d = Math.round(w * ratio * 10) / 10;
+  l.floor = { img: data, w, d, opacity: 0.85, name: file.name.slice(0, 80) };
+  l.room = Object.assign({}, l.room, { w: Math.max(4, Math.min(80, Math.round(w * 2) / 2)), d: Math.max(4, Math.min(80, Math.round(d * 2) / 2)) });
+}
+
+/** Leitor mínimo de DXF: LINE, LWPOLYLINE e POLYLINE viram paredes. */
+export function parseDxf(text) {
+  const lines = text.split(/\r?\n/);
+  const pairs = [];
+  for (let i = 0; i + 1 < lines.length; i += 2) pairs.push([parseInt(lines[i], 10), lines[i + 1].trim()]);
+  let units = 0;
+  const hu = pairs.findIndex((p) => p[0] === 9 && p[1] === '$INSUNITS');
+  if (hu >= 0 && pairs[hu + 1]) units = parseInt(pairs[hu + 1][1], 10);
+  const segs = [];
+  let i = pairs.findIndex((p) => p[0] === 2 && p[1] === 'ENTITIES');
+  if (i < 0) throw new Error('DXF sem ENTITIES');
+  let poly = null;
+  const flushPoly = () => { if (poly && poly.pts.length > 1) { for (let k = 1; k < poly.pts.length; k++) segs.push([poly.pts[k - 1], poly.pts[k]]); if (poly.closed) segs.push([poly.pts[poly.pts.length - 1], poly.pts[0]]); } poly = null; };
+  for (; i < pairs.length; i++) {
+    const [c, v] = pairs[i];
+    if (c !== 0) continue;
+    if (v === 'ENDSEC') break;
+    if (v !== 'VERTEX' && v !== 'SEQEND' && poly && poly.kind === 'POLYLINE') { /* continua */ }
+    const ent = { type: v, data: [] };
+    let j = i + 1;
+    for (; j < pairs.length && pairs[j][0] !== 0; j++) ent.data.push(pairs[j]);
+    const get = (code) => { const p = ent.data.find((x) => x[0] === code); return p ? parseFloat(p[1]) : 0; };
+    if (v === 'LINE') segs.push([[get(10), get(20)], [get(11), get(21)]]);
+    else if (v === 'LWPOLYLINE') {
+      const pts = [];
+      let x = null;
+      for (const [cc, vv] of ent.data) { if (cc === 10) x = parseFloat(vv); if (cc === 20 && x != null) { pts.push([x, parseFloat(vv)]); x = null; } }
+      const closed = (get(70) & 1) === 1;
+      for (let k = 1; k < pts.length; k++) segs.push([pts[k - 1], pts[k]]);
+      if (closed && pts.length > 2) segs.push([pts[pts.length - 1], pts[0]]);
+    } else if (v === 'POLYLINE') { flushPoly(); poly = { kind: 'POLYLINE', pts: [], closed: (get(70) & 1) === 1 }; }
+    else if (v === 'VERTEX' && poly) poly.pts.push([get(10), get(20)]);
+    else if (v === 'SEQEND') flushPoly();
+    i = j - 1;
+  }
+  flushPoly();
+  if (!segs.length) throw new Error('nenhuma linha encontrada no DXF');
+  let xs = segs.flatMap((s) => [s[0][0], s[1][0]]), ys = segs.flatMap((s) => [s[0][1], s[1][1]]);
+  const span = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  const scale = { 1: 0.0254, 2: 0.3048, 4: 0.001, 5: 0.01, 6: 1 }[units] || (span > 2000 ? 0.001 : span > 200 ? 0.01 : 1);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  const walls = segs.map(([a, b]) => {
+    const ax = (a[0] - cx) * scale, az = -(a[1] - cy) * scale, bx = (b[0] - cx) * scale, bz = -(b[1] - cy) * scale;
+    const len = Math.hypot(bx - ax, bz - az);
+    return { x: (ax + bx) / 2, z: (az + bz) / 2, len, rot: (Math.atan2(bz - az, bx - ax) * 180) / Math.PI };
+  }).filter((s) => s.len >= 0.25).slice(0, 450);
+  return { w: (maxX - minX) * scale, d: (maxY - minY) * scale, walls };
+}
+
+function corners(it) {
+  const { w, d } = dims(it);
+  const r = ((it.rot || 0) * Math.PI) / 180;
+  return [[-w / 2, -d / 2], [w / 2, -d / 2], [w / 2, d / 2], [-w / 2, d / 2]].map(([x, z]) => [it.x + x * Math.cos(r) - z * Math.sin(r), it.z + x * Math.sin(r) + z * Math.cos(r)]);
+}
+/** DXF R12 em metros: contorno da sala e cada item em sua camada, com nome. */
+export function layoutToDxf(l) {
+  const L = ['0', 'SECTION', '2', 'HEADER', '9', '$INSUNITS', '70', '6', '0', 'ENDSEC', '0', 'SECTION', '2', 'ENTITIES'];
+  const layer = (s) => s.toUpperCase().replace(/[^A-Z0-9_]/g, '_').slice(0, 30) || 'ITENS';
+  const poly = (pts, lay) => { for (let k = 0; k < pts.length; k++) { const a = pts[k], b = pts[(k + 1) % pts.length]; L.push('0', 'LINE', '8', lay, '10', a[0].toFixed(3), '20', (-a[1]).toFixed(3), '30', '0', '11', b[0].toFixed(3), '21', (-b[1]).toFixed(3), '31', '0'); } };
+  const W = l.room.w / 2, D = l.room.d / 2;
+  poly([[-W, -D], [W, -D], [W, D], [-W, D]], 'SALA');
+  for (const it of l.items) {
+    const lay = layer(it.type);
+    poly(corners(it), lay);
+    if (!['cadeira', 'coluna', 'planta', 'parede'].includes(it.type)) L.push('0', 'TEXT', '8', 'NOMES', '10', it.x.toFixed(3), '20', (-it.z).toFixed(3), '30', '0', '40', '0.2', '1', (it.label || spec(it).name).normalize('NFD').replace(/[̀-ͯ]/g, ''));
+  }
+  L.push('0', 'ENDSEC', '0', 'EOF');
+  return L.join('\r\n');
+}
+export function layoutToSvg(l) {
+  const k = 50, pad = 40, W = l.room.w * k + pad * 2, H = l.room.d * k + pad * 2;
+  const X = (x) => (pad + (x + l.room.w / 2) * k).toFixed(1), Y = (z) => (pad + (z + l.room.d / 2) * k).toFixed(1);
+  const parts = [`<rect x="${pad}" y="${pad}" width="${l.room.w * k}" height="${l.room.d * k}" fill="#fff" stroke="#111318" stroke-width="3"/>`];
+  for (const it of l.items) {
+    const s = spec(it);
+    parts.push(`<polygon points="${corners(it).map(([x, z]) => X(x) + ',' + Y(z)).join(' ')}" fill="${it.color || s.color}" fill-opacity="${s.flat ? 0.3 : 0.85}" stroke="#111318" stroke-width="1"><title>${esc(it.label || s.name)}</title></polygon>`);
+    if (!['cadeira', 'coluna', 'planta', 'parede'].includes(it.type)) parts.push(`<text x="${X(it.x)}" y="${Y(it.z)}" font-family="Inter, Arial" font-size="11" text-anchor="middle" dominant-baseline="middle" fill="#111318">${esc(it.label || s.name)}</text>`);
+  }
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><title>${esc(l.name)}</title>${parts.join('')}</svg>`;
+}
+export async function layoutToGlb() {
+  const { GLTFExporter } = await import('./vendor/GLTFExporter.js');
+  const grp = new T.Group();
+  grp.add(S.three.room.clone(true), S.three.items.clone(true));
+  grp.traverse((o) => { if (o.isSprite || (o.material && o.material.visible === false)) o.visible = false; });
+  return new Promise((ok, bad) => new GLTFExporter().parse(grp, ok, bad, { binary: true, onlyVisible: true }));
 }

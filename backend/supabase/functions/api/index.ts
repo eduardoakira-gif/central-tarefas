@@ -25,7 +25,7 @@ const AI_DAILY_LIMIT = Number(env("AI_DAILY_LIMIT")) || 60;
 const AI_ASSISTANT_MODEL = env("AI_ASSISTANT_MODEL") || "claude-sonnet-4-5";
 const AI_RADAR_MODEL = env("AI_RADAR_MODEL") || AI_MODEL;
 const SERVER_VERSION = 4;
-const SERVER_BUILD = "9.2.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
+const SERVER_BUILD = "10.0.0"; // aumente a cada mudança no servidor (o GitHub Actions usa para saber se precisa publicar)
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 const FEATURES = ["b2c", "bills", "radar", "assistant"];
 const PUSH_READY = !!(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY);
@@ -73,7 +73,7 @@ const COLLECTIONS: Record<string, { table: string; maxSize: number }> = {
   crew: { table: "crew", maxSize: 20000 },
   ideas: { table: "ideas", maxSize: 20000 },
   applicants: { table: "applicants", maxSize: 8000 },
-  layouts: { table: "layouts", maxSize: 150000 },
+  layouts: { table: "layouts", maxSize: 450000 },
 };
 const ALL_TABLES = ["tasks", "notes", "metrics", "okrs", "bills", "campaigns", "posts", "crew", "ideas", "applicants", "layouts", "radar", "devices", "ai_usage"];
 

@@ -10,7 +10,7 @@
  */
 importScripts('./js/core.js');
 
-const CACHE_VERSION = 'v9.9.0';
+const CACHE_VERSION = 'v10.0.0';
 const CACHE = 'central-tarefas-' + CACHE_VERSION;
 const APP_SHELL = [
   './',
@@ -39,6 +39,7 @@ const APP_SHELL = [
   './js/triage.js',
   './js/vendor/three.module.min.js',
   './js/vendor/OrbitControls.js',
+  './js/vendor/GLTFExporter.js',
   './js/team.js',
   './js/playbooks.js',
   './js/status.js',

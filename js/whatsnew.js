@@ -9,6 +9,11 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['10.0', 'Mapa 3D conversa com outras plataformas', [
+    'Importar planta em imagem ou PDF (print do Floorplanner, PDF do arquiteto, foto da planta): vira o piso do mapa, na escala que você informar, para montar os itens por cima. Dá para ajustar a largura real e a transparência.',
+    'Importar DXF do AutoCAD ou do SketchUp: as linhas viram paredes, com a escala detectada pelo arquivo (mm, cm ou m).',
+    'Exportar DXF (AutoCAD, SketchUp, em metros, camadas por tipo de item), 3D .glb (Blender, SketchUp, visualizadores online) e SVG vetorial (Figma, Illustrator).',
+  ]],
   ['9.9', 'Mais ideias de outras ferramentas', [
     'Ficha: Esconder até amanhã, segunda ou próximo mês (como o snooze do Linear e do Things). A tarefa some da lista até a data; o filtro Escondidas e a busca ainda acham.',
     'Tarefas recorrentes: selo 🔥 com quantas vezes seguidas você concluiu no prazo (como o habit tracker do TickTick).',

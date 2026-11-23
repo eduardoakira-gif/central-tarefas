@@ -1904,3 +1904,12 @@ body[data-route="tasks"] #taskList.is-selecting { padding-bottom: 130px; }
 .cal-d { position: relative; padding: 6px 0 10px; border-radius: 8px; background: var(--surface-2); }
 .cal-d.is-today { outline: 2px solid var(--primary); }
 .cal-d.has i { position: absolute; left: 50%; bottom: 3px; transform: translateX(-50%); min-width: 7px; height: 7px; border-radius: 99px; background: var(--primary); font-style: normal; font-size: 9px; color: #fff; line-height: 7px; padding: 0 2px; }
+
+/* v10.0 */
+.sp-io { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.sp-io-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.sp-io-grid > div { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.sp-floor { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; background: var(--surface-2); border-radius: 10px; padding: 10px; }
+.sp-floor label { display: flex; flex-direction: column; gap: 3px; font-size: 12.5px; color: var(--text-2); }
+.sp-floor .input { width: 110px; }
+.sp-floor > .hint { flex: 1 1 100%; }

@@ -645,6 +645,7 @@
         color: /^#[0-9a-f]{6}$/i.test(it.color || '') ? it.color : null,
       })).filter((it) => it.type),
       notes: str(x.notes).slice(0, 3000),
+      floor: x.floor && typeof x.floor.img === 'string' && /^data:image\/(jpeg|png|webp);base64,/.test(x.floor.img) && x.floor.img.length < 420000 ? { img: x.floor.img, w: n(x.floor.w, 20, 2, 200), d: n(x.floor.d, 12, 2, 200), opacity: n(x.floor.opacity, 0.85, 0.1, 1), name: str(x.floor.name).slice(0, 80) } : null,
       prices: Object.fromEntries(Object.entries(x.prices && typeof x.prices === 'object' ? x.prices : {}).filter(([k, v]) => /^[a-z_]{2,20}$/.test(k) && Number(v) >= 0).slice(0, 40).map(([k, v]) => [k, Math.min(1e7, Number(v))])),
       base: !!x.base,
       createdAt: x.createdAt || now,
