@@ -165,7 +165,7 @@ export function renderRadar() {
       return `<div class="radar-top-orgs"><span class="label">Mais ativas em 30 dias</span>${top.map(([o, n]) => `<button type="button" class="chip chip-sm" data-radar-orgpick="${esc(o)}">${esc(o)} <span class="chip-count">${n}</span></button>`).join('')}</div>`;
     })()}
     <div class="toolbar radar-toolbar">
-      <label class="search radar-search"><input id="radarQ" type="search" placeholder="Buscar no radar (ex.: sócio, merch, Karmine)" autocomplete="off" value="${esc(R.filter.q || '')}" aria-label="Buscar no radar"></label>
+      <label class="search radar-search"><input id="radarQ" type="search" placeholder="Buscar no radar (ex.: sócio, merch, Karmine)" autocomplete="on" autocorrect="on" spellcheck="true" autocapitalize="none" value="${esc(R.filter.q || '')}" aria-label="Buscar no radar"></label>
       <div class="chips">
         <button type="button" class="chip" data-radar-cat="" aria-pressed="${!R.filter.cat && !R.filter.starred}">Todas <span class="chip-count">${R.items.length}</span></button>
         <button type="button" class="chip" data-radar="only-starred" aria-pressed="${R.filter.starred}">★ Salvas <span class="chip-count">${R.items.filter((i) => i.starred).length || ''}</span></button>

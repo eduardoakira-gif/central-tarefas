@@ -9,6 +9,7 @@ const $ = (sel, el = document) => el.querySelector(sel);
 const KEY = 'ct-seen-version';
 
 export const CHANGELOG = [
+  ['10.0.1', 'Sugestões do teclado', ['Os campos de texto agora liberam as sugestões, a correção automática e a letra maiúscula do teclado do celular e do tablet (antes estavam desligadas).']],
   ['10.0', 'Mapa 3D conversa com outras plataformas', [
     'Importar planta em imagem ou PDF (print do Floorplanner, PDF do arquiteto, foto da planta): vira o piso do mapa, na escala que você informar, para montar os itens por cima. Dá para ajustar a largura real e a transparência.',
     'Importar DXF do AutoCAD ou do SketchUp: as linhas viram paredes, com a escala detectada pelo arquivo (mm, cm ou m).',

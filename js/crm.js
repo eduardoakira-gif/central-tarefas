@@ -146,7 +146,7 @@ export function renderCrm() {
     })()}
     <section class="card report-card crm-subj">
       <h2>Testar assunto antes de enviar</h2>
-      <input class="input" id="crmSubject" maxlength="150" placeholder="Cole o assunto da próxima newsletter" autocomplete="off" aria-label="Assunto">
+      <input class="input" id="crmSubject" maxlength="150" placeholder="Cole o assunto da próxima newsletter" autocomplete="on" autocorrect="on" spellcheck="true" autocapitalize="sentences" aria-label="Assunto">
       <div id="crmSubjectScore" class="hint">A nota sai na hora, com o que melhorar.</div>
     </section>
     <section class="card report-card">

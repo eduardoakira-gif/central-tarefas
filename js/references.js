@@ -101,7 +101,7 @@ export function renderReferences() {
       </article>`
     )
     .join('');
-  return `<div class="chips ref-tabs"><label class="search ref-search"><input id="refSearch" type="search" placeholder="Buscar referência (ex.: sócio, drop, T1)" autocomplete="off" aria-label="Buscar referência"></label>${tabs}</div>
+  return `<div class="chips ref-tabs"><label class="search ref-search"><input id="refSearch" type="search" placeholder="Buscar referência (ex.: sócio, drop, T1)" autocomplete="on" autocorrect="on" spellcheck="true" autocapitalize="none" aria-label="Buscar referência"></label>${tabs}</div>
     <div class="chips ref-types">${types}</div>
     <div class="ref-grid">${cards || '<p class="hint">Nada com esse filtro.</p>'}</div>
     <section class="ref-radar">

@@ -104,7 +104,7 @@ export function renderLearn() {
       ${view.show ? `<p>${esc(t.what)}</p><p><strong>No Fluxo W7M:</strong> ${esc(t.example)}</p><div class="btn-row"><button type="button" class="btn" data-learn-train="miss">Errei</button><button type="button" class="btn btn-primary" data-learn-train="hit">Acertei</button></div>` : `<p class="hint">Explique em voz alta o que é e dê um exemplo. Depois confira.</p><div class="btn-row"><button type="button" class="btn btn-primary" data-learn-train="show">Mostrar resposta</button><button type="button" class="btn" data-learn-train="stop">Parar</button></div>`}
     </section>`; })() : '<div class="btn-row learn-train-start"><button type="button" class="btn" data-learn-train="start">🧠 Treinar termos (flashcards)</button></div>'}
     <div class="toolbar toolbar-history">
-      <label class="search"><input id="learnSearch" type="search" placeholder="Buscar termo (ex.: churn, awareness)" autocomplete="off" value="${esc(view.q)}" aria-label="Buscar termo"></label>
+      <label class="search"><input id="learnSearch" type="search" placeholder="Buscar termo (ex.: churn, awareness)" autocomplete="on" autocorrect="on" spellcheck="true" autocapitalize="none" value="${esc(view.q)}" aria-label="Buscar termo"></label>
     </div>
     <div class="chips learn-chips">${chips}</div>
     <div class="term-list">${list
